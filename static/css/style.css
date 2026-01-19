@@ -1,0 +1,593 @@
+/* Base Styles */
+:root {
+    --primary-color: #1a5f2a;
+    --primary-dark: #0d3d18;
+    --secondary-color: #2c5282;
+    --team-a-color: #2563eb;
+    --team-b-color: #dc2626;
+    --bg-color: #f0f4f8;
+    --text-color: #1a202c;
+    --text-muted: #718096;
+    --white: #ffffff;
+    --border-color: #e2e8f0;
+    --scoreboard-bg: #1a1a2e;
+    --scoreboard-row-a: #16213e;
+    --scoreboard-row-b: #1f3460;
+    --gold: #ffd700;
+}
+
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+}
+
+body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+    background-color: var(--bg-color);
+    color: var(--text-color);
+    line-height: 1.6;
+    min-height: 100vh;
+}
+
+/* Container */
+.container {
+    max-width: 600px;
+    margin: 0 auto;
+    padding: 20px;
+}
+
+/* Header */
+header {
+    text-align: center;
+    padding: 30px 0;
+}
+
+header h1 {
+    color: var(--primary-color);
+    font-size: 2.5rem;
+    margin-bottom: 8px;
+}
+
+.subtitle {
+    color: var(--text-muted);
+    font-size: 1.1rem;
+}
+
+/* Forms */
+.create-match {
+    background: var(--white);
+    border-radius: 16px;
+    padding: 24px;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+}
+
+.create-match h2 {
+    text-align: center;
+    margin-bottom: 24px;
+    color: var(--primary-color);
+}
+
+.form-group {
+    margin-bottom: 20px;
+}
+
+.form-group label {
+    display: block;
+    font-weight: 600;
+    margin-bottom: 8px;
+}
+
+.toggle-group {
+    display: flex;
+    gap: 8px;
+}
+
+.toggle-btn {
+    flex: 1;
+    padding: 12px;
+    border: 2px solid var(--border-color);
+    background: var(--white);
+    border-radius: 8px;
+    font-size: 1rem;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.toggle-btn:hover {
+    border-color: var(--primary-color);
+}
+
+.toggle-btn.active {
+    background: var(--primary-color);
+    color: var(--white);
+    border-color: var(--primary-color);
+}
+
+.teams-container {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    margin-bottom: 20px;
+}
+
+.team-input {
+    background: var(--bg-color);
+    padding: 16px;
+    border-radius: 12px;
+}
+
+.team-input h3 {
+    font-size: 0.9rem;
+    color: var(--text-muted);
+    margin-bottom: 12px;
+}
+
+.team-input input {
+    width: 100%;
+    padding: 12px;
+    border: 2px solid var(--border-color);
+    border-radius: 8px;
+    font-size: 1rem;
+    margin-bottom: 8px;
+}
+
+.team-input input:focus {
+    outline: none;
+    border-color: var(--primary-color);
+}
+
+.vs {
+    text-align: center;
+    font-weight: bold;
+    color: var(--text-muted);
+    font-size: 1.2rem;
+}
+
+/* Buttons */
+.btn {
+    padding: 12px 24px;
+    border: none;
+    border-radius: 8px;
+    font-size: 1rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.btn-primary {
+    background: var(--primary-color);
+    color: var(--white);
+}
+
+.btn-primary:hover {
+    background: var(--primary-dark);
+}
+
+.btn-secondary {
+    background: var(--secondary-color);
+    color: var(--white);
+}
+
+.btn-secondary:hover {
+    opacity: 0.9;
+}
+
+.btn-danger {
+    background: #e53e3e;
+    color: var(--white);
+}
+
+.btn-danger:hover {
+    background: #c53030;
+}
+
+.btn-large {
+    width: 100%;
+    padding: 16px;
+    font-size: 1.2rem;
+}
+
+/* Footer */
+footer {
+    text-align: center;
+    padding: 30px 0;
+    color: var(--text-muted);
+    font-size: 0.9rem;
+}
+
+/* ==================== Match Page ==================== */
+.match-page {
+    background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+    min-height: 100vh;
+    padding: 16px;
+}
+
+.match-container {
+    max-width: 600px;
+    margin: 0 auto;
+}
+
+/* TV-Style Scoreboard */
+.scoreboard {
+    background: var(--scoreboard-bg);
+    border-radius: 12px;
+    overflow: hidden;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+    margin-bottom: 20px;
+}
+
+.scoreboard-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 8px 16px;
+    background: rgba(255, 255, 255, 0.05);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.match-status {
+    background: #e53e3e;
+    color: white;
+    padding: 4px 12px;
+    border-radius: 4px;
+    font-size: 0.75rem;
+    font-weight: 700;
+    letter-spacing: 1px;
+    animation: pulse 2s infinite;
+}
+
+.match-status.finished {
+    background: var(--gold);
+    color: #1a1a2e;
+    animation: none;
+}
+
+@keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.7; }
+}
+
+.match-type {
+    color: rgba(255, 255, 255, 0.6);
+    font-size: 0.75rem;
+    letter-spacing: 1px;
+}
+
+.score-table {
+    width: 100%;
+}
+
+.score-header {
+    display: grid;
+    grid-template-columns: 1fr 48px 48px 48px 64px;
+    background: rgba(0, 0, 0, 0.3);
+    padding: 8px 0;
+    font-size: 0.8rem;
+    color: rgba(255, 255, 255, 0.5);
+    text-align: center;
+}
+
+.score-header .player-col {
+    text-align: left;
+    padding-left: 16px;
+}
+
+.score-row {
+    display: grid;
+    grid-template-columns: 1fr 48px 48px 48px 64px;
+    padding: 12px 0;
+    font-size: 1.1rem;
+    color: var(--white);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.score-row.team-a {
+    background: var(--scoreboard-row-a);
+}
+
+.score-row.team-b {
+    background: var(--scoreboard-row-b);
+}
+
+.player-col {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding-left: 12px;
+    font-weight: 600;
+}
+
+.serve-indicator {
+    color: transparent;
+    font-size: 0.6rem;
+    transition: color 0.3s;
+}
+
+.serve-indicator.active {
+    color: var(--gold);
+}
+
+.player-name {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 140px;
+}
+
+.set-col, .points-col {
+    text-align: center;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+}
+
+.set-col.current-set {
+    color: var(--gold);
+}
+
+.points-col {
+    background: rgba(0, 0, 0, 0.2);
+    font-size: 1.3rem;
+    color: var(--gold);
+}
+
+.scoreboard-footer {
+    padding: 8px 16px;
+    text-align: center;
+    font-size: 0.85rem;
+    color: var(--gold);
+    background: rgba(0, 0, 0, 0.2);
+    min-height: 32px;
+}
+
+/* Winner Banner */
+.winner-banner {
+    background: linear-gradient(135deg, var(--gold) 0%, #ffed4a 100%);
+    border-radius: 12px;
+    padding: 24px;
+    text-align: center;
+    margin-bottom: 20px;
+    animation: celebrate 0.5s ease-out;
+}
+
+@keyframes celebrate {
+    0% { transform: scale(0.8); opacity: 0; }
+    100% { transform: scale(1); opacity: 1; }
+}
+
+.winner-text {
+    font-size: 1.8rem;
+    font-weight: 800;
+    color: var(--scoreboard-bg);
+}
+
+/* Scoring Controls */
+.controls {
+    margin-bottom: 20px;
+}
+
+.score-buttons {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+    margin-bottom: 12px;
+}
+
+.score-btn {
+    padding: 32px 16px;
+    border: none;
+    border-radius: 16px;
+    font-size: 1rem;
+    cursor: pointer;
+    transition: all 0.15s;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+    touch-action: manipulation;
+    -webkit-tap-highlight-color: transparent;
+}
+
+.score-btn:active {
+    transform: scale(0.95);
+}
+
+.score-btn.scoring {
+    opacity: 0.7;
+}
+
+.score-btn:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+}
+
+.team-a-btn {
+    background: linear-gradient(135deg, var(--team-a-color) 0%, #1d4ed8 100%);
+    color: white;
+}
+
+.team-b-btn {
+    background: linear-gradient(135deg, var(--team-b-color) 0%, #b91c1c 100%);
+    color: white;
+}
+
+.btn-label {
+    font-size: 0.9rem;
+    opacity: 0.8;
+}
+
+.btn-team {
+    font-size: 1.2rem;
+    font-weight: 700;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 100%;
+}
+
+.action-buttons {
+    display: flex;
+    gap: 12px;
+}
+
+.action-buttons .btn {
+    flex: 1;
+}
+
+/* Spectator Notice */
+.spectator-notice {
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 12px;
+    padding: 20px;
+    text-align: center;
+    margin-bottom: 20px;
+    color: rgba(255, 255, 255, 0.8);
+}
+
+.share-hint {
+    font-size: 0.9rem;
+    color: rgba(255, 255, 255, 0.5);
+    margin-top: 8px;
+}
+
+/* Share Section */
+.share-section {
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 12px;
+    padding: 20px;
+    margin-bottom: 20px;
+}
+
+.share-section h3 {
+    color: var(--white);
+    font-size: 1rem;
+    margin-bottom: 12px;
+    text-align: center;
+}
+
+.share-link {
+    display: flex;
+    gap: 8px;
+}
+
+.share-link input {
+    flex: 1;
+    padding: 12px;
+    border: none;
+    border-radius: 8px;
+    background: rgba(0, 0, 0, 0.3);
+    color: var(--white);
+    font-size: 0.9rem;
+}
+
+.share-code {
+    text-align: center;
+    margin-top: 12px;
+    color: rgba(255, 255, 255, 0.6);
+    font-size: 0.9rem;
+}
+
+.share-code strong {
+    color: var(--gold);
+    font-family: monospace;
+    letter-spacing: 2px;
+}
+
+/* Back Link */
+.back-link {
+    text-align: center;
+    padding: 16px 0;
+}
+
+.back-link a {
+    color: rgba(255, 255, 255, 0.6);
+    text-decoration: none;
+    font-size: 0.9rem;
+}
+
+.back-link a:hover {
+    color: var(--white);
+}
+
+/* ==================== Responsive Design ==================== */
+@media (max-width: 480px) {
+    .container {
+        padding: 12px;
+    }
+
+    header h1 {
+        font-size: 2rem;
+    }
+
+    .teams-container {
+        gap: 12px;
+    }
+
+    .team-input {
+        padding: 12px;
+    }
+
+    .score-header {
+        grid-template-columns: 1fr 40px 40px 40px 56px;
+        font-size: 0.7rem;
+    }
+
+    .score-row {
+        grid-template-columns: 1fr 40px 40px 40px 56px;
+        font-size: 1rem;
+    }
+
+    .player-name {
+        max-width: 100px;
+        font-size: 0.95rem;
+    }
+
+    .points-col {
+        font-size: 1.1rem;
+    }
+
+    .score-btn {
+        padding: 28px 12px;
+    }
+
+    .btn-team {
+        font-size: 1rem;
+    }
+}
+
+@media (min-width: 481px) and (max-width: 768px) {
+    .score-btn {
+        padding: 36px 20px;
+    }
+}
+
+/* Landscape mode on mobile */
+@media (max-height: 500px) and (orientation: landscape) {
+    .match-page {
+        padding: 8px;
+    }
+
+    .scoreboard {
+        margin-bottom: 12px;
+    }
+
+    .score-row {
+        padding: 8px 0;
+    }
+
+    .score-btn {
+        padding: 20px 16px;
+    }
+
+    .share-section {
+        padding: 12px;
+    }
+}
+
+/* Checkbox styling */
+input[type="checkbox"] {
+    width: 18px;
+    height: 18px;
+    margin-right: 8px;
+    accent-color: var(--primary-color);
+}
