@@ -591,3 +591,316 @@ input[type="checkbox"] {
     margin-right: 8px;
     accent-color: var(--primary-color);
 }
+
+/* ==================== Mode Selection ==================== */
+.mode-selection {
+    background: var(--white);
+    border-radius: 16px;
+    padding: 24px;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+}
+
+.mode-selection h2 {
+    text-align: center;
+    margin-bottom: 24px;
+    color: var(--primary-color);
+}
+
+.mode-buttons {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+}
+
+.mode-btn {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 12px;
+    padding: 32px 16px;
+    border: 2px solid var(--border-color);
+    border-radius: 16px;
+    background: var(--white);
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.mode-btn:hover {
+    border-color: var(--primary-color);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.mode-icon {
+    font-size: 3rem;
+}
+
+.mode-title {
+    font-size: 1.2rem;
+    font-weight: 700;
+    color: var(--text-color);
+}
+
+.mode-desc {
+    font-size: 0.85rem;
+    color: var(--text-muted);
+    text-align: center;
+}
+
+.back-btn {
+    background: none;
+    border: none;
+    color: var(--text-muted);
+    cursor: pointer;
+    font-size: 1rem;
+    margin-bottom: 16px;
+    padding: 8px 0;
+}
+
+.back-btn:hover {
+    color: var(--primary-color);
+}
+
+/* Player input styling */
+.player-input {
+    width: 100%;
+    padding: 12px;
+    border: 2px solid var(--border-color);
+    border-radius: 8px;
+    font-size: 1rem;
+    margin-bottom: 8px;
+}
+
+.player-input:focus {
+    outline: none;
+    border-color: var(--primary-color);
+}
+
+/* ==================== Match Day Page ==================== */
+.matchday-page {
+    background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+    min-height: 100vh;
+    padding: 16px;
+}
+
+.matchday-container {
+    max-width: 800px;
+    margin: 0 auto;
+}
+
+.matchday-header {
+    text-align: center;
+    margin-bottom: 24px;
+}
+
+.matchday-header h1 {
+    color: var(--white);
+    font-size: 1.8rem;
+    margin-bottom: 16px;
+}
+
+.team-scores {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 24px;
+    background: var(--scoreboard-bg);
+    border-radius: 12px;
+    padding: 16px 32px;
+}
+
+.team-score {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.team-score .team-name {
+    color: rgba(255, 255, 255, 0.8);
+    font-size: 1rem;
+}
+
+.team-score .score {
+    font-size: 2.5rem;
+    font-weight: 800;
+    color: var(--gold);
+}
+
+.score-separator {
+    color: rgba(255, 255, 255, 0.5);
+    font-size: 2rem;
+}
+
+.matches-section {
+    margin-bottom: 24px;
+}
+
+.matches-section h2 {
+    color: var(--white);
+    font-size: 1.2rem;
+    margin-bottom: 12px;
+    padding-left: 8px;
+    border-left: 3px solid var(--gold);
+}
+
+.matches-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 12px;
+    margin-bottom: 24px;
+}
+
+.match-card {
+    background: var(--scoreboard-bg);
+    border-radius: 12px;
+    padding: 16px;
+    text-decoration: none;
+    transition: all 0.2s;
+    border: 2px solid transparent;
+}
+
+.match-card:hover {
+    border-color: var(--gold);
+    transform: translateY(-2px);
+}
+
+.match-card.finished {
+    opacity: 0.7;
+}
+
+.match-number {
+    color: rgba(255, 255, 255, 0.5);
+    font-size: 0.75rem;
+    margin-bottom: 8px;
+}
+
+.match-players {
+    margin-bottom: 8px;
+}
+
+.match-players .player {
+    color: var(--white);
+    font-weight: 600;
+    padding: 4px 0;
+}
+
+.match-players .player.winner {
+    color: var(--gold);
+}
+
+.match-players .team-tag {
+    display: inline-block;
+    font-size: 0.7rem;
+    color: rgba(255, 255, 255, 0.5);
+    margin-left: 8px;
+    font-weight: 400;
+}
+
+.match-vs {
+    color: rgba(255, 255, 255, 0.4);
+    font-size: 0.8rem;
+    padding: 2px 0;
+}
+
+.match-score-mini {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    color: var(--gold);
+    font-weight: 700;
+}
+
+.match-score-mini .final {
+    font-size: 0.7rem;
+    background: var(--gold);
+    color: var(--scoreboard-bg);
+    padding: 2px 6px;
+    border-radius: 4px;
+}
+
+/* ==================== Player Info in Scoreboard ==================== */
+.player-info {
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+.player-info .player-name {
+    font-weight: 700;
+    font-size: 1rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.team-label {
+    font-size: 0.7rem;
+    color: rgba(255, 255, 255, 0.5);
+    font-weight: 400;
+}
+
+/* Serve indicator as ball icon */
+.serve-indicator {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: transparent;
+    border: 2px solid rgba(255, 255, 255, 0.2);
+    flex-shrink: 0;
+}
+
+.serve-indicator.active {
+    background: var(--gold);
+    border-color: var(--gold);
+    box-shadow: 0 0 8px var(--gold);
+}
+
+/* ==================== Game Buttons ==================== */
+.game-buttons {
+    margin-bottom: 12px;
+}
+
+.game-btn {
+    padding: 20px 16px;
+    opacity: 0.85;
+}
+
+.game-btn .btn-label {
+    font-size: 0.85rem;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+}
+
+/* ==================== Responsive Additions ==================== */
+@media (max-width: 480px) {
+    .mode-buttons {
+        grid-template-columns: 1fr;
+    }
+
+    .mode-btn {
+        padding: 24px 16px;
+    }
+
+    .team-scores {
+        flex-direction: column;
+        gap: 8px;
+        padding: 16px;
+    }
+
+    .team-score .score {
+        font-size: 2rem;
+    }
+
+    .matches-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .player-info .player-name {
+        font-size: 0.9rem;
+        max-width: 120px;
+    }
+
+    .game-btn {
+        padding: 16px 12px;
+    }
+}

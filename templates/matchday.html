@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ match_day.name }} - Tennis Scoring</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body class="matchday-page">
+    <div class="matchday-container">
+        <header class="matchday-header">
+            <h1>{{ match_day.name }}</h1>
+            <div class="team-scores">
+                <div class="team-score team-a-score">
+                    <span class="team-name">{{ match_day.team_a_name }}</span>
+                    <span class="score" id="team-a-wins">0</span>
+                </div>
+                <div class="score-separator">-</div>
+                <div class="team-score team-b-score">
+                    <span class="score" id="team-b-wins">0</span>
+                    <span class="team-name">{{ match_day.team_b_name }}</span>
+                </div>
+            </div>
+        </header>
+
+        <section class="matches-section">
+            <h2>Singles</h2>
+            <div class="matches-grid" id="singles-matches">
+                {% for match in matches %}
+                {% if match.match_type == 'singles' %}
+                <a href="/match/{{ match.id }}" class="match-card {% if match.score_state.winner is not none %}finished{% endif %}">
+                    <div class="match-number">#{{ match.match_number }}</div>
+                    <div class="match-players">
+                        <div class="player {% if match.score_state.winner == 0 %}winner{% endif %}">
+                            {{ match.player_a1 or 'Player A' }}
+                            <span class="team-tag">{{ match.team_a_name }}</span>
+                        </div>
+                        <div class="match-vs">vs</div>
+                        <div class="player {% if match.score_state.winner == 1 %}winner{% endif %}">
+                            {{ match.player_b1 or 'Player B' }}
+                            <span class="team-tag">{{ match.team_b_name }}</span>
+                        </div>
+                    </div>
+                    <div class="match-score-mini">
+                        {% if match.score_state.winner is not none %}
+                        <span class="final">FINAL</span>
+                        {% endif %}
+                        <span>{{ match.score_state.sets[0] }} - {{ match.score_state.sets[1] }}</span>
+                    </div>
+                </a>
+                {% endif %}
+                {% endfor %}
+            </div>
+
+            <h2>Doubles</h2>
+            <div class="matches-grid" id="doubles-matches">
+                {% for match in matches %}
+                {% if match.match_type == 'doubles' %}
+                <a href="/match/{{ match.id }}" class="match-card {% if match.score_state.winner is not none %}finished{% endif %}">
+                    <div class="match-number">#{{ match.match_number }}</div>
+                    <div class="match-players">
+                        <div class="player {% if match.score_state.winner == 0 %}winner{% endif %}">
+                            {{ match.player_a1 or 'Player A1' }} / {{ match.player_a2 or 'Player A2' }}
+                            <span class="team-tag">{{ match.team_a_name }}</span>
+                        </div>
+                        <div class="match-vs">vs</div>
+                        <div class="player {% if match.score_state.winner == 1 %}winner{% endif %}">
+                            {{ match.player_b1 or 'Player B1' }} / {{ match.player_b2 or 'Player B2' }}
+                            <span class="team-tag">{{ match.team_b_name }}</span>
+                        </div>
+                    </div>
+                    <div class="match-score-mini">
+                        {% if match.score_state.winner is not none %}
+                        <span class="final">FINAL</span>
+                        {% endif %}
+                        <span>{{ match.score_state.sets[0] }} - {{ match.score_state.sets[1] }}</span>
+                    </div>
+                </a>
+                {% endif %}
+                {% endfor %}
+            </div>
+        </section>
+
+        <div class="share-section">
+            <h3>Share Match Day</h3>
+            <div class="share-link">
+                <input type="text" id="share-url" readonly value="{{ request.url }}">
+                <button class="btn btn-secondary" onclick="copyShareLink()">Copy</button>
+            </div>
+        </div>
+
+        <div class="back-link">
+            <a href="/">← New Match Day</a>
+        </div>
+    </div>
+
+    <script>
+        const matches = {{ matches | tojson }};
+
+        function updateTeamWins() {
+            let teamAWins = 0;
+            let teamBWins = 0;
+
+            matches.forEach(match => {
+                if (match.score_state.winner === 0) teamAWins++;
+                else if (match.score_state.winner === 1) teamBWins++;
+            });
+
+            document.getElementById('team-a-wins').textContent = teamAWins;
+            document.getElementById('team-b-wins').textContent = teamBWins;
+        }
+
+        function copyShareLink() {
+            const shareUrl = document.getElementById('share-url');
+            shareUrl.select();
+            document.execCommand('copy');
+
+            const btn = event.target;
+            const originalText = btn.textContent;
+            btn.textContent = 'Copied!';
+            setTimeout(() => btn.textContent = originalText, 2000);
+        }
+
+        // Initial update
+        updateTeamWins();
+
+        // Refresh page periodically to get updates
+        setInterval(() => {
+            window.location.reload();
+        }, 30000);
+    </script>
+</body>
+</html>

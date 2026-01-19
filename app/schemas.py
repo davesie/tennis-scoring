@@ -19,6 +19,20 @@ class ScorePoint(BaseModel):
     team: int  # 0 or 1
 
 
+class ScoreGame(BaseModel):
+    team: int  # 0 or 1
+
+
+class MatchDayCreate(BaseModel):
+    name: str = "Match Day"
+    format: str = "6_person"  # "6_person" or "4_person"
+    players: List[str] = []
+    team_a_name: str = "Team A"
+    team_b_name: str = "Team B"
+    team_a_players: List[str] = []
+    team_b_players: List[str] = []
+
+
 class MatchResponse(BaseModel):
     id: str
     share_code: str
