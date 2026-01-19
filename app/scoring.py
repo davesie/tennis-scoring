@@ -180,6 +180,30 @@ def _win_set(state: Dict[str, Any], team: int, super_tiebreak_final: bool):
         state["serving"] = 1 - state["serving"]
 
 
+def score_game(state: Dict[str, Any], team: int, super_tiebreak_final: bool = True) -> Dict[str, Any]:
+    """
+    Score a whole game for the given team (0 or 1).
+    This skips point-by-point scoring and awards the game directly.
+    Cannot be used during tiebreaks - use score_point instead.
+    Returns the new state.
+    """
+    if state["winner"] is not None:
+        return state
+
+    # During tiebreaks, you can't award a whole game
+    if state["is_tiebreak"] or state["is_super_tiebreak"]:
+        return state
+
+    new_state = copy.deepcopy(state)
+
+    # Reset points and award the game
+    new_state["points"] = [0, 0]
+    new_state["deuce_advantage"] = None
+    _win_game(new_state, team, super_tiebreak_final)
+
+    return new_state
+
+
 def get_score_summary(state: Dict[str, Any]) -> Dict[str, Any]:
     """Get a formatted summary of the current score."""
     point_a, point_b = get_point_display(state)

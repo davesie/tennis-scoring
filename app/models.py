@@ -14,11 +14,47 @@ def generate_share_code():
     return str(uuid.uuid4())[:8]
 
 
+class MatchDay(Base):
+    __tablename__ = "match_days"
+
+    id = Column(String, primary_key=True, default=generate_uuid)
+    share_code = Column(String, unique=True, default=generate_share_code, index=True)
+    name = Column(String, default="Match Day")
+    format = Column(String, default="6_person")  # "6_person" or "4_person"
+
+    # Players (stored as JSON list)
+    players = Column(JSON, default=list)  # List of player names
+
+    # Team assignments (for team-based scoring)
+    team_a_name = Column(String, default="Team A")
+    team_b_name = Column(String, default="Team B")
+    team_a_players = Column(JSON, default=list)  # Player names on Team A
+    team_b_players = Column(JSON, default=list)  # Player names on Team B
+
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    def to_dict(self):
+        return {
+            "id": self.id,
+            "share_code": self.share_code,
+            "name": self.name,
+            "format": self.format,
+            "players": self.players,
+            "team_a_name": self.team_a_name,
+            "team_b_name": self.team_b_name,
+            "team_a_players": self.team_a_players,
+            "team_b_players": self.team_b_players,
+            "created_at": self.created_at.isoformat() if self.created_at else None,
+        }
+
+
 class Match(Base):
     __tablename__ = "matches"
 
     id = Column(String, primary_key=True, default=generate_uuid)
     share_code = Column(String, unique=True, default=generate_share_code, index=True)
+    match_day_id = Column(String, ForeignKey("match_days.id"), nullable=True)
+    match_number = Column(Integer, nullable=True)  # Order in match day
     match_type = Column(String, default="singles")  # singles or doubles
 
     # Team names
@@ -63,6 +99,8 @@ class Match(Base):
         return {
             "id": self.id,
             "share_code": self.share_code,
+            "match_day_id": self.match_day_id,
+            "match_number": self.match_number,
             "match_type": self.match_type,
             "team_a_name": self.team_a_name,
             "team_b_name": self.team_b_name,

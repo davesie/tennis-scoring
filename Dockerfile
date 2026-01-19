@@ -12,7 +12,7 @@ COPY static/ ./static/
 COPY templates/ ./templates/
 
 # Create data directory for SQLite
-RUN mkdir -p /data
+RUN mkdir -p /app/data
 
 # Set environment variables
 ENV DATABASE_URL=sqlite+aiosqlite:///./data/tennis.db

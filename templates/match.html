@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>{{ match.team_a_name }} vs {{ match.team_b_name }} - Tennis Scoring</title>
+    <title>{{ match.player_a1 or match.team_a_name }} vs {{ match.player_b1 or match.team_b_name }} - Tennis Scoring</title>
     <link rel="stylesheet" href="/static/css/style.css">
 </head>
 <body class="match-page">
@@ -27,8 +27,19 @@
                 <!-- Team A Row -->
                 <div class="score-row team-a" id="team-a-row">
                     <div class="player-col">
-                        <span class="serve-indicator" id="serve-a">●</span>
-                        <span class="player-name" id="team-a-name">{{ match.team_a_name }}</span>
+                        <span class="serve-indicator" id="serve-a"></span>
+                        <div class="player-info">
+                            <span class="player-name" id="player-a-name">
+                                {% if match.match_type == 'doubles' %}
+                                    {{ match.player_a1 or 'Player 1' }} / {{ match.player_a2 or 'Player 2' }}
+                                {% else %}
+                                    {{ match.player_a1 or match.team_a_name }}
+                                {% endif %}
+                            </span>
+                            {% if match.player_a1 and match.team_a_name and match.team_a_name != match.player_a1 %}
+                            <span class="team-label">{{ match.team_a_name }}</span>
+                            {% endif %}
+                        </div>
                     </div>
                     <div class="set-col" id="set1-a">0</div>
                     <div class="set-col" id="set2-a">0</div>
@@ -39,8 +50,19 @@
                 <!-- Team B Row -->
                 <div class="score-row team-b" id="team-b-row">
                     <div class="player-col">
-                        <span class="serve-indicator" id="serve-b">●</span>
-                        <span class="player-name" id="team-b-name">{{ match.team_b_name }}</span>
+                        <span class="serve-indicator" id="serve-b"></span>
+                        <div class="player-info">
+                            <span class="player-name" id="player-b-name">
+                                {% if match.match_type == 'doubles' %}
+                                    {{ match.player_b1 or 'Player 1' }} / {{ match.player_b2 or 'Player 2' }}
+                                {% else %}
+                                    {{ match.player_b1 or match.team_b_name }}
+                                {% endif %}
+                            </span>
+                            {% if match.player_b1 and match.team_b_name and match.team_b_name != match.player_b1 %}
+                            <span class="team-label">{{ match.team_b_name }}</span>
+                            {% endif %}
+                        </div>
                     </div>
                     <div class="set-col" id="set1-b">0</div>
                     <div class="set-col" id="set2-b">0</div>
@@ -64,14 +86,51 @@
         {% if is_scorer %}
         <!-- Scoring Controls -->
         <div class="controls">
+            <!-- Point Buttons -->
             <div class="score-buttons">
                 <button class="score-btn team-a-btn" id="score-a" onclick="scorePoint(0)">
                     <span class="btn-label">Point</span>
-                    <span class="btn-team" id="btn-team-a">{{ match.team_a_name }}</span>
+                    <span class="btn-team" id="btn-team-a">
+                        {% if match.match_type == 'doubles' %}
+                            {{ (match.player_a1 or 'A')[:10] }} / {{ (match.player_a2 or 'A')[:10] }}
+                        {% else %}
+                            {{ match.player_a1 or match.team_a_name }}
+                        {% endif %}
+                    </span>
                 </button>
                 <button class="score-btn team-b-btn" id="score-b" onclick="scorePoint(1)">
                     <span class="btn-label">Point</span>
-                    <span class="btn-team" id="btn-team-b">{{ match.team_b_name }}</span>
+                    <span class="btn-team" id="btn-team-b">
+                        {% if match.match_type == 'doubles' %}
+                            {{ (match.player_b1 or 'B')[:10] }} / {{ (match.player_b2 or 'B')[:10] }}
+                        {% else %}
+                            {{ match.player_b1 or match.team_b_name }}
+                        {% endif %}
+                    </span>
+                </button>
+            </div>
+
+            <!-- Game Buttons -->
+            <div class="score-buttons game-buttons" id="game-buttons">
+                <button class="score-btn game-btn team-a-btn" id="game-a" onclick="scoreGame(0)">
+                    <span class="btn-label">Game</span>
+                    <span class="btn-team">
+                        {% if match.match_type == 'doubles' %}
+                            {{ (match.player_a1 or 'A')[:10] }} / {{ (match.player_a2 or 'A')[:10] }}
+                        {% else %}
+                            {{ match.player_a1 or match.team_a_name }}
+                        {% endif %}
+                    </span>
+                </button>
+                <button class="score-btn game-btn team-b-btn" id="game-b" onclick="scoreGame(1)">
+                    <span class="btn-label">Game</span>
+                    <span class="btn-team">
+                        {% if match.match_type == 'doubles' %}
+                            {{ (match.player_b1 or 'B')[:10] }} / {{ (match.player_b2 or 'B')[:10] }}
+                        {% else %}
+                            {{ match.player_b1 or match.team_b_name }}
+                        {% endif %}
+                    </span>
                 </button>
             </div>
 
@@ -99,7 +158,11 @@
         </div>
 
         <div class="back-link">
+            {% if match.match_day_id %}
+            <a href="/matchday/{{ match.match_day_id }}">← Back to Match Day</a>
+            {% else %}
             <a href="/">← New Match</a>
+            {% endif %}
         </div>
     </div>
 
@@ -172,6 +235,20 @@
             }
         }
 
+        function getWinnerDisplayName(winner) {
+            if (matchData.match_type === 'doubles') {
+                if (winner === 0) {
+                    return `${matchData.player_a1 || 'A'} / ${matchData.player_a2 || 'A'}`;
+                } else {
+                    return `${matchData.player_b1 || 'B'} / ${matchData.player_b2 || 'B'}`;
+                }
+            } else {
+                return winner === 0
+                    ? (matchData.player_a1 || matchData.team_a_name)
+                    : (matchData.player_b1 || matchData.team_b_name);
+            }
+        }
+
         function updateScoreboard(state) {
             // Update sets
             for (let i = 0; i < 3; i++) {
@@ -232,6 +309,13 @@
                 setColsB.forEach(el => el.classList.toggle('current-set', i === state.current_set && state.winner === null));
             }
 
+            // Show/hide game buttons based on tiebreak state
+            if (isScorer) {
+                const gameButtons = document.getElementById('game-buttons');
+                const inTiebreak = state.is_tiebreak || state.is_super_tiebreak;
+                gameButtons.style.display = inTiebreak ? 'none' : 'grid';
+            }
+
             // Update match status
             const statusEl = document.getElementById('match-status');
             if (state.winner !== null) {
@@ -241,13 +325,15 @@
                 // Show winner banner
                 const winnerBanner = document.getElementById('winner-banner');
                 const winnerName = document.getElementById('winner-name');
-                winnerName.textContent = state.winner === 0 ? matchData.team_a_name : matchData.team_b_name;
+                winnerName.textContent = getWinnerDisplayName(state.winner);
                 winnerBanner.style.display = 'flex';
 
                 // Disable score buttons
                 if (isScorer) {
                     document.getElementById('score-a').disabled = true;
                     document.getElementById('score-b').disabled = true;
+                    document.getElementById('game-a').disabled = true;
+                    document.getElementById('game-b').disabled = true;
                 }
             } else {
                 statusEl.textContent = 'LIVE';
@@ -257,6 +343,8 @@
                 if (isScorer) {
                     document.getElementById('score-a').disabled = false;
                     document.getElementById('score-b').disabled = false;
+                    document.getElementById('game-a').disabled = false;
+                    document.getElementById('game-b').disabled = false;
                 }
             }
 
@@ -271,7 +359,6 @@
         }
 
         async function scorePoint(team) {
-            // Optimistic UI update
             const btn = team === 0 ? document.getElementById('score-a') : document.getElementById('score-b');
             btn.classList.add('scoring');
 
@@ -293,8 +380,31 @@
             }
         }
 
+        async function scoreGame(team) {
+            const btn = team === 0 ? document.getElementById('game-a') : document.getElementById('game-b');
+            btn.classList.add('scoring');
+
+            try {
+                const response = await fetch(`/api/matches/${matchId}/game`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ team })
+                });
+
+                if (!response.ok) {
+                    const data = await response.json();
+                    alert(data.detail || 'Failed to score game');
+                }
+            } catch (error) {
+                console.error('Error scoring game:', error);
+                alert('Failed to score game. Please try again.');
+            } finally {
+                btn.classList.remove('scoring');
+            }
+        }
+
         async function undoPoint() {
-            if (!confirm('Undo the last point?')) return;
+            if (!confirm('Undo the last action?')) return;
 
             try {
                 const response = await fetch(`/api/matches/${matchId}/undo`, {

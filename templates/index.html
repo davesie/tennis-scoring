@@ -14,7 +14,73 @@
         </header>
 
         <main>
-            <section class="create-match">
+            <!-- Initial Selection -->
+            <section class="mode-selection" id="mode-selection">
+                <h2>What would you like to create?</h2>
+                <div class="mode-buttons">
+                    <button class="mode-btn" onclick="showMatchDaySetup()">
+                        <span class="mode-icon">&#127941;</span>
+                        <span class="mode-title">Match Day</span>
+                        <span class="mode-desc">Multiple matches with teams</span>
+                    </button>
+                    <button class="mode-btn" onclick="showSingleMatchSetup()">
+                        <span class="mode-icon">&#127934;</span>
+                        <span class="mode-title">Single Match</span>
+                        <span class="mode-desc">Quick one-off match</span>
+                    </button>
+                </div>
+            </section>
+
+            <!-- Match Day Setup -->
+            <section class="create-match" id="matchday-setup" style="display: none;">
+                <button class="back-btn" onclick="showModeSelection()">&larr; Back</button>
+                <h2>Match Day Setup</h2>
+
+                <div class="form-group">
+                    <label>Match Day Name</label>
+                    <input type="text" id="matchday-name" placeholder="e.g., Sunday League Match" value="Match Day">
+                </div>
+
+                <div class="form-group">
+                    <label>Format</label>
+                    <div class="toggle-group">
+                        <button type="button" class="toggle-btn active" data-format="6_person" onclick="selectFormat('6_person')">
+                            6 Players<br><small>6 singles + 3 doubles</small>
+                        </button>
+                        <button type="button" class="toggle-btn" data-format="4_person" onclick="selectFormat('4_person')">
+                            4 Players<br><small>4 singles + 4 doubles</small>
+                        </button>
+                    </div>
+                </div>
+
+                <div class="teams-container">
+                    <div class="team-input">
+                        <h3>Team A</h3>
+                        <input type="text" id="team-a-name" placeholder="Team A Name" value="Team A">
+                        <div id="team-a-players">
+                            <input type="text" class="player-input" placeholder="Player 1">
+                            <input type="text" class="player-input" placeholder="Player 2">
+                            <input type="text" class="player-input" placeholder="Player 3">
+                        </div>
+                    </div>
+                    <div class="vs">VS</div>
+                    <div class="team-input">
+                        <h3>Team B</h3>
+                        <input type="text" id="team-b-name" placeholder="Team B Name" value="Team B">
+                        <div id="team-b-players">
+                            <input type="text" class="player-input" placeholder="Player 1">
+                            <input type="text" class="player-input" placeholder="Player 2">
+                            <input type="text" class="player-input" placeholder="Player 3">
+                        </div>
+                    </div>
+                </div>
+
+                <button class="btn btn-primary btn-large" onclick="createMatchDay()">Create Match Day</button>
+            </section>
+
+            <!-- Single Match Setup -->
+            <section class="create-match" id="single-match-setup" style="display: none;">
+                <button class="back-btn" onclick="showModeSelection()">&larr; Back</button>
                 <h2>New Match</h2>
                 <form id="match-form">
                     <div class="form-group">
@@ -28,17 +94,17 @@
 
                     <div class="teams-container">
                         <div class="team-input">
-                            <h3>Team A (Serves First)</h3>
-                            <input type="text" name="team_a_name" placeholder="Team A Name" value="Team A">
-                            <input type="text" name="player_a1" placeholder="Player 1 Name">
-                            <input type="text" name="player_a2" placeholder="Player 2 Name (Doubles)" class="doubles-only" style="display: none;">
+                            <h3>Side A (Serves First)</h3>
+                            <input type="text" name="team_a_name" placeholder="Team Name (optional)">
+                            <input type="text" name="player_a1" placeholder="Player Name" required>
+                            <input type="text" name="player_a2" placeholder="Partner Name (Doubles)" class="doubles-only" style="display: none;">
                         </div>
                         <div class="vs">VS</div>
                         <div class="team-input">
-                            <h3>Team B</h3>
-                            <input type="text" name="team_b_name" placeholder="Team B Name" value="Team B">
-                            <input type="text" name="player_b1" placeholder="Player 1 Name">
-                            <input type="text" name="player_b2" placeholder="Player 2 Name (Doubles)" class="doubles-only" style="display: none;">
+                            <h3>Side B</h3>
+                            <input type="text" name="team_b_name" placeholder="Team Name (optional)">
+                            <input type="text" name="player_b1" placeholder="Player Name" required>
+                            <input type="text" name="player_b2" placeholder="Partner Name (Doubles)" class="doubles-only" style="display: none;">
                         </div>
                     </div>
 
@@ -60,14 +126,93 @@
     </div>
 
     <script>
-        // Toggle match type
-        document.querySelectorAll('.toggle-btn').forEach(btn => {
+        let currentFormat = '6_person';
+
+        function showModeSelection() {
+            document.getElementById('mode-selection').style.display = 'block';
+            document.getElementById('matchday-setup').style.display = 'none';
+            document.getElementById('single-match-setup').style.display = 'none';
+        }
+
+        function showMatchDaySetup() {
+            document.getElementById('mode-selection').style.display = 'none';
+            document.getElementById('matchday-setup').style.display = 'block';
+            document.getElementById('single-match-setup').style.display = 'none';
+        }
+
+        function showSingleMatchSetup() {
+            document.getElementById('mode-selection').style.display = 'none';
+            document.getElementById('matchday-setup').style.display = 'none';
+            document.getElementById('single-match-setup').style.display = 'block';
+        }
+
+        function selectFormat(format) {
+            currentFormat = format;
+            document.querySelectorAll('[data-format]').forEach(btn => {
+                btn.classList.toggle('active', btn.dataset.format === format);
+            });
+
+            const playerCount = format === '6_person' ? 3 : 2;
+            updatePlayerInputs('team-a-players', playerCount);
+            updatePlayerInputs('team-b-players', playerCount);
+        }
+
+        function updatePlayerInputs(containerId, count) {
+            const container = document.getElementById(containerId);
+            container.innerHTML = '';
+            for (let i = 0; i < count; i++) {
+                const input = document.createElement('input');
+                input.type = 'text';
+                input.className = 'player-input';
+                input.placeholder = `Player ${i + 1}`;
+                container.appendChild(input);
+            }
+        }
+
+        async function createMatchDay() {
+            const teamAPlayers = Array.from(document.querySelectorAll('#team-a-players input'))
+                .map(input => input.value.trim())
+                .filter(v => v);
+            const teamBPlayers = Array.from(document.querySelectorAll('#team-b-players input'))
+                .map(input => input.value.trim())
+                .filter(v => v);
+
+            const data = {
+                name: document.getElementById('matchday-name').value || 'Match Day',
+                format: currentFormat,
+                team_a_name: document.getElementById('team-a-name').value || 'Team A',
+                team_b_name: document.getElementById('team-b-name').value || 'Team B',
+                team_a_players: teamAPlayers,
+                team_b_players: teamBPlayers,
+                players: [...teamAPlayers, ...teamBPlayers]
+            };
+
+            try {
+                const response = await fetch('/api/matchdays', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(data)
+                });
+
+                if (response.ok) {
+                    const result = await response.json();
+                    window.location.href = `/matchday/${result.match_day.id}`;
+                } else {
+                    alert('Failed to create match day');
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                alert('Failed to create match day');
+            }
+        }
+
+        // Toggle match type for single match
+        document.querySelectorAll('#single-match-setup .toggle-btn').forEach(btn => {
             btn.addEventListener('click', () => {
-                document.querySelectorAll('.toggle-btn').forEach(b => b.classList.remove('active'));
+                document.querySelectorAll('#single-match-setup .toggle-btn').forEach(b => b.classList.remove('active'));
                 btn.classList.add('active');
                 document.getElementById('match_type').value = btn.dataset.value;
 
-                // Show/hide doubles fields
                 const isDoubles = btn.dataset.value === 'doubles';
                 document.querySelectorAll('.doubles-only').forEach(el => {
                     el.style.display = isDoubles ? 'block' : 'none';
@@ -75,7 +220,7 @@
             });
         });
 
-        // Form submission
+        // Form submission for single match
         document.getElementById('match-form').addEventListener('submit', async (e) => {
             e.preventDefault();
             const form = e.target;
@@ -83,8 +228,8 @@
 
             const data = {
                 match_type: formData.get('match_type'),
-                team_a_name: formData.get('team_a_name') || 'Team A',
-                team_b_name: formData.get('team_b_name') || 'Team B',
+                team_a_name: formData.get('team_a_name') || formData.get('player_a1') || 'Player A',
+                team_b_name: formData.get('team_b_name') || formData.get('player_b1') || 'Player B',
                 player_a1: formData.get('player_a1') || null,
                 player_b1: formData.get('player_b1') || null,
                 player_a2: formData.get('player_a2') || null,
