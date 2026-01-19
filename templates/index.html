@@ -45,10 +45,10 @@
                     <label>Format</label>
                     <div class="toggle-group">
                         <button type="button" class="toggle-btn active" data-format="6_person" onclick="selectFormat('6_person')">
-                            6 Players<br><small>6 singles + 3 doubles</small>
+                            6 per Team<br><small>6 singles + 3 doubles</small>
                         </button>
                         <button type="button" class="toggle-btn" data-format="4_person" onclick="selectFormat('4_person')">
-                            4 Players<br><small>4 singles + 4 doubles</small>
+                            4 per Team<br><small>4 singles + 2 doubles</small>
                         </button>
                     </div>
                 </div>
@@ -61,6 +61,9 @@
                             <input type="text" class="player-input" placeholder="Player 1">
                             <input type="text" class="player-input" placeholder="Player 2">
                             <input type="text" class="player-input" placeholder="Player 3">
+                            <input type="text" class="player-input" placeholder="Player 4">
+                            <input type="text" class="player-input" placeholder="Player 5">
+                            <input type="text" class="player-input" placeholder="Player 6">
                         </div>
                     </div>
                     <div class="vs">VS</div>
@@ -71,6 +74,9 @@
                             <input type="text" class="player-input" placeholder="Player 1">
                             <input type="text" class="player-input" placeholder="Player 2">
                             <input type="text" class="player-input" placeholder="Player 3">
+                            <input type="text" class="player-input" placeholder="Player 4">
+                            <input type="text" class="player-input" placeholder="Player 5">
+                            <input type="text" class="player-input" placeholder="Player 6">
                         </div>
                     </div>
                 </div>
@@ -152,7 +158,7 @@
                 btn.classList.toggle('active', btn.dataset.format === format);
             });
 
-            const playerCount = format === '6_person' ? 3 : 2;
+            const playerCount = format === '6_person' ? 6 : 4;
             updatePlayerInputs('team-a-players', playerCount);
             updatePlayerInputs('team-b-players', playerCount);
         }

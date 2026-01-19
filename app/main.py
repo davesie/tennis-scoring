@@ -329,24 +329,20 @@ async def create_match_day(data: MatchDayCreate, db: AsyncSession = Depends(get_
     match_number = 1
 
     if data.format == "6_person":
-        # 6 singles + 3 doubles
-        # Singles: each player plays 2 singles matches
-        team_a = data.team_a_players[:3]
-        team_b = data.team_b_players[:3]
+        # 6 singles + 3 doubles (6 players per team)
+        team_a = data.team_a_players[:6]
+        team_b = data.team_b_players[:6]
 
-        # Generate 6 singles: A1vB1, A2vB2, A3vB3, A1vB2, A2vB3, A3vB1
-        singles_pairings = [
-            (0, 0), (1, 1), (2, 2), (0, 1), (1, 2), (2, 0)
-        ]
-        for i, (a_idx, b_idx) in enumerate(singles_pairings):
+        # 6 singles: Player 1 vs Player 1, Player 2 vs Player 2, etc.
+        for i in range(6):
             match = Match(
                 match_day_id=match_day.id,
                 match_number=match_number,
                 match_type="singles",
                 team_a_name=data.team_a_name,
                 team_b_name=data.team_b_name,
-                player_a1=team_a[a_idx] if a_idx < len(team_a) else f"Player A{a_idx+1}",
-                player_b1=team_b[b_idx] if b_idx < len(team_b) else f"Player B{b_idx+1}",
+                player_a1=team_a[i] if i < len(team_a) else f"Player A{i+1}",
+                player_b1=team_b[i] if i < len(team_b) else f"Player B{i+1}",
                 score_state=create_initial_state(),
                 history=[]
             )
@@ -354,9 +350,9 @@ async def create_match_day(data: MatchDayCreate, db: AsyncSession = Depends(get_
             matches.append(match)
             match_number += 1
 
-        # 3 doubles
+        # 3 doubles: (1,2) vs (1,2), (3,4) vs (3,4), (5,6) vs (5,6)
         doubles_pairings = [
-            ((0, 1), (0, 1)), ((0, 2), (0, 2)), ((1, 2), (1, 2))
+            ((0, 1), (0, 1)), ((2, 3), (2, 3)), ((4, 5), (4, 5))
         ]
         for (a1, a2), (b1, b2) in doubles_pairings:
             match = Match(
@@ -377,21 +373,20 @@ async def create_match_day(data: MatchDayCreate, db: AsyncSession = Depends(get_
             match_number += 1
 
     else:  # 4_person
-        # 4 singles + 4 doubles
-        team_a = data.team_a_players[:2]
-        team_b = data.team_b_players[:2]
+        # 4 singles + 2 doubles (4 players per team)
+        team_a = data.team_a_players[:4]
+        team_b = data.team_b_players[:4]
 
-        # 4 singles: each player plays 2
-        singles_pairings = [(0, 0), (0, 1), (1, 0), (1, 1)]
-        for a_idx, b_idx in singles_pairings:
+        # 4 singles: Player 1 vs Player 1, Player 2 vs Player 2, etc.
+        for i in range(4):
             match = Match(
                 match_day_id=match_day.id,
                 match_number=match_number,
                 match_type="singles",
                 team_a_name=data.team_a_name,
                 team_b_name=data.team_b_name,
-                player_a1=team_a[a_idx] if a_idx < len(team_a) else f"Player A{a_idx+1}",
-                player_b1=team_b[b_idx] if b_idx < len(team_b) else f"Player B{b_idx+1}",
+                player_a1=team_a[i] if i < len(team_a) else f"Player A{i+1}",
+                player_b1=team_b[i] if i < len(team_b) else f"Player B{i+1}",
                 score_state=create_initial_state(),
                 history=[]
             )
@@ -399,18 +394,21 @@ async def create_match_day(data: MatchDayCreate, db: AsyncSession = Depends(get_
             matches.append(match)
             match_number += 1
 
-        # 4 doubles (playing 4 times with same pairing or mixed)
-        for i in range(4):
+        # 2 doubles: (1,2) vs (1,2), (3,4) vs (3,4)
+        doubles_pairings = [
+            ((0, 1), (0, 1)), ((2, 3), (2, 3))
+        ]
+        for (a1, a2), (b1, b2) in doubles_pairings:
             match = Match(
                 match_day_id=match_day.id,
                 match_number=match_number,
                 match_type="doubles",
                 team_a_name=data.team_a_name,
                 team_b_name=data.team_b_name,
-                player_a1=team_a[0] if len(team_a) > 0 else "Player A1",
-                player_a2=team_a[1] if len(team_a) > 1 else "Player A2",
-                player_b1=team_b[0] if len(team_b) > 0 else "Player B1",
-                player_b2=team_b[1] if len(team_b) > 1 else "Player B2",
+                player_a1=team_a[a1] if a1 < len(team_a) else f"Player A{a1+1}",
+                player_a2=team_a[a2] if a2 < len(team_a) else f"Player A{a2+1}",
+                player_b1=team_b[b1] if b1 < len(team_b) else f"Player B{b1+1}",
+                player_b2=team_b[b2] if b2 < len(team_b) else f"Player B{b2+1}",
                 score_state=create_initial_state(),
                 history=[]
             )
