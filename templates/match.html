@@ -1,0 +1,332 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>{{ match.team_a_name }} vs {{ match.team_b_name }} - Tennis Scoring</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body class="match-page">
+    <div class="match-container">
+        <!-- TV-Style Scoreboard -->
+        <div class="scoreboard">
+            <div class="scoreboard-header">
+                <span class="match-status" id="match-status">LIVE</span>
+                <span class="match-type">{{ match.match_type | upper }}</span>
+            </div>
+
+            <div class="score-table">
+                <div class="score-header">
+                    <div class="player-col"></div>
+                    <div class="set-col">1</div>
+                    <div class="set-col">2</div>
+                    <div class="set-col" id="set3-header">3</div>
+                    <div class="points-col">PTS</div>
+                </div>
+
+                <!-- Team A Row -->
+                <div class="score-row team-a" id="team-a-row">
+                    <div class="player-col">
+                        <span class="serve-indicator" id="serve-a">●</span>
+                        <span class="player-name" id="team-a-name">{{ match.team_a_name }}</span>
+                    </div>
+                    <div class="set-col" id="set1-a">0</div>
+                    <div class="set-col" id="set2-a">0</div>
+                    <div class="set-col" id="set3-a">0</div>
+                    <div class="points-col" id="points-a">0</div>
+                </div>
+
+                <!-- Team B Row -->
+                <div class="score-row team-b" id="team-b-row">
+                    <div class="player-col">
+                        <span class="serve-indicator" id="serve-b">●</span>
+                        <span class="player-name" id="team-b-name">{{ match.team_b_name }}</span>
+                    </div>
+                    <div class="set-col" id="set1-b">0</div>
+                    <div class="set-col" id="set2-b">0</div>
+                    <div class="set-col" id="set3-b">0</div>
+                    <div class="points-col" id="points-b">0</div>
+                </div>
+            </div>
+
+            <div class="scoreboard-footer">
+                <span id="game-state"></span>
+            </div>
+        </div>
+
+        <!-- Winner Banner -->
+        <div class="winner-banner" id="winner-banner" style="display: none;">
+            <div class="winner-text">
+                <span id="winner-name"></span> WINS!
+            </div>
+        </div>
+
+        {% if is_scorer %}
+        <!-- Scoring Controls -->
+        <div class="controls">
+            <div class="score-buttons">
+                <button class="score-btn team-a-btn" id="score-a" onclick="scorePoint(0)">
+                    <span class="btn-label">Point</span>
+                    <span class="btn-team" id="btn-team-a">{{ match.team_a_name }}</span>
+                </button>
+                <button class="score-btn team-b-btn" id="score-b" onclick="scorePoint(1)">
+                    <span class="btn-label">Point</span>
+                    <span class="btn-team" id="btn-team-b">{{ match.team_b_name }}</span>
+                </button>
+            </div>
+
+            <div class="action-buttons">
+                <button class="btn btn-secondary" onclick="undoPoint()">Undo</button>
+                <button class="btn btn-danger" onclick="resetMatch()">Reset</button>
+            </div>
+        </div>
+        {% else %}
+        <!-- Spectator View -->
+        <div class="spectator-notice">
+            <p>You are watching this match in real-time</p>
+            <p class="share-hint">Scores update automatically</p>
+        </div>
+        {% endif %}
+
+        <!-- Share Section -->
+        <div class="share-section">
+            <h3>Share This Match</h3>
+            <div class="share-link">
+                <input type="text" id="share-url" readonly>
+                <button class="btn btn-secondary" onclick="copyShareLink()">Copy</button>
+            </div>
+            <p class="share-code">Share Code: <strong>{{ match.share_code }}</strong></p>
+        </div>
+
+        <div class="back-link">
+            <a href="/">← New Match</a>
+        </div>
+    </div>
+
+    <script>
+        const matchId = "{{ match.id }}";
+        const shareCode = "{{ match.share_code }}";
+        const isScorer = {{ 'true' if is_scorer else 'false' }};
+        let matchData = {{ match | tojson }};
+        let ws = null;
+        let reconnectAttempts = 0;
+        const maxReconnectAttempts = 10;
+
+        // Initialize
+        document.addEventListener('DOMContentLoaded', () => {
+            updateScoreboard(matchData.score_state);
+            setupShareLink();
+            connectWebSocket();
+        });
+
+        function setupShareLink() {
+            const shareUrl = `${window.location.origin}/watch/${shareCode}`;
+            document.getElementById('share-url').value = shareUrl;
+        }
+
+        function copyShareLink() {
+            const shareUrl = document.getElementById('share-url');
+            shareUrl.select();
+            document.execCommand('copy');
+
+            // Visual feedback
+            const btn = event.target;
+            const originalText = btn.textContent;
+            btn.textContent = 'Copied!';
+            setTimeout(() => btn.textContent = originalText, 2000);
+        }
+
+        function connectWebSocket() {
+            const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+            ws = new WebSocket(`${protocol}//${window.location.host}/ws/${matchId}`);
+
+            ws.onopen = () => {
+                console.log('WebSocket connected');
+                reconnectAttempts = 0;
+            };
+
+            ws.onmessage = (event) => {
+                const data = JSON.parse(event.data);
+                if (data.type === 'score_update' || data.type === 'initial') {
+                    matchData = data.match;
+                    updateScoreboard(matchData.score_state);
+                }
+            };
+
+            ws.onclose = () => {
+                console.log('WebSocket disconnected');
+                attemptReconnect();
+            };
+
+            ws.onerror = (error) => {
+                console.error('WebSocket error:', error);
+            };
+        }
+
+        function attemptReconnect() {
+            if (reconnectAttempts < maxReconnectAttempts) {
+                reconnectAttempts++;
+                const delay = Math.min(1000 * Math.pow(2, reconnectAttempts), 30000);
+                console.log(`Reconnecting in ${delay}ms...`);
+                setTimeout(connectWebSocket, delay);
+            }
+        }
+
+        function updateScoreboard(state) {
+            // Update sets
+            for (let i = 0; i < 3; i++) {
+                document.getElementById(`set${i + 1}-a`).textContent = state.games[i][0];
+                document.getElementById(`set${i + 1}-b`).textContent = state.games[i][1];
+            }
+
+            // Update points
+            let pointsA, pointsB;
+            if (state.is_tiebreak || state.is_super_tiebreak) {
+                pointsA = state.tiebreak_points[0];
+                pointsB = state.tiebreak_points[1];
+            } else {
+                const pointNames = ['0', '15', '30', '40'];
+                const p1 = state.points[0];
+                const p2 = state.points[1];
+
+                if (p1 >= 3 && p2 >= 3) {
+                    if (state.deuce_advantage === 0) {
+                        pointsA = 'AD';
+                        pointsB = '-';
+                    } else if (state.deuce_advantage === 1) {
+                        pointsA = '-';
+                        pointsB = 'AD';
+                    } else {
+                        pointsA = '40';
+                        pointsB = '40';
+                    }
+                } else {
+                    pointsA = pointNames[Math.min(p1, 3)];
+                    pointsB = pointNames[Math.min(p2, 3)];
+                }
+            }
+
+            document.getElementById('points-a').textContent = pointsA;
+            document.getElementById('points-b').textContent = pointsB;
+
+            // Update serve indicator
+            document.getElementById('serve-a').classList.toggle('active', state.serving === 0);
+            document.getElementById('serve-b').classList.toggle('active', state.serving === 1);
+
+            // Update game state text
+            let gameStateText = '';
+            if (state.is_super_tiebreak) {
+                gameStateText = 'SUPER TIEBREAK (First to 10)';
+            } else if (state.is_tiebreak) {
+                gameStateText = 'TIEBREAK';
+            } else if (state.points[0] >= 3 && state.points[1] >= 3) {
+                gameStateText = state.deuce_advantage !== null ? 'ADVANTAGE' : 'DEUCE';
+            }
+            document.getElementById('game-state').textContent = gameStateText;
+
+            // Highlight current set
+            for (let i = 0; i < 3; i++) {
+                const setColsA = document.querySelectorAll(`#set${i + 1}-a`);
+                const setColsB = document.querySelectorAll(`#set${i + 1}-b`);
+                setColsA.forEach(el => el.classList.toggle('current-set', i === state.current_set && state.winner === null));
+                setColsB.forEach(el => el.classList.toggle('current-set', i === state.current_set && state.winner === null));
+            }
+
+            // Update match status
+            const statusEl = document.getElementById('match-status');
+            if (state.winner !== null) {
+                statusEl.textContent = 'FINAL';
+                statusEl.classList.add('finished');
+
+                // Show winner banner
+                const winnerBanner = document.getElementById('winner-banner');
+                const winnerName = document.getElementById('winner-name');
+                winnerName.textContent = state.winner === 0 ? matchData.team_a_name : matchData.team_b_name;
+                winnerBanner.style.display = 'flex';
+
+                // Disable score buttons
+                if (isScorer) {
+                    document.getElementById('score-a').disabled = true;
+                    document.getElementById('score-b').disabled = true;
+                }
+            } else {
+                statusEl.textContent = 'LIVE';
+                statusEl.classList.remove('finished');
+                document.getElementById('winner-banner').style.display = 'none';
+
+                if (isScorer) {
+                    document.getElementById('score-a').disabled = false;
+                    document.getElementById('score-b').disabled = false;
+                }
+            }
+
+            // Show/hide set 3 column based on whether it's needed
+            const set3Header = document.getElementById('set3-header');
+            const set3A = document.getElementById('set3-a');
+            const set3B = document.getElementById('set3-b');
+            const showSet3 = state.current_set >= 2 || state.sets[0] === 1 && state.sets[1] === 1;
+            set3Header.style.visibility = showSet3 ? 'visible' : 'hidden';
+            set3A.style.visibility = showSet3 ? 'visible' : 'hidden';
+            set3B.style.visibility = showSet3 ? 'visible' : 'hidden';
+        }
+
+        async function scorePoint(team) {
+            // Optimistic UI update
+            const btn = team === 0 ? document.getElementById('score-a') : document.getElementById('score-b');
+            btn.classList.add('scoring');
+
+            try {
+                const response = await fetch(`/api/matches/${matchId}/score`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ team })
+                });
+
+                if (!response.ok) {
+                    throw new Error('Failed to score point');
+                }
+            } catch (error) {
+                console.error('Error scoring point:', error);
+                alert('Failed to score point. Please try again.');
+            } finally {
+                btn.classList.remove('scoring');
+            }
+        }
+
+        async function undoPoint() {
+            if (!confirm('Undo the last point?')) return;
+
+            try {
+                const response = await fetch(`/api/matches/${matchId}/undo`, {
+                    method: 'POST'
+                });
+
+                if (!response.ok) {
+                    const data = await response.json();
+                    alert(data.detail || 'Failed to undo');
+                }
+            } catch (error) {
+                console.error('Error undoing:', error);
+                alert('Failed to undo. Please try again.');
+            }
+        }
+
+        async function resetMatch() {
+            if (!confirm('Are you sure you want to reset the entire match? This cannot be undone.')) return;
+
+            try {
+                const response = await fetch(`/api/matches/${matchId}/reset`, {
+                    method: 'POST'
+                });
+
+                if (!response.ok) {
+                    throw new Error('Failed to reset match');
+                }
+            } catch (error) {
+                console.error('Error resetting:', error);
+                alert('Failed to reset match. Please try again.');
+            }
+        }
+    </script>
+</body>
+</html>

@@ -1,0 +1,16 @@
+version: '3.8'
+
+services:
+  tennis-scoring:
+    build: .
+    container_name: tennis-scoring
+    ports:
+      - "8000:8000"
+    volumes:
+      - tennis_data:/app/data
+    environment:
+      - DATABASE_URL=sqlite+aiosqlite:///./data/tennis.db
+    restart: unless-stopped
+
+volumes:
+  tennis_data:

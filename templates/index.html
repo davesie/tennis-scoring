@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tennis Scoring</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Tennis Scoring</h1>
+            <p class="subtitle">Create and track tennis matches in real-time</p>
+        </header>
+
+        <main>
+            <section class="create-match">
+                <h2>New Match</h2>
+                <form id="match-form">
+                    <div class="form-group">
+                        <label>Match Type</label>
+                        <div class="toggle-group">
+                            <button type="button" class="toggle-btn active" data-value="singles">Singles</button>
+                            <button type="button" class="toggle-btn" data-value="doubles">Doubles</button>
+                        </div>
+                        <input type="hidden" name="match_type" id="match_type" value="singles">
+                    </div>
+
+                    <div class="teams-container">
+                        <div class="team-input">
+                            <h3>Team A (Serves First)</h3>
+                            <input type="text" name="team_a_name" placeholder="Team A Name" value="Team A">
+                            <input type="text" name="player_a1" placeholder="Player 1 Name">
+                            <input type="text" name="player_a2" placeholder="Player 2 Name (Doubles)" class="doubles-only" style="display: none;">
+                        </div>
+                        <div class="vs">VS</div>
+                        <div class="team-input">
+                            <h3>Team B</h3>
+                            <input type="text" name="team_b_name" placeholder="Team B Name" value="Team B">
+                            <input type="text" name="player_b1" placeholder="Player 1 Name">
+                            <input type="text" name="player_b2" placeholder="Player 2 Name (Doubles)" class="doubles-only" style="display: none;">
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label>
+                            <input type="checkbox" name="super_tiebreak" checked>
+                            Super Tiebreak in 3rd Set (to 10 points)
+                        </label>
+                    </div>
+
+                    <button type="submit" class="btn btn-primary btn-large">Start Match</button>
+                </form>
+            </section>
+        </main>
+
+        <footer>
+            <p>Tennis Scoring App - Real-time match tracking</p>
+        </footer>
+    </div>
+
+    <script>
+        // Toggle match type
+        document.querySelectorAll('.toggle-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                document.querySelectorAll('.toggle-btn').forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                document.getElementById('match_type').value = btn.dataset.value;
+
+                // Show/hide doubles fields
+                const isDoubles = btn.dataset.value === 'doubles';
+                document.querySelectorAll('.doubles-only').forEach(el => {
+                    el.style.display = isDoubles ? 'block' : 'none';
+                });
+            });
+        });
+
+        // Form submission
+        document.getElementById('match-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const form = e.target;
+            const formData = new FormData(form);
+
+            const data = {
+                match_type: formData.get('match_type'),
+                team_a_name: formData.get('team_a_name') || 'Team A',
+                team_b_name: formData.get('team_b_name') || 'Team B',
+                player_a1: formData.get('player_a1') || null,
+                player_b1: formData.get('player_b1') || null,
+                player_a2: formData.get('player_a2') || null,
+                player_b2: formData.get('player_b2') || null,
+                best_of: 3,
+                super_tiebreak_final_set: formData.get('super_tiebreak') === 'on'
+            };
+
+            try {
+                const response = await fetch('/api/matches', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(data)
+                });
+
+                if (response.ok) {
+                    const match = await response.json();
+                    window.location.href = `/match/${match.id}`;
+                } else {
+                    alert('Failed to create match');
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                alert('Failed to create match');
+            }
+        });
+    </script>
+</body>
+</html>
