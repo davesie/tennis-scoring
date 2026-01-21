@@ -47,7 +47,28 @@ podman build -t tennis-scoring .
 podman run -d -p 8000:8000 -v tennis_data:/app/data tennis-scoring
 ```
 
-### Local Development
+### Local Development (with uv)
+
+[uv](https://docs.astral.sh/uv/) is the recommended way to manage this project.
+
+```bash
+# Install uv (if not already installed)
+curl -LsSf https://astral.sh/uv/install.sh | sh
+
+# Install dependencies
+uv sync
+
+# Set admin password (required for creating match days)
+export ADMIN_PASSWORD=your-secret-password
+
+# Run the application (development with auto-reload)
+uv run uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
+
+# Run the application (production)
+uv run uvicorn app.main:app --host 0.0.0.0 --port 8000
+```
+
+### Local Development (with pip)
 
 ```bash
 # Create virtual environment
@@ -56,6 +77,9 @@ source venv/bin/activate  # On Windows: venv\Scripts\activate
 
 # Install dependencies
 pip install -r requirements.txt
+
+# Set admin password (required for creating match days)
+export ADMIN_PASSWORD=your-secret-password
 
 # Run the application
 uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
@@ -118,6 +142,133 @@ tennis_scoring/
 | Variable | Default | Description |
 |----------|---------|-------------|
 | `DATABASE_URL` | `sqlite+aiosqlite:///./tennis.db` | Database connection string |
+| `ADMIN_PASSWORD` | (required) | Password for admin access to create match days |
+
+## VPS Deployment with Docker + Traefik
+
+Minimum requirements: 1 vCore, 512MB RAM (2 vCores + 2GB RAM is plenty)
+
+### 1. Server Setup (Ubuntu/Debian)
+
+```bash
+# Update system
+sudo apt update && sudo apt upgrade -y
+
+# Install Docker
+curl -fsSL https://get.docker.com | sh
+sudo usermod -aG docker $USER
+newgrp docker
+
+# Install Git
+sudo apt install -y git
+```
+
+### 2. Setup Traefik (one-time, can serve multiple apps)
+
+```bash
+# Create directory for Traefik
+mkdir -p ~/traefik && cd ~/traefik
+
+# Create the Docker network
+docker network create traefik-net
+
+# Create docker-compose.yml for Traefik
+cat > docker-compose.yml << 'EOF'
+services:
+  traefik:
+    image: traefik:v3.0
+    container_name: traefik
+    command:
+      - "--api.dashboard=true"
+      - "--providers.docker=true"
+      - "--providers.docker.exposedbydefault=false"
+      - "--entrypoints.web.address=:80"
+      - "--entrypoints.websecure.address=:443"
+      - "--entrypoints.web.http.redirections.entrypoint.to=websecure"
+      - "--entrypoints.web.http.redirections.entrypoint.scheme=https"
+      - "--certificatesresolvers.letsencrypt.acme.httpchallenge=true"
+      - "--certificatesresolvers.letsencrypt.acme.httpchallenge.entrypoint=web"
+      - "--certificatesresolvers.letsencrypt.acme.email=${ACME_EMAIL}"
+      - "--certificatesresolvers.letsencrypt.acme.storage=/letsencrypt/acme.json"
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - traefik_letsencrypt:/letsencrypt
+    networks:
+      - traefik-net
+    restart: unless-stopped
+
+volumes:
+  traefik_letsencrypt:
+
+networks:
+  traefik-net:
+    external: true
+EOF
+
+# Create .env file
+cat > .env << EOF
+ACME_EMAIL=your-email@example.com
+EOF
+
+# Start Traefik
+docker compose up -d
+```
+
+### 3. Deploy Tennis Scoring App
+
+```bash
+# Clone the repository
+cd ~
+git clone https://github.com/YOUR_USERNAME/tennis-scoring.git
+cd tennis-scoring
+
+# Create .env file
+cat > .env << EOF
+DOMAIN=tennis.yourdomain.com
+ADMIN_PASSWORD=your-secure-password
+EOF
+
+# Build and start the app
+docker compose up -d --build
+```
+
+### 4. Firewall Setup
+
+```bash
+sudo ufw allow 22
+sudo ufw allow 80
+sudo ufw allow 443
+sudo ufw enable
+```
+
+### Updating the App
+
+```bash
+cd ~/tennis-scoring
+git pull
+docker compose up -d --build
+```
+
+### Viewing Logs
+
+```bash
+docker compose logs -f tennis-scoring
+```
+
+### Architecture
+
+```
+Internet → Traefik (ports 80/443, auto-SSL) → Tennis Scoring App (port 8000)
+```
+
+Traefik automatically:
+- Obtains and renews Let's Encrypt SSL certificates
+- Routes traffic based on domain name
+- Handles HTTP → HTTPS redirect
+- Supports WebSocket connections for real-time updates
 
 ## License
 

@@ -1,6 +1,6 @@
 from sqlalchemy import Column, Integer, String, Boolean, DateTime, JSON, ForeignKey
 from sqlalchemy.orm import relationship
-from datetime import datetime
+from datetime import datetime, timedelta
 import uuid
 
 from .database import Base
@@ -14,11 +14,29 @@ def generate_share_code():
     return str(uuid.uuid4())[:8]
 
 
+def generate_scorer_token():
+    return str(uuid.uuid4())[:12]
+
+
+def generate_session_expiry():
+    return datetime.utcnow() + timedelta(days=7)
+
+
+class AdminSession(Base):
+    """Stores admin login sessions."""
+    __tablename__ = "admin_sessions"
+
+    id = Column(String, primary_key=True, default=generate_uuid)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    expires_at = Column(DateTime, default=generate_session_expiry, nullable=False)
+
+
 class MatchDay(Base):
     __tablename__ = "match_days"
 
     id = Column(String, primary_key=True, default=generate_uuid)
     share_code = Column(String, unique=True, default=generate_share_code, index=True)
+    scorer_token = Column(String, unique=True, default=generate_scorer_token, index=True)
     name = Column(String, default="Match Day")
     format = Column(String, default="6_person")  # "6_person" or "4_person"
 
@@ -37,6 +55,7 @@ class MatchDay(Base):
         return {
             "id": self.id,
             "share_code": self.share_code,
+            "scorer_token": self.scorer_token,
             "name": self.name,
             "format": self.format,
             "players": self.players,
@@ -53,6 +72,7 @@ class Match(Base):
 
     id = Column(String, primary_key=True, default=generate_uuid)
     share_code = Column(String, unique=True, default=generate_share_code, index=True)
+    scorer_token = Column(String, unique=True, default=generate_scorer_token, index=True)
     match_day_id = Column(String, ForeignKey("match_days.id"), nullable=True)
     match_number = Column(Integer, nullable=True)  # Order in match day
     match_type = Column(String, default="singles")  # singles or doubles
@@ -93,7 +113,25 @@ class Match(Base):
     # Timestamps
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    started_at = Column(DateTime, nullable=True)  # Set when first point is scored
     finished_at = Column(DateTime, nullable=True)
+
+    def get_duration_seconds(self):
+        """Calculate match duration in seconds."""
+        if self.started_at and self.finished_at:
+            return int((self.finished_at - self.started_at).total_seconds())
+        return None
+
+    def get_duration_formatted(self):
+        """Get match duration as formatted string (e.g., '1h 23m')."""
+        seconds = self.get_duration_seconds()
+        if seconds is None:
+            return None
+        hours = seconds // 3600
+        minutes = (seconds % 3600) // 60
+        if hours > 0:
+            return f"{hours}h {minutes}m"
+        return f"{minutes}m"
 
     def to_dict(self):
         return {
@@ -113,5 +151,8 @@ class Match(Base):
             "super_tiebreak_final_set": self.super_tiebreak_final_set,
             "created_at": self.created_at.isoformat() if self.created_at else None,
             "updated_at": self.updated_at.isoformat() if self.updated_at else None,
+            "started_at": self.started_at.isoformat() if self.started_at else None,
             "finished_at": self.finished_at.isoformat() if self.finished_at else None,
+            "duration_seconds": self.get_duration_seconds(),
+            "duration_formatted": self.get_duration_formatted(),
         }

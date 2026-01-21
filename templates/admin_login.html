@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Login - Tennis Scoring</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body>
+    <div class="login-container">
+        <form class="login-form" method="POST" action="/admin/login">
+            <div class="login-header">
+                <h1>Tennis Scoring</h1>
+                <p>Admin Login</p>
+            </div>
+
+            {% if error %}
+            <div class="error-message">
+                {{ error }}
+            </div>
+            {% endif %}
+
+            <div class="form-group">
+                <label for="password">Password</label>
+                <input type="password" id="password" name="password" required autofocus>
+            </div>
+
+            <button type="submit" class="btn-login">Log In</button>
+        </form>
+
+        <div class="archive-link-login">
+            <a href="/archive">View Archive (Public)</a>
+        </div>
+    </div>
+</body>
+</html>

@@ -33,6 +33,19 @@ class MatchDayCreate(BaseModel):
     team_b_players: List[str] = []
 
 
+class MatchPlayersUpdate(BaseModel):
+    player_a1: Optional[str] = None
+    player_a2: Optional[str] = None
+    player_b1: Optional[str] = None
+    player_b2: Optional[str] = None
+
+
+class MatchScoreSet(BaseModel):
+    """Set final score directly for matches not watched live."""
+    sets: List[List[int]]  # e.g., [[6, 4], [3, 6], [6, 2]] for a 2-1 win
+    winner: int  # 0 or 1
+
+
 class MatchResponse(BaseModel):
     id: str
     share_code: str

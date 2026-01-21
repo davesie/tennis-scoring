@@ -10,13 +10,17 @@
     <div class="matchday-container">
         <header class="matchday-header">
             <h1>{{ match_day.name }}</h1>
+            <div class="live-indicator">
+                <span class="live-dot"></span>
+                <span class="live-text">Live updates</span>
+            </div>
             <div class="team-scores">
-                <div class="team-score team-a-score">
+                <div class="team-score">
                     <span class="team-name">{{ match_day.team_a_name }}</span>
                     <span class="score" id="team-a-wins">0</span>
                 </div>
-                <div class="score-separator">-</div>
-                <div class="team-score team-b-score">
+                <div class="score-separator">:</div>
+                <div class="team-score">
                     <span class="score" id="team-b-wins">0</span>
                     <span class="team-name">{{ match_day.team_b_name }}</span>
                 </div>
@@ -25,77 +29,229 @@
 
         <section class="matches-section">
             <h2>Singles</h2>
-            <div class="matches-grid" id="singles-matches">
+            <div class="matches-list" id="singles-matches">
                 {% for match in matches %}
                 {% if match.match_type == 'singles' %}
-                <a href="/match/{{ match.id }}" class="match-card {% if match.score_state.winner is not none %}finished{% endif %}">
-                    <div class="match-number">#{{ match.match_number }}</div>
-                    <div class="match-players">
-                        <div class="player {% if match.score_state.winner == 0 %}winner{% endif %}">
-                            {{ match.player_a1 or 'Player A' }}
-                            <span class="team-tag">{{ match.team_a_name }}</span>
-                        </div>
-                        <div class="match-vs">vs</div>
-                        <div class="player {% if match.score_state.winner == 1 %}winner{% endif %}">
-                            {{ match.player_b1 or 'Player B' }}
-                            <span class="team-tag">{{ match.team_b_name }}</span>
-                        </div>
-                    </div>
-                    <div class="match-score-mini">
-                        {% if match.score_state.winner is not none %}
-                        <span class="final">FINAL</span>
+                <div class="scoreboard-card {% if match.score_state.winner is not none %}finished{% endif %}">
+                    <a href="{% if is_scorer %}/match/{{ match.id }}{% else %}/watch/{{ match.share_code }}{% endif %}" class="scoreboard-link">
+                        <table class="scoreboard-table">
+                            <tr class="{% if match.score_state.winner == 0 %}winner{% endif %}">
+                                <td class="team-color team-a"></td>
+                                <td class="player-name">{{ match.player_a1 or 'Player A' }}</td>
+                                <td class="set-score">{{ match.score_state.games[0][0] }}</td>
+                                <td class="set-score">{{ match.score_state.games[1][0] if match.score_state.current_set >= 1 or match.score_state.winner is not none else '' }}</td>
+                                <td class="set-score">{{ match.score_state.games[2][0] if match.score_state.current_set >= 2 or (match.score_state.winner is not none and match.score_state.sets[0] == 1 and match.score_state.sets[1] == 1) else '' }}</td>
+                            </tr>
+                            <tr class="{% if match.score_state.winner == 1 %}winner{% endif %}">
+                                <td class="team-color team-b"></td>
+                                <td class="player-name">{{ match.player_b1 or 'Player B' }}</td>
+                                <td class="set-score">{{ match.score_state.games[0][1] }}</td>
+                                <td class="set-score">{{ match.score_state.games[1][1] if match.score_state.current_set >= 1 or match.score_state.winner is not none else '' }}</td>
+                                <td class="set-score">{{ match.score_state.games[2][1] if match.score_state.current_set >= 2 or (match.score_state.winner is not none and match.score_state.sets[0] == 1 and match.score_state.sets[1] == 1) else '' }}</td>
+                            </tr>
+                        </table>
+                        {% if match.duration_formatted %}
+                        <div class="match-duration">{{ match.duration_formatted }}</div>
                         {% endif %}
-                        <span>{{ match.score_state.sets[0] }} - {{ match.score_state.sets[1] }}</span>
-                    </div>
-                </a>
+                    </a>
+                    {% if is_scorer %}
+                    <button class="enter-score-btn" onclick="openScoreModal('{{ match.id }}', '{{ match.player_a1 or match.team_a_name }}', '{{ match.player_b1 or match.team_b_name }}')">Enter Score</button>
+                    {% endif %}
+                </div>
                 {% endif %}
                 {% endfor %}
             </div>
 
             <h2>Doubles</h2>
-            <div class="matches-grid" id="doubles-matches">
+
+            {% if is_scorer %}
+            <!-- Doubles Pairing Setup Section (shown only after all singles finish) -->
+            <div id="doubles-pairing-section" class="doubles-pairing-section" style="display: none;">
+                <div class="pairing-header">
+                    <h3>Set Doubles Pairings</h3>
+                    <button id="edit-mode-btn" class="btn btn-secondary btn-small" onclick="toggleEditMode()">Edit Player Names</button>
+                </div>
+                <div id="pairing-form"></div>
+                <div class="pairing-actions">
+                    <button id="save-pairings-btn" class="btn btn-primary" onclick="savePairings()">Save Pairings</button>
+                    <span id="pairing-status" class="pairing-status"></span>
+                </div>
+            </div>
+            {% endif %}
+
+            <div class="matches-list" id="doubles-matches">
                 {% for match in matches %}
                 {% if match.match_type == 'doubles' %}
-                <a href="/match/{{ match.id }}" class="match-card {% if match.score_state.winner is not none %}finished{% endif %}">
-                    <div class="match-number">#{{ match.match_number }}</div>
-                    <div class="match-players">
-                        <div class="player {% if match.score_state.winner == 0 %}winner{% endif %}">
-                            {{ match.player_a1 or 'Player A1' }} / {{ match.player_a2 or 'Player A2' }}
-                            <span class="team-tag">{{ match.team_a_name }}</span>
-                        </div>
-                        <div class="match-vs">vs</div>
-                        <div class="player {% if match.score_state.winner == 1 %}winner{% endif %}">
-                            {{ match.player_b1 or 'Player B1' }} / {{ match.player_b2 or 'Player B2' }}
-                            <span class="team-tag">{{ match.team_b_name }}</span>
-                        </div>
-                    </div>
-                    <div class="match-score-mini">
-                        {% if match.score_state.winner is not none %}
-                        <span class="final">FINAL</span>
+                <div class="scoreboard-card {% if match.score_state.winner is not none %}finished{% endif %}">
+                    <a href="{% if is_scorer %}/match/{{ match.id }}{% else %}/watch/{{ match.share_code }}{% endif %}" class="scoreboard-link">
+                        <table class="scoreboard-table">
+                            <tr class="{% if match.score_state.winner == 0 %}winner{% endif %}">
+                                <td class="team-color team-a"></td>
+                                <td class="player-name">{{ match.player_a1 or 'Player A1' }} / {{ match.player_a2 or 'A2' }}</td>
+                                <td class="set-score">{{ match.score_state.games[0][0] }}</td>
+                                <td class="set-score">{{ match.score_state.games[1][0] if match.score_state.current_set >= 1 or match.score_state.winner is not none else '' }}</td>
+                                <td class="set-score">{{ match.score_state.games[2][0] if match.score_state.current_set >= 2 or (match.score_state.winner is not none and match.score_state.sets[0] == 1 and match.score_state.sets[1] == 1) else '' }}</td>
+                            </tr>
+                            <tr class="{% if match.score_state.winner == 1 %}winner{% endif %}">
+                                <td class="team-color team-b"></td>
+                                <td class="player-name">{{ match.player_b1 or 'Player B1' }} / {{ match.player_b2 or 'B2' }}</td>
+                                <td class="set-score">{{ match.score_state.games[0][1] }}</td>
+                                <td class="set-score">{{ match.score_state.games[1][1] if match.score_state.current_set >= 1 or match.score_state.winner is not none else '' }}</td>
+                                <td class="set-score">{{ match.score_state.games[2][1] if match.score_state.current_set >= 2 or (match.score_state.winner is not none and match.score_state.sets[0] == 1 and match.score_state.sets[1] == 1) else '' }}</td>
+                            </tr>
+                        </table>
+                        {% if match.duration_formatted %}
+                        <div class="match-duration">{{ match.duration_formatted }}</div>
                         {% endif %}
-                        <span>{{ match.score_state.sets[0] }} - {{ match.score_state.sets[1] }}</span>
-                    </div>
-                </a>
+                    </a>
+                    {% if is_scorer %}
+                    <button class="enter-score-btn" onclick="openScoreModal('{{ match.id }}', '{{ (match.player_a1 or 'A') ~ '/' ~ (match.player_a2 or 'A') }}', '{{ (match.player_b1 or 'B') ~ '/' ~ (match.player_b2 or 'B') }}')">Enter Score</button>
+                    {% endif %}
+                </div>
                 {% endif %}
                 {% endfor %}
             </div>
         </section>
 
-        <div class="share-section">
-            <h3>Share Match Day</h3>
-            <div class="share-link">
-                <input type="text" id="share-url" readonly value="{{ request.url }}">
-                <button class="btn btn-secondary" onclick="copyShareLink()">Copy</button>
+        <div class="share-section collapsed" id="share-section">
+            <button class="share-toggle" onclick="toggleShareSection()">
+                <span class="share-toggle-icon">+</span>
+                <span>Share Match Day</span>
+            </button>
+            <div class="share-content" id="share-content">
+                {% if is_scorer %}
+                <div class="share-option">
+                    <label>Spectator Link (view only)</label>
+                    <div class="share-link">
+                        <input type="text" id="spectator-url" readonly value="{{ request.url_for('spectator_match_day_page', share_code=match_day.share_code) }}">
+                        <button class="btn btn-secondary" onclick="copyLink('spectator-url')">Copy</button>
+                    </div>
+                </div>
+                <div class="share-option">
+                    <label>Scorer Link (can edit scores)</label>
+                    <div class="share-link">
+                        <input type="text" id="scorer-url" readonly value="{{ request.url_for('scorer_match_day_page', scorer_token=match_day.scorer_token) }}">
+                        <button class="btn btn-secondary" onclick="copyLink('scorer-url')">Copy</button>
+                    </div>
+                    <p class="share-warning">Only share with trusted scorekeepers</p>
+                </div>
+                {% else %}
+                <div class="share-link">
+                    <input type="text" id="share-url" readonly value="{{ request.url_for('spectator_match_day_page', share_code=match_day.share_code) }}">
+                    <button class="btn btn-secondary" onclick="copyLink('share-url')">Copy</button>
+                </div>
+                <p class="spectator-notice-text">You are viewing as a spectator</p>
+                {% endif %}
             </div>
         </div>
 
         <div class="back-link">
-            <a href="/">← New Match Day</a>
+            <a href="/archive">← View Archive</a>
         </div>
+
+        {% if is_scorer %}
+        <!-- Score Entry Modal -->
+        <div id="score-modal" class="modal" style="display: none;">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h3 id="modal-title">Enter Score</h3>
+                    <button class="modal-close" onclick="closeScoreModal()">&times;</button>
+                </div>
+                <div class="modal-body">
+                    <div class="score-entry-form">
+                        <div class="set-entry">
+                            <label>Set 1</label>
+                            <div class="set-inputs">
+                                <input type="number" id="set1-a" min="0" max="7" value="0" class="set-input">
+                                <span>-</span>
+                                <input type="number" id="set1-b" min="0" max="7" value="0" class="set-input">
+                            </div>
+                        </div>
+                        <div class="set-entry">
+                            <label>Set 2</label>
+                            <div class="set-inputs">
+                                <input type="number" id="set2-a" min="0" max="7" value="0" class="set-input">
+                                <span>-</span>
+                                <input type="number" id="set2-b" min="0" max="7" value="0" class="set-input">
+                            </div>
+                        </div>
+                        <div class="set-entry">
+                            <label>Set 3 (optional)</label>
+                            <div class="set-inputs">
+                                <input type="number" id="set3-a" min="0" max="10" value="0" class="set-input">
+                                <span>-</span>
+                                <input type="number" id="set3-b" min="0" max="10" value="0" class="set-input">
+                            </div>
+                        </div>
+                        <div class="winner-selection">
+                            <label>Winner</label>
+                            <div class="winner-buttons">
+                                <button type="button" id="winner-a-btn" class="winner-btn" onclick="selectWinner(0)">
+                                    <span id="winner-a-name">Team A</span>
+                                </button>
+                                <button type="button" id="winner-b-btn" class="winner-btn" onclick="selectWinner(1)">
+                                    <span id="winner-b-name">Team B</span>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button class="btn btn-secondary" onclick="closeScoreModal()">Cancel</button>
+                    <button class="btn btn-primary" onclick="saveMatchScore()">Save Score</button>
+                </div>
+            </div>
+        </div>
+        {% endif %}
     </div>
 
     <script>
         const matches = {{ matches | tojson }};
+        const matchDay = {{ match_day | tojson }};
+        const isScorer = {{ is_scorer | tojson }};
+
+        // Store scorer token for API calls when accessed via /scoreday/{token}
+        if (isScorer && matchDay.scorer_token) {
+            sessionStorage.setItem('scorer_token', matchDay.scorer_token);
+        }
+
+        // Helper to get scorer token
+        function getScorerToken() {
+            return sessionStorage.getItem('scorer_token') || '';
+        }
+
+        // Helper to add auth headers to fetch calls
+        function getAuthHeaders() {
+            const headers = { 'Content-Type': 'application/json' };
+            const token = getScorerToken();
+            if (token) {
+                headers['X-Scorer-Token'] = token;
+            }
+            return headers;
+        }
+
+        // Extract players from singles matches (more reliable than stored arrays)
+        function getPlayersFromSingles() {
+            const singlesMatches = matches.filter(m => m.match_type === 'singles');
+            const teamA = [];
+            const teamB = [];
+
+            singlesMatches.forEach(m => {
+                if (m.player_a1 && !teamA.includes(m.player_a1)) {
+                    teamA.push(m.player_a1);
+                }
+                if (m.player_b1 && !teamB.includes(m.player_b1)) {
+                    teamB.push(m.player_b1);
+                }
+            });
+
+            return { teamA, teamB };
+        }
+
+        const singlesPlayers = getPlayersFromSingles();
+        const teamAPlayers = singlesPlayers.teamA.length > 0 ? singlesPlayers.teamA : (matchDay.team_a_players || []);
+        const teamBPlayers = singlesPlayers.teamB.length > 0 ? singlesPlayers.teamB : (matchDay.team_b_players || []);
+        let editMode = false;
 
         function updateTeamWins() {
             let teamAWins = 0;
@@ -111,8 +267,20 @@
         }
 
         function copyShareLink() {
-            const shareUrl = document.getElementById('share-url');
-            shareUrl.select();
+            copyLink('share-url');
+        }
+
+        function toggleShareSection() {
+            const section = document.getElementById('share-section');
+            const icon = section.querySelector('.share-toggle-icon');
+            section.classList.toggle('collapsed');
+            icon.textContent = section.classList.contains('collapsed') ? '+' : '−';
+        }
+
+        function copyLink(inputId) {
+            const input = document.getElementById(inputId);
+            if (!input) return;
+            input.select();
             document.execCommand('copy');
 
             const btn = event.target;
@@ -121,8 +289,375 @@
             setTimeout(() => btn.textContent = originalText, 2000);
         }
 
-        // Initial update
+        // Check if all singles matches are finished
+        function allSinglesFinished() {
+            const singlesMatches = matches.filter(m => m.match_type === 'singles');
+            return singlesMatches.length > 0 && singlesMatches.every(m => m.score_state.winner !== null);
+        }
+
+        // Get doubles matches
+        function getDoublesMatches() {
+            return matches.filter(m => m.match_type === 'doubles');
+        }
+
+        // Get currently selected players across all doubles matches
+        function getSelectedPlayers() {
+            const selected = { teamA: [], teamB: [] };
+            const doublesMatches = getDoublesMatches();
+
+            doublesMatches.forEach((match, idx) => {
+                const prefix = `match-${idx}`;
+                const a1 = document.getElementById(`${prefix}-a1`)?.value;
+                const a2 = document.getElementById(`${prefix}-a2`)?.value;
+                const b1 = document.getElementById(`${prefix}-b1`)?.value;
+                const b2 = document.getElementById(`${prefix}-b2`)?.value;
+
+                if (a1) selected.teamA.push({ player: a1, matchIdx: idx, position: 'a1' });
+                if (a2) selected.teamA.push({ player: a2, matchIdx: idx, position: 'a2' });
+                if (b1) selected.teamB.push({ player: b1, matchIdx: idx, position: 'b1' });
+                if (b2) selected.teamB.push({ player: b2, matchIdx: idx, position: 'b2' });
+            });
+
+            return selected;
+        }
+
+        // Update dropdown options to disable already-selected players
+        function updateDropdownOptions() {
+            if (editMode) return; // Don't update in edit mode
+
+            const selected = getSelectedPlayers();
+            const doublesMatches = getDoublesMatches();
+
+            doublesMatches.forEach((match, idx) => {
+                const prefix = `match-${idx}`;
+
+                // Update Team A dropdowns
+                ['a1', 'a2'].forEach(pos => {
+                    const select = document.getElementById(`${prefix}-${pos}`);
+                    if (!select) return;
+
+                    const currentValue = select.value;
+                    Array.from(select.options).forEach(option => {
+                        if (option.value === '') return; // Skip placeholder
+                        const isSelectedElsewhere = selected.teamA.some(
+                            s => s.player === option.value && !(s.matchIdx === idx && s.position === pos)
+                        );
+                        option.disabled = isSelectedElsewhere;
+                    });
+                });
+
+                // Update Team B dropdowns
+                ['b1', 'b2'].forEach(pos => {
+                    const select = document.getElementById(`${prefix}-${pos}`);
+                    if (!select) return;
+
+                    const currentValue = select.value;
+                    Array.from(select.options).forEach(option => {
+                        if (option.value === '') return;
+                        const isSelectedElsewhere = selected.teamB.some(
+                            s => s.player === option.value && !(s.matchIdx === idx && s.position === pos)
+                        );
+                        option.disabled = isSelectedElsewhere;
+                    });
+                });
+            });
+        }
+
+        // Create dropdown for player selection
+        function createPlayerDropdown(id, players, currentValue, team) {
+            const select = document.createElement('select');
+            select.id = id;
+            select.className = 'player-select';
+            select.onchange = updateDropdownOptions;
+
+            const placeholder = document.createElement('option');
+            placeholder.value = '';
+            placeholder.textContent = players.length > 0 ? '-- Select Player --' : '-- No players available --';
+            select.appendChild(placeholder);
+
+            players.forEach(player => {
+                const option = document.createElement('option');
+                option.value = player;
+                option.textContent = player;
+                // Match current value (trim whitespace for safety)
+                if (player && currentValue && player.trim() === currentValue.trim()) {
+                    option.selected = true;
+                }
+                select.appendChild(option);
+            });
+
+            return select;
+        }
+
+        // Create text input for edit mode
+        function createPlayerInput(id, currentValue) {
+            const input = document.createElement('input');
+            input.type = 'text';
+            input.id = id;
+            input.className = 'player-input';
+            input.value = currentValue || '';
+            input.placeholder = 'Enter player name';
+            return input;
+        }
+
+        // Render the pairing form
+        function renderPairingForm() {
+            const container = document.getElementById('pairing-form');
+            container.innerHTML = '';
+
+            const doublesMatches = getDoublesMatches();
+
+            doublesMatches.forEach((match, idx) => {
+                const matchDiv = document.createElement('div');
+                matchDiv.className = 'pairing-match';
+
+                const header = document.createElement('div');
+                header.className = 'pairing-match-header';
+                header.textContent = `Doubles #${idx + 1} (Match #${match.match_number})`;
+                matchDiv.appendChild(header);
+
+                const teamsDiv = document.createElement('div');
+                teamsDiv.className = 'pairing-teams';
+
+                // Team A pair
+                const teamADiv = document.createElement('div');
+                teamADiv.className = 'pairing-team';
+                teamADiv.innerHTML = `<div class="team-label">${matchDay.team_a_name}</div>`;
+                const teamAPlayers_div = document.createElement('div');
+                teamAPlayers_div.className = 'pairing-players';
+
+                if (editMode) {
+                    teamAPlayers_div.appendChild(createPlayerInput(`match-${idx}-a1`, match.player_a1));
+                    teamAPlayers_div.appendChild(createPlayerInput(`match-${idx}-a2`, match.player_a2));
+                } else {
+                    teamAPlayers_div.appendChild(createPlayerDropdown(`match-${idx}-a1`, teamAPlayers, match.player_a1, 'A'));
+                    teamAPlayers_div.appendChild(createPlayerDropdown(`match-${idx}-a2`, teamAPlayers, match.player_a2, 'A'));
+                }
+                teamADiv.appendChild(teamAPlayers_div);
+                teamsDiv.appendChild(teamADiv);
+
+                // VS
+                const vsDiv = document.createElement('div');
+                vsDiv.className = 'pairing-vs';
+                vsDiv.textContent = 'vs';
+                teamsDiv.appendChild(vsDiv);
+
+                // Team B pair
+                const teamBDiv = document.createElement('div');
+                teamBDiv.className = 'pairing-team';
+                teamBDiv.innerHTML = `<div class="team-label">${matchDay.team_b_name}</div>`;
+                const teamBPlayers_div = document.createElement('div');
+                teamBPlayers_div.className = 'pairing-players';
+
+                if (editMode) {
+                    teamBPlayers_div.appendChild(createPlayerInput(`match-${idx}-b1`, match.player_b1));
+                    teamBPlayers_div.appendChild(createPlayerInput(`match-${idx}-b2`, match.player_b2));
+                } else {
+                    teamBPlayers_div.appendChild(createPlayerDropdown(`match-${idx}-b1`, teamBPlayers, match.player_b1, 'B'));
+                    teamBPlayers_div.appendChild(createPlayerDropdown(`match-${idx}-b2`, teamBPlayers, match.player_b2, 'B'));
+                }
+                teamBDiv.appendChild(teamBPlayers_div);
+                teamsDiv.appendChild(teamBDiv);
+
+                matchDiv.appendChild(teamsDiv);
+                container.appendChild(matchDiv);
+            });
+
+            // Update disabled states after rendering
+            setTimeout(updateDropdownOptions, 0);
+        }
+
+        // Toggle edit mode
+        function toggleEditMode() {
+            editMode = !editMode;
+            const btn = document.getElementById('edit-mode-btn');
+            btn.textContent = editMode ? 'Use Dropdowns' : 'Edit Player Names';
+            btn.classList.toggle('active', editMode);
+            renderPairingForm();
+        }
+
+        // Save pairings
+        async function savePairings() {
+            const doublesMatches = getDoublesMatches();
+            const statusEl = document.getElementById('pairing-status');
+            const saveBtn = document.getElementById('save-pairings-btn');
+
+            saveBtn.disabled = true;
+            statusEl.textContent = 'Saving...';
+            statusEl.className = 'pairing-status';
+
+            try {
+                for (let idx = 0; idx < doublesMatches.length; idx++) {
+                    const match = doublesMatches[idx];
+                    const prefix = `match-${idx}`;
+
+                    const data = {
+                        player_a1: document.getElementById(`${prefix}-a1`)?.value || null,
+                        player_a2: document.getElementById(`${prefix}-a2`)?.value || null,
+                        player_b1: document.getElementById(`${prefix}-b1`)?.value || null,
+                        player_b2: document.getElementById(`${prefix}-b2`)?.value || null,
+                    };
+
+                    const response = await fetch(`/api/matches/${match.id}/players`, {
+                        method: 'PATCH',
+                        headers: getAuthHeaders(),
+                        body: JSON.stringify(data)
+                    });
+
+                    if (!response.ok) {
+                        throw new Error(`Failed to update match ${match.match_number}`);
+                    }
+                }
+
+                statusEl.textContent = 'Saved! Refreshing...';
+                statusEl.className = 'pairing-status success';
+                setTimeout(() => window.location.reload(), 1000);
+            } catch (error) {
+                statusEl.textContent = 'Error: ' + error.message;
+                statusEl.className = 'pairing-status error';
+                saveBtn.disabled = false;
+            }
+        }
+
+        // Initialize doubles pairing section
+        function initDoublesPairing() {
+            if (!isScorer) return; // Spectators don't see pairing controls
+
+            if (allSinglesFinished()) {
+                const section = document.getElementById('doubles-pairing-section');
+                if (section) {
+                    section.style.display = 'block';
+                    renderPairingForm();
+                }
+            }
+        }
+
+        // Score modal variables
+        let currentMatchId = null;
+        let selectedWinner = null;
+
+        // Open score modal
+        function openScoreModal(matchId, playerA, playerB) {
+            currentMatchId = matchId;
+            selectedWinner = null;
+
+            // Reset form
+            document.getElementById('set1-a').value = 0;
+            document.getElementById('set1-b').value = 0;
+            document.getElementById('set2-a').value = 0;
+            document.getElementById('set2-b').value = 0;
+            document.getElementById('set3-a').value = 0;
+            document.getElementById('set3-b').value = 0;
+
+            // Update player names
+            document.getElementById('winner-a-name').textContent = playerA;
+            document.getElementById('winner-b-name').textContent = playerB;
+            document.getElementById('modal-title').textContent = `Enter Score: ${playerA} vs ${playerB}`;
+
+            // Reset winner selection
+            document.getElementById('winner-a-btn').classList.remove('selected');
+            document.getElementById('winner-b-btn').classList.remove('selected');
+
+            // Show modal
+            document.getElementById('score-modal').style.display = 'flex';
+        }
+
+        // Close score modal
+        function closeScoreModal() {
+            document.getElementById('score-modal').style.display = 'none';
+            currentMatchId = null;
+            selectedWinner = null;
+        }
+
+        // Select winner
+        function selectWinner(winner) {
+            selectedWinner = winner;
+            document.getElementById('winner-a-btn').classList.toggle('selected', winner === 0);
+            document.getElementById('winner-b-btn').classList.toggle('selected', winner === 1);
+        }
+
+        // Auto-calculate winner from set scores
+        function autoCalculateWinner() {
+            const set1a = parseInt(document.getElementById('set1-a').value) || 0;
+            const set1b = parseInt(document.getElementById('set1-b').value) || 0;
+            const set2a = parseInt(document.getElementById('set2-a').value) || 0;
+            const set2b = parseInt(document.getElementById('set2-b').value) || 0;
+            const set3a = parseInt(document.getElementById('set3-a').value) || 0;
+            const set3b = parseInt(document.getElementById('set3-b').value) || 0;
+
+            let setsA = 0, setsB = 0;
+            if (set1a > set1b) setsA++; else if (set1b > set1a) setsB++;
+            if (set2a > set2b) setsA++; else if (set2b > set2a) setsB++;
+            if (set3a > set3b) setsA++; else if (set3b > set3a) setsB++;
+
+            // Auto-select winner if clear (2-0 or 2-1)
+            if (setsA >= 2 && setsA > setsB) {
+                selectWinner(0);
+            } else if (setsB >= 2 && setsB > setsA) {
+                selectWinner(1);
+            }
+        }
+
+        // Add listeners to set inputs for auto-calculation
+        document.addEventListener('DOMContentLoaded', function() {
+            ['set1-a', 'set1-b', 'set2-a', 'set2-b', 'set3-a', 'set3-b'].forEach(id => {
+                const el = document.getElementById(id);
+                if (el) el.addEventListener('input', autoCalculateWinner);
+            });
+        });
+
+        // Save match score
+        async function saveMatchScore() {
+            if (selectedWinner === null) {
+                alert('Please select a winner');
+                return;
+            }
+
+            const sets = [];
+            const set1a = parseInt(document.getElementById('set1-a').value) || 0;
+            const set1b = parseInt(document.getElementById('set1-b').value) || 0;
+            const set2a = parseInt(document.getElementById('set2-a').value) || 0;
+            const set2b = parseInt(document.getElementById('set2-b').value) || 0;
+            const set3a = parseInt(document.getElementById('set3-a').value) || 0;
+            const set3b = parseInt(document.getElementById('set3-b').value) || 0;
+
+            sets.push([set1a, set1b]);
+            sets.push([set2a, set2b]);
+
+            // Only add set 3 if it was played
+            if (set3a > 0 || set3b > 0) {
+                sets.push([set3a, set3b]);
+            }
+
+            try {
+                const response = await fetch(`/api/matches/${currentMatchId}/score`, {
+                    method: 'PATCH',
+                    headers: getAuthHeaders(),
+                    body: JSON.stringify({ sets, winner: selectedWinner })
+                });
+
+                if (!response.ok) {
+                    throw new Error('Failed to save score');
+                }
+
+                closeScoreModal();
+                window.location.reload();
+            } catch (error) {
+                alert('Error saving score: ' + error.message);
+            }
+        }
+
+        // Close modal when clicking outside
+        document.addEventListener('click', function(e) {
+            const modal = document.getElementById('score-modal');
+            if (e.target === modal) {
+                closeScoreModal();
+            }
+        });
+
+        // Initial updates
         updateTeamWins();
+        initDoublesPairing();
 
         // Refresh page periodically to get updates
         setInterval(() => {

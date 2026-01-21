@@ -1,16 +1,25 @@
-version: '3.8'
-
 services:
   tennis-scoring:
     build: .
     container_name: tennis-scoring
-    ports:
-      - "8000:8000"
     volumes:
       - tennis_data:/app/data
     environment:
       - DATABASE_URL=sqlite+aiosqlite:///./data/tennis.db
+      - ADMIN_PASSWORD=${ADMIN_PASSWORD:-changeme}
     restart: unless-stopped
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.tennis.rule=Host(`${DOMAIN:-localhost}`)"
+      - "traefik.http.routers.tennis.entrypoints=websecure"
+      - "traefik.http.routers.tennis.tls.certresolver=letsencrypt"
+      - "traefik.http.services.tennis.loadbalancer.server.port=8000"
+    networks:
+      - traefik-net
 
 volumes:
   tennis_data:
+
+networks:
+  traefik-net:
+    external: true

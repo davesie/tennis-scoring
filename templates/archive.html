@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Match Day Archive - Tennis Scoring</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body class="matchday-page">
+    <div class="matchday-container">
+        <header class="matchday-header">
+            <h1>Match Day Archive</h1>
+            <p class="archive-subtitle">View past match days and results</p>
+        </header>
+
+        {% if match_days %}
+        <section class="archive-list">
+            {% for md in match_days %}
+            <a href="/watchday/{{ md.share_code }}" class="archive-card">
+                <div class="archive-card-header">
+                    <h3 class="archive-name">{{ md.name }}</h3>
+                    <span class="archive-date">{{ md.created_at[:10] if md.created_at else 'Unknown date' }}</span>
+                </div>
+                <div class="archive-teams">
+                    <span class="archive-team">{{ md.team_a_name }}</span>
+                    <span class="archive-score">
+                        <span class="team-a-score">{{ md.team_a_wins }}</span>
+                        <span class="score-dash">-</span>
+                        <span class="team-b-score">{{ md.team_b_wins }}</span>
+                    </span>
+                    <span class="archive-team">{{ md.team_b_name }}</span>
+                </div>
+                <div class="archive-meta">
+                    <span class="archive-format">{{ '6-person' if md.format == '6_person' else '4-person' }}</span>
+                    <span class="archive-progress">
+                        {% if md.completed_matches == md.total_matches %}
+                        <span class="completed-badge">Completed</span>
+                        {% else %}
+                        {{ md.completed_matches }}/{{ md.total_matches }} matches
+                        {% endif %}
+                    </span>
+                </div>
+            </a>
+            {% endfor %}
+        </section>
+        {% else %}
+        <div class="empty-archive">
+            <p>No match days yet.</p>
+            <a href="/" class="btn btn-primary">Create a Match Day</a>
+        </div>
+        {% endif %}
+
+        <div class="back-link">
+            <a href="/">Create New Match Day</a>
+        </div>
+    </div>
+</body>
+</html>
