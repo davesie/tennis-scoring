@@ -13,20 +13,17 @@ cd "$SCRIPT_DIR"
 # Create data directory if it doesn't exist
 mkdir -p data
 
-# Check if venv exists, create if not
-if [ ! -d "venv" ]; then
-    echo -e "${YELLOW}Creating virtual environment...${NC}"
-    python3 -m venv venv
-    echo -e "${GREEN}✓${NC} Virtual environment created"
+# Check if uv is installed
+if ! command -v uv &> /dev/null; then
+    echo -e "${YELLOW}Installing uv...${NC}"
+    curl -LsSf https://astral.sh/uv/install.sh | sh
+    source "$HOME/.local/bin/env" 2>/dev/null || export PATH="$HOME/.local/bin:$PATH"
 fi
 
-# Activate venv
-source venv/bin/activate
-
-# Install/update dependencies
-echo -e "${YELLOW}Installing dependencies...${NC}"
-pip install -q -r requirements.txt
-echo -e "${GREEN}✓${NC} Dependencies installed"
+# Sync dependencies (creates venv if needed)
+echo -e "${YELLOW}Syncing dependencies...${NC}"
+uv sync
+echo -e "${GREEN}✓${NC} Dependencies synced"
 
 # Load .env if exists
 if [ -f ".env" ]; then
@@ -43,5 +40,5 @@ echo "Database: $DATABASE_URL"
 echo "Press Ctrl+C to stop"
 echo ""
 
-# Run uvicorn
-uvicorn app.main:app --host 0.0.0.0 --port 8000
+# Run uvicorn via uv
+uv run uvicorn app.main:app --host 0.0.0.0 --port 8000

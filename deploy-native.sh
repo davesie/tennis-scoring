@@ -48,15 +48,15 @@ echo -e "  ${GREEN}✓${NC} Code updated"
 echo ""
 echo -e "${YELLOW}[3/3] Updating dependencies...${NC}"
 
-# Create venv if needed
-if [ ! -d "venv" ]; then
-    echo "  Creating virtual environment..."
-    python3 -m venv venv
+# Check if uv is installed
+if ! command -v uv &> /dev/null; then
+    echo "  Installing uv..."
+    curl -LsSf https://astral.sh/uv/install.sh | sh
+    source "$HOME/.local/bin/env" 2>/dev/null || export PATH="$HOME/.local/bin:$PATH"
 fi
 
-source venv/bin/activate
-pip install -q -r requirements.txt
-echo -e "  ${GREEN}✓${NC} Dependencies updated"
+uv sync
+echo -e "  ${GREEN}✓${NC} Dependencies synced"
 
 # ==========================================
 # DONE
