@@ -1,4 +1,35 @@
 services:
+  # ===========================================
+  # TRAEFIK - Reverse Proxy with Auto-SSL
+  # ===========================================
+  traefik:
+    image: traefik:v3.0
+    container_name: traefik
+    command:
+      - "--api.dashboard=false"
+      - "--providers.docker=true"
+      - "--providers.docker.exposedbydefault=false"
+      - "--entrypoints.web.address=:80"
+      - "--entrypoints.websecure.address=:443"
+      - "--entrypoints.web.http.redirections.entrypoint.to=websecure"
+      - "--entrypoints.web.http.redirections.entrypoint.scheme=https"
+      - "--certificatesresolvers.letsencrypt.acme.httpchallenge=true"
+      - "--certificatesresolvers.letsencrypt.acme.httpchallenge.entrypoint=web"
+      - "--certificatesresolvers.letsencrypt.acme.email=${ACME_EMAIL:-admin@example.com}"
+      - "--certificatesresolvers.letsencrypt.acme.storage=/letsencrypt/acme.json"
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - traefik_letsencrypt:/letsencrypt
+    networks:
+      - web
+    restart: unless-stopped
+
+  # ===========================================
+  # TENNIS SCORING APP
+  # ===========================================
   tennis-scoring:
     build: .
     container_name: tennis-scoring
@@ -15,11 +46,13 @@ services:
       - "traefik.http.routers.tennis.tls.certresolver=letsencrypt"
       - "traefik.http.services.tennis.loadbalancer.server.port=8000"
     networks:
-      - traefik-net
+      - web
+    depends_on:
+      - traefik
 
 volumes:
+  traefik_letsencrypt:
   tennis_data:
 
 networks:
-  traefik-net:
-    external: true
+  web:

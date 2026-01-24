@@ -161,101 +161,58 @@ newgrp docker
 
 # Install Git
 sudo apt install -y git
-```
 
-### 2. Setup Traefik (one-time, can serve multiple apps)
-
-```bash
-# Create directory for Traefik
-mkdir -p ~/traefik && cd ~/traefik
-
-# Create the Docker network
-docker network create traefik-net
-
-# Create docker-compose.yml for Traefik
-cat > docker-compose.yml << 'EOF'
-services:
-  traefik:
-    image: traefik:v3.0
-    container_name: traefik
-    command:
-      - "--api.dashboard=true"
-      - "--providers.docker=true"
-      - "--providers.docker.exposedbydefault=false"
-      - "--entrypoints.web.address=:80"
-      - "--entrypoints.websecure.address=:443"
-      - "--entrypoints.web.http.redirections.entrypoint.to=websecure"
-      - "--entrypoints.web.http.redirections.entrypoint.scheme=https"
-      - "--certificatesresolvers.letsencrypt.acme.httpchallenge=true"
-      - "--certificatesresolvers.letsencrypt.acme.httpchallenge.entrypoint=web"
-      - "--certificatesresolvers.letsencrypt.acme.email=${ACME_EMAIL}"
-      - "--certificatesresolvers.letsencrypt.acme.storage=/letsencrypt/acme.json"
-    ports:
-      - "80:80"
-      - "443:443"
-    volumes:
-      - /var/run/docker.sock:/var/run/docker.sock:ro
-      - traefik_letsencrypt:/letsencrypt
-    networks:
-      - traefik-net
-    restart: unless-stopped
-
-volumes:
-  traefik_letsencrypt:
-
-networks:
-  traefik-net:
-    external: true
-EOF
-
-# Create .env file
-cat > .env << EOF
-ACME_EMAIL=your-email@example.com
-EOF
-
-# Start Traefik
-docker compose up -d
-```
-
-### 3. Deploy Tennis Scoring App
-
-```bash
-# Clone the repository
-cd ~
-git clone https://github.com/YOUR_USERNAME/tennis-scoring.git
-cd tennis-scoring
-
-# Create .env file
-cat > .env << EOF
-DOMAIN=tennis.yourdomain.com
-ADMIN_PASSWORD=your-secure-password
-EOF
-
-# Build and start the app
-docker compose up -d --build
-```
-
-### 4. Firewall Setup
-
-```bash
+# Setup firewall
 sudo ufw allow 22
 sudo ufw allow 80
 sudo ufw allow 443
 sudo ufw enable
 ```
 
+### 2. Deploy (one command!)
+
+```bash
+# Clone the repository
+git clone https://github.com/YOUR_USERNAME/tennis-scoring.git
+cd tennis-scoring
+
+# Create .env file (edit with your values)
+cp .env.example .env
+nano .env  # or: vim .env
+
+# Start everything (Traefik + App)
+docker compose up -d --build
+```
+
+That's it! The app will be available at `https://your-domain.com` with automatic SSL.
+
 ### Updating the App
 
 ```bash
 cd ~/tennis-scoring
 git pull
-docker compose up -d --build
+docker compose up -d --build tennis-scoring
 ```
 
-### Viewing Logs
+Note: Use `--build tennis-scoring` to only rebuild the app, not Traefik.
+
+### Useful Commands
 
 ```bash
+# View logs
 docker compose logs -f tennis-scoring
+
+# View Traefik logs (for SSL issues)
+docker compose logs -f traefik
+
+# Restart everything
+docker compose restart
+
+# Stop everything
+docker compose down
+
+# Full rebuild (if you changed Dockerfile)
+docker compose up -d --build --force-recreate tennis-scoring
 ```
 
 ### Architecture
