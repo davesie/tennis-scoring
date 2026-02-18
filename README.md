@@ -144,6 +144,37 @@ tennis_scoring/
 | `DATABASE_URL` | `sqlite+aiosqlite:///./tennis.db` | Database connection string |
 | `ADMIN_PASSWORD` | (required) | Password for admin access to create match days |
 
+## Deploying with Coolify
+
+[Coolify](https://coolify.io) is a self-hosted PaaS that can build and run this app directly from GitHub with zero manual Docker commands.
+
+### Steps
+
+1. In Coolify: **New Resource → Application → GitHub repo** — select this repository
+2. Set **Build Pack: Dockerfile**
+3. Set **Port**: `8000`
+4. Under **Environment Variables**, add:
+   - `ADMIN_PASSWORD` = your secure password
+   - `DATABASE_URL` = `sqlite+aiosqlite:///./data/tennis.db` (optional — this is the Dockerfile default)
+5. Under **Persistent Storage**, add a volume mounted at `/app/data` — this preserves your SQLite database across deploys
+6. Click **Deploy**
+
+### Secrets strategy
+
+Coolify injects environment variables at container runtime — they are **never stored in your image or your git repo**. You do not need a private repository to keep `ADMIN_PASSWORD` secret. Set it in the Coolify dashboard and it stays there.
+
+| Option | Verdict |
+|--------|---------|
+| Coolify env vars (recommended) | ✅ Simple, secure — secrets never touch the repo |
+| Private GitHub repo | Adds code privacy, does not replace env vars |
+| `.env` committed to repo | ⚠️ Not recommended — secrets end up in git history |
+
+### Updating
+
+Push to your configured branch → Coolify automatically rebuilds and redeploys.
+
+---
+
 ## VPS Deployment with Docker + Traefik
 
 Minimum requirements: 1 vCore, 512MB RAM (2 vCores + 2GB RAM is plenty)

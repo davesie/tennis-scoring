@@ -1,0 +1,16 @@
+.env
+.env.*
+data/
+__pycache__/
+*.pyc
+*.pyo
+.git/
+*.json
+scrape_*.py
+import_wtb*.py
+show_*.py
+test_*.py
+deploy*.sh
+start.sh
+docker-compose.yml
+.venv/
