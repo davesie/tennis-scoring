@@ -2,7 +2,10 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="theme-color" content="#1a1a2e">
     <title>{{ match.player_a1 or match.team_a_name }} vs {{ match.player_b1 or match.team_b_name }} - Tennis Scoring</title>
     <link rel="stylesheet" href="/static/css/style.css">
 </head>
@@ -12,6 +15,7 @@
         <div class="scoreboard">
             <div class="scoreboard-header">
                 <span class="match-status" id="match-status">LIVE</span>
+                <span class="connection-status" id="connection-status" title="Connection status">●</span>
                 <span class="match-type">{{ match.match_type | upper }}</span>
             </div>
 
@@ -73,6 +77,7 @@
 
             <div class="scoreboard-footer">
                 <span id="game-state"></span>
+                <span id="match-timer" class="match-timer"></span>
             </div>
         </div>
 
@@ -147,14 +152,19 @@
         </div>
         {% endif %}
 
-        <!-- Share Section -->
-        <div class="share-section">
-            <h3>Share This Match</h3>
-            <div class="share-link">
-                <input type="text" id="share-url" readonly>
-                <button class="btn btn-secondary" onclick="copyShareLink()">Copy</button>
+        <!-- Share Section (Collapsible) -->
+        <div class="share-section collapsed" id="share-section">
+            <button class="share-toggle" onclick="toggleShareSection()">
+                <span class="share-toggle-icon">+</span>
+                <span>Share This Match</span>
+            </button>
+            <div class="share-content" id="share-content">
+                <div class="share-link">
+                    <input type="text" id="share-url" readonly>
+                    <button class="btn btn-secondary" onclick="copyShareLink()">Copy Link</button>
+                </div>
+                <p class="share-code">Share Code: <strong>{{ match.share_code }}</strong></p>
             </div>
-            <p class="share-code">Share Code: <strong>{{ match.share_code }}</strong></p>
         </div>
 
         <div class="back-link">
@@ -178,6 +188,46 @@
         let ws = null;
         let reconnectAttempts = 0;
         const maxReconnectAttempts = 10;
+        let timerInterval = null;
+
+        function formatElapsed(totalSeconds) {
+            const h = Math.floor(totalSeconds / 3600);
+            const m = Math.floor((totalSeconds % 3600) / 60);
+            const s = totalSeconds % 60;
+            if (h > 0) return `${h}h ${String(m).padStart(2,'0')}m`;
+            return `${m}m ${String(s).padStart(2,'0')}s`;
+        }
+
+        function updateMatchTimer() {
+            const el = document.getElementById('match-timer');
+            if (!el) return;
+
+            if (!matchData.started_at) {
+                el.textContent = '';
+                return;
+            }
+
+            if (matchData.finished_at && matchData.duration_formatted) {
+                el.textContent = matchData.duration_formatted;
+                clearInterval(timerInterval);
+                timerInterval = null;
+                return;
+            }
+
+            const raw = matchData.started_at;
+            const utcStr = raw.endsWith('Z') || raw.includes('+') ? raw : raw + 'Z';
+            const startMs = new Date(utcStr).getTime();
+            const elapsed = Math.max(0, Math.floor((Date.now() - startMs) / 1000));
+            el.textContent = formatElapsed(elapsed);
+        }
+
+        function startMatchTimer() {
+            if (timerInterval) clearInterval(timerInterval);
+            updateMatchTimer();
+            if (matchData.started_at && !matchData.finished_at) {
+                timerInterval = setInterval(updateMatchTimer, 1000);
+            }
+        }
 
         // Scorer token for API authorization
         // Priority: 1. sessionStorage (set by matchday page), 2. template variable (for admins)
@@ -200,11 +250,19 @@
             updateScoreboard(matchData.score_state);
             setupShareLink();
             connectWebSocket();
+            startMatchTimer();
         });
 
         function setupShareLink() {
             const shareUrl = `${window.location.origin}/watch/${shareCode}`;
             document.getElementById('share-url').value = shareUrl;
+        }
+
+        function toggleShareSection() {
+            const section = document.getElementById('share-section');
+            const icon = section.querySelector('.share-toggle-icon');
+            section.classList.toggle('collapsed');
+            icon.textContent = section.classList.contains('collapsed') ? '+' : '−';
         }
 
         function copyShareLink() {
@@ -215,7 +273,7 @@
             // Visual feedback
             const btn = event.target;
             const originalText = btn.textContent;
-            btn.textContent = 'Copied!';
+            btn.textContent = '✓ Copied!';
             setTimeout(() => btn.textContent = originalText, 2000);
         }
 
@@ -226,6 +284,7 @@
             ws.onopen = () => {
                 console.log('WebSocket connected');
                 reconnectAttempts = 0;
+                updateConnectionStatus('connected');
             };
 
             ws.onmessage = (event) => {
@@ -233,22 +292,45 @@
                 if (data.type === 'score_update' || data.type === 'initial') {
                     matchData = data.match;
                     updateScoreboard(matchData.score_state);
+                    startMatchTimer();
                 }
             };
 
             ws.onclose = () => {
                 console.log('WebSocket disconnected');
+                updateConnectionStatus('disconnected');
                 attemptReconnect();
             };
 
             ws.onerror = (error) => {
                 console.error('WebSocket error:', error);
+                updateConnectionStatus('disconnected');
             };
+        }
+
+        function updateConnectionStatus(status) {
+            const indicator = document.getElementById('connection-status');
+            indicator.className = 'connection-status';
+
+            if (status === 'connected') {
+                indicator.textContent = '●';
+                indicator.style.color = '#48bb78';
+                indicator.title = 'Connected - Live updates';
+            } else if (status === 'reconnecting') {
+                indicator.textContent = '●';
+                indicator.classList.add('reconnecting');
+                indicator.title = 'Reconnecting...';
+            } else {
+                indicator.textContent = '●';
+                indicator.classList.add('disconnected');
+                indicator.title = 'Disconnected - Trying to reconnect';
+            }
         }
 
         function attemptReconnect() {
             if (reconnectAttempts < maxReconnectAttempts) {
                 reconnectAttempts++;
+                updateConnectionStatus('reconnecting');
                 const delay = Math.min(1000 * Math.pow(2, reconnectAttempts), 30000);
                 console.log(`Reconnecting in ${delay}ms...`);
                 setTimeout(connectWebSocket, delay);
@@ -271,9 +353,34 @@
 
         function updateScoreboard(state) {
             // Update sets
+            const tbScores = state.tiebreak_scores || [[0,0],[0,0],[0,0]];
+            const stb = state.super_tiebreak_score || [0,0];
+
             for (let i = 0; i < 3; i++) {
-                document.getElementById(`set${i + 1}-a`).textContent = state.games[i][0];
-                document.getElementById(`set${i + 1}-b`).textContent = state.games[i][1];
+                const cellA = document.getElementById(`set${i + 1}-a`);
+                const cellB = document.getElementById(`set${i + 1}-b`);
+
+                if (i === 2 && (stb[0] > 0 || stb[1] > 0)) {
+                    // Super tiebreak finished: show final super tiebreak scores
+                    cellA.innerHTML = stb[0];
+                    cellB.innerHTML = stb[1];
+                } else {
+                    const gA = state.games[i][0];
+                    const gB = state.games[i][1];
+                    const tbA = tbScores[i][0];
+                    const tbB = tbScores[i][1];
+                    const hasTb = tbA > 0 || tbB > 0;
+
+                    if (hasTb) {
+                        // Loser of tiebreak gets superscript with their tiebreak score
+                        const loserIsA = tbA < tbB;
+                        cellA.innerHTML = loserIsA ? `${gA}<sup>${tbA}</sup>` : String(gA);
+                        cellB.innerHTML = loserIsA ? String(gB) : `${gB}<sup>${tbB}</sup>`;
+                    } else {
+                        cellA.innerHTML = gA;
+                        cellB.innerHTML = gB;
+                    }
+                }
             }
 
             // Update points
@@ -382,6 +489,11 @@
             const btn = team === 0 ? document.getElementById('score-a') : document.getElementById('score-b');
             btn.classList.add('scoring');
 
+            // Haptic feedback - light tap
+            if ('vibrate' in navigator) {
+                navigator.vibrate(30);
+            }
+
             try {
                 const response = await fetch(`/api/matches/${matchId}/score`, {
                     method: 'POST',
@@ -396,6 +508,10 @@
             } catch (error) {
                 console.error('Error scoring point:', error);
                 alert(error.message || 'Failed to score point. Please try again.');
+                // Error haptic - three short bursts
+                if ('vibrate' in navigator) {
+                    navigator.vibrate([50, 50, 50]);
+                }
             } finally {
                 btn.classList.remove('scoring');
             }
@@ -404,6 +520,11 @@
         async function scoreGame(team) {
             const btn = team === 0 ? document.getElementById('game-a') : document.getElementById('game-b');
             btn.classList.add('scoring');
+
+            // Haptic feedback - stronger for full game
+            if ('vibrate' in navigator) {
+                navigator.vibrate([50, 30, 50]);
+            }
 
             try {
                 const response = await fetch(`/api/matches/${matchId}/game`, {
@@ -415,10 +536,16 @@
                 if (!response.ok) {
                     const data = await response.json().catch(() => ({}));
                     alert(data.detail || 'Failed to score game');
+                    if ('vibrate' in navigator) {
+                        navigator.vibrate([50, 50, 50]);
+                    }
                 }
             } catch (error) {
                 console.error('Error scoring game:', error);
                 alert(error.message || 'Failed to score game. Please try again.');
+                if ('vibrate' in navigator) {
+                    navigator.vibrate([50, 50, 50]);
+                }
             } finally {
                 btn.classList.remove('scoring');
             }
@@ -426,6 +553,11 @@
 
         async function undoPoint() {
             if (!confirm('Undo the last action?')) return;
+
+            // Haptic feedback - double pulse for undo
+            if ('vibrate' in navigator) {
+                navigator.vibrate([40, 30, 40]);
+            }
 
             try {
                 const response = await fetch(`/api/matches/${matchId}/undo`, {
@@ -436,15 +568,26 @@
                 if (!response.ok) {
                     const data = await response.json().catch(() => ({}));
                     alert(data.detail || 'Failed to undo');
+                    if ('vibrate' in navigator) {
+                        navigator.vibrate([50, 50, 50]);
+                    }
                 }
             } catch (error) {
                 console.error('Error undoing:', error);
                 alert(error.message || 'Failed to undo. Please try again.');
+                if ('vibrate' in navigator) {
+                    navigator.vibrate([50, 50, 50]);
+                }
             }
         }
 
         async function resetMatch() {
             if (!confirm('Are you sure you want to reset the entire match? This cannot be undone.')) return;
+
+            // Haptic feedback - strong warning pattern
+            if ('vibrate' in navigator) {
+                navigator.vibrate([100, 50, 100, 50, 100]);
+            }
 
             try {
                 const response = await fetch(`/api/matches/${matchId}/reset`, {
@@ -459,6 +602,9 @@
             } catch (error) {
                 console.error('Error resetting:', error);
                 alert(error.message || 'Failed to reset match. Please try again.');
+                if ('vibrate' in navigator) {
+                    navigator.vibrate([50, 50, 50]);
+                }
             }
         }
     </script>

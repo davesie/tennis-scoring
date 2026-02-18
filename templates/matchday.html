@@ -2,7 +2,10 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="theme-color" content="#1a1a2e">
     <title>{{ match_day.name }} - Tennis Scoring</title>
     <link rel="stylesheet" href="/static/css/style.css">
 </head>
@@ -19,12 +22,13 @@
                     <span class="team-name">{{ match_day.team_a_name }}</span>
                     <span class="score" id="team-a-wins">0</span>
                 </div>
-                <div class="score-separator">:</div>
+                <div class="score-separator">-</div>
                 <div class="team-score">
-                    <span class="score" id="team-b-wins">0</span>
                     <span class="team-name">{{ match_day.team_b_name }}</span>
+                    <span class="score" id="team-b-wins">0</span>
                 </div>
             </div>
+            <div id="matchday-timer" class="matchday-timer"></div>
         </header>
 
         <section class="matches-section">
@@ -32,22 +36,31 @@
             <div class="matches-list" id="singles-matches">
                 {% for match in matches %}
                 {% if match.match_type == 'singles' %}
-                <div class="scoreboard-card {% if match.score_state.winner is not none %}finished{% endif %}">
+                <div class="scoreboard-card {% if match.score_state.winner is not none %}finished{% elif match.started_at %}live{% else %}upcoming{% endif %}" data-started-at="{{ match.started_at or '' }}">
+                    {% if match.score_state.winner is not none %}
+                        <span class="status-badge final">✓</span>
+                    {% elif match.started_at %}
+                        <span class="status-badge live">🟢 LIVE</span>
+                    {% endif %}
+                    {%- set tb = match.score_state.get('tiebreak_scores', [[0,0],[0,0],[0,0]]) -%}
+                    {%- set stb = match.score_state.get('super_tiebreak_score', [0,0]) -%}
+                    {%- set show_s2 = match.score_state.current_set >= 1 or match.score_state.winner is not none -%}
+                    {%- set show_s3 = match.score_state.current_set >= 2 or (match.score_state.winner is not none and match.score_state.sets[0] == 1 and match.score_state.sets[1] == 1) -%}
                     <a href="{% if is_scorer %}/match/{{ match.id }}{% else %}/watch/{{ match.share_code }}{% endif %}" class="scoreboard-link">
                         <table class="scoreboard-table">
                             <tr class="{% if match.score_state.winner == 0 %}winner{% endif %}">
                                 <td class="team-color team-a"></td>
                                 <td class="player-name">{{ match.player_a1 or 'Player A' }}</td>
-                                <td class="set-score">{{ match.score_state.games[0][0] }}</td>
-                                <td class="set-score">{{ match.score_state.games[1][0] if match.score_state.current_set >= 1 or match.score_state.winner is not none else '' }}</td>
-                                <td class="set-score">{{ match.score_state.games[2][0] if match.score_state.current_set >= 2 or (match.score_state.winner is not none and match.score_state.sets[0] == 1 and match.score_state.sets[1] == 1) else '' }}</td>
+                                <td class="set-score">{{ match.score_state.games[0][0] }}{% if tb[0][0] or tb[0][1] %}{% if tb[0][0] < tb[0][1] %}<sup>{{ tb[0][0] }}</sup>{% endif %}{% endif %}</td>
+                                <td class="set-score">{% if show_s2 %}{{ match.score_state.games[1][0] }}{% if tb[1][0] or tb[1][1] %}{% if tb[1][0] < tb[1][1] %}<sup>{{ tb[1][0] }}</sup>{% endif %}{% endif %}{% endif %}</td>
+                                <td class="set-score">{% if show_s3 %}{% if stb[0] or stb[1] %}{{ stb[0] }}{% else %}{{ match.score_state.games[2][0] }}{% endif %}{% endif %}</td>
                             </tr>
                             <tr class="{% if match.score_state.winner == 1 %}winner{% endif %}">
                                 <td class="team-color team-b"></td>
                                 <td class="player-name">{{ match.player_b1 or 'Player B' }}</td>
-                                <td class="set-score">{{ match.score_state.games[0][1] }}</td>
-                                <td class="set-score">{{ match.score_state.games[1][1] if match.score_state.current_set >= 1 or match.score_state.winner is not none else '' }}</td>
-                                <td class="set-score">{{ match.score_state.games[2][1] if match.score_state.current_set >= 2 or (match.score_state.winner is not none and match.score_state.sets[0] == 1 and match.score_state.sets[1] == 1) else '' }}</td>
+                                <td class="set-score">{{ match.score_state.games[0][1] }}{% if tb[0][0] or tb[0][1] %}{% if tb[0][1] < tb[0][0] %}<sup>{{ tb[0][1] }}</sup>{% endif %}{% endif %}</td>
+                                <td class="set-score">{% if show_s2 %}{{ match.score_state.games[1][1] }}{% if tb[1][0] or tb[1][1] %}{% if tb[1][1] < tb[1][0] %}<sup>{{ tb[1][1] }}</sup>{% endif %}{% endif %}{% endif %}</td>
+                                <td class="set-score">{% if show_s3 %}{% if stb[0] or stb[1] %}{{ stb[1] }}{% else %}{{ match.score_state.games[2][1] }}{% endif %}{% endif %}</td>
                             </tr>
                         </table>
                         {% if match.duration_formatted %}
@@ -82,22 +95,31 @@
             <div class="matches-list" id="doubles-matches">
                 {% for match in matches %}
                 {% if match.match_type == 'doubles' %}
-                <div class="scoreboard-card {% if match.score_state.winner is not none %}finished{% endif %}">
+                <div class="scoreboard-card {% if match.score_state.winner is not none %}finished{% elif match.started_at %}live{% else %}upcoming{% endif %}" data-started-at="{{ match.started_at or '' }}">
+                    {% if match.score_state.winner is not none %}
+                        <span class="status-badge final">✓</span>
+                    {% elif match.started_at %}
+                        <span class="status-badge live">🟢 LIVE</span>
+                    {% endif %}
+                    {%- set tb = match.score_state.get('tiebreak_scores', [[0,0],[0,0],[0,0]]) -%}
+                    {%- set stb = match.score_state.get('super_tiebreak_score', [0,0]) -%}
+                    {%- set show_s2 = match.score_state.current_set >= 1 or match.score_state.winner is not none -%}
+                    {%- set show_s3 = match.score_state.current_set >= 2 or (match.score_state.winner is not none and match.score_state.sets[0] == 1 and match.score_state.sets[1] == 1) -%}
                     <a href="{% if is_scorer %}/match/{{ match.id }}{% else %}/watch/{{ match.share_code }}{% endif %}" class="scoreboard-link">
                         <table class="scoreboard-table">
                             <tr class="{% if match.score_state.winner == 0 %}winner{% endif %}">
                                 <td class="team-color team-a"></td>
                                 <td class="player-name">{{ match.player_a1 or 'Player A1' }} / {{ match.player_a2 or 'A2' }}</td>
-                                <td class="set-score">{{ match.score_state.games[0][0] }}</td>
-                                <td class="set-score">{{ match.score_state.games[1][0] if match.score_state.current_set >= 1 or match.score_state.winner is not none else '' }}</td>
-                                <td class="set-score">{{ match.score_state.games[2][0] if match.score_state.current_set >= 2 or (match.score_state.winner is not none and match.score_state.sets[0] == 1 and match.score_state.sets[1] == 1) else '' }}</td>
+                                <td class="set-score">{{ match.score_state.games[0][0] }}{% if tb[0][0] or tb[0][1] %}{% if tb[0][0] < tb[0][1] %}<sup>{{ tb[0][0] }}</sup>{% endif %}{% endif %}</td>
+                                <td class="set-score">{% if show_s2 %}{{ match.score_state.games[1][0] }}{% if tb[1][0] or tb[1][1] %}{% if tb[1][0] < tb[1][1] %}<sup>{{ tb[1][0] }}</sup>{% endif %}{% endif %}{% endif %}</td>
+                                <td class="set-score">{% if show_s3 %}{% if stb[0] or stb[1] %}{{ stb[0] }}{% else %}{{ match.score_state.games[2][0] }}{% endif %}{% endif %}</td>
                             </tr>
                             <tr class="{% if match.score_state.winner == 1 %}winner{% endif %}">
                                 <td class="team-color team-b"></td>
                                 <td class="player-name">{{ match.player_b1 or 'Player B1' }} / {{ match.player_b2 or 'B2' }}</td>
-                                <td class="set-score">{{ match.score_state.games[0][1] }}</td>
-                                <td class="set-score">{{ match.score_state.games[1][1] if match.score_state.current_set >= 1 or match.score_state.winner is not none else '' }}</td>
-                                <td class="set-score">{{ match.score_state.games[2][1] if match.score_state.current_set >= 2 or (match.score_state.winner is not none and match.score_state.sets[0] == 1 and match.score_state.sets[1] == 1) else '' }}</td>
+                                <td class="set-score">{{ match.score_state.games[0][1] }}{% if tb[0][0] or tb[0][1] %}{% if tb[0][1] < tb[0][0] %}<sup>{{ tb[0][1] }}</sup>{% endif %}{% endif %}</td>
+                                <td class="set-score">{% if show_s2 %}{{ match.score_state.games[1][1] }}{% if tb[1][0] or tb[1][1] %}{% if tb[1][1] < tb[1][0] %}<sup>{{ tb[1][1] }}</sup>{% endif %}{% endif %}{% endif %}</td>
+                                <td class="set-score">{% if show_s3 %}{% if stb[0] or stb[1] %}{{ stb[1] }}{% else %}{{ match.score_state.games[2][1] }}{% endif %}{% endif %}</td>
                             </tr>
                         </table>
                         {% if match.duration_formatted %}
@@ -523,12 +545,124 @@
         function initDoublesPairing() {
             if (!isScorer) return; // Spectators don't see pairing controls
 
-            if (allSinglesFinished()) {
-                const section = document.getElementById('doubles-pairing-section');
-                if (section) {
-                    section.style.display = 'block';
-                    renderPairingForm();
+            if (!allSinglesFinished()) return;
+
+            const section = document.getElementById('doubles-pairing-section');
+            if (!section) return;
+            section.style.display = 'block';
+
+            const hasDoubles = getDoublesMatches().length > 0;
+            if (hasDoubles) {
+                // Edit existing doubles pairings
+                document.querySelector('.pairing-header h3').textContent = 'Edit Doubles Pairings';
+                document.getElementById('edit-mode-btn').style.display = '';
+                document.getElementById('save-pairings-btn').textContent = 'Save Pairings';
+                document.getElementById('save-pairings-btn').onclick = savePairings;
+                renderPairingForm();
+            } else {
+                // Create doubles — no matches exist yet
+                document.querySelector('.pairing-header h3').textContent = 'Set up Doubles Pairings';
+                document.getElementById('edit-mode-btn').style.display = 'none';
+                document.getElementById('save-pairings-btn').textContent = 'Create Doubles';
+                document.getElementById('save-pairings-btn').onclick = createDoubles;
+                renderCreateDoublesForm();
+            }
+        }
+
+        // Render a fresh create form with player dropdowns sourced from singles
+        function renderCreateDoublesForm() {
+            const container = document.getElementById('pairing-form');
+            container.innerHTML = '';
+            const doublesCount = matchDay.format === '6_person' ? 3 : 2;
+
+            for (let i = 0; i < doublesCount; i++) {
+                const matchDiv = document.createElement('div');
+                matchDiv.className = 'pairing-match';
+
+                const header = document.createElement('div');
+                header.className = 'pairing-match-header';
+                header.textContent = `Double ${i + 1}`;
+                matchDiv.appendChild(header);
+
+                const teamsDiv = document.createElement('div');
+                teamsDiv.className = 'pairing-teams';
+
+                // Team A pair
+                const teamADiv = document.createElement('div');
+                teamADiv.className = 'pairing-team';
+                teamADiv.innerHTML = `<div class="team-label">${matchDay.team_a_name}</div>`;
+                const teamAPlayers_div = document.createElement('div');
+                teamAPlayers_div.className = 'pairing-players';
+                teamAPlayers_div.appendChild(createPlayerDropdown(`create-${i}-a1`, teamAPlayers, null, 'A'));
+                teamAPlayers_div.appendChild(createPlayerDropdown(`create-${i}-a2`, teamAPlayers, null, 'A'));
+                teamADiv.appendChild(teamAPlayers_div);
+                teamsDiv.appendChild(teamADiv);
+
+                const vsDiv = document.createElement('div');
+                vsDiv.className = 'pairing-vs';
+                vsDiv.textContent = 'vs';
+                teamsDiv.appendChild(vsDiv);
+
+                // Team B pair
+                const teamBDiv = document.createElement('div');
+                teamBDiv.className = 'pairing-team';
+                teamBDiv.innerHTML = `<div class="team-label">${matchDay.team_b_name}</div>`;
+                const teamBPlayers_div = document.createElement('div');
+                teamBPlayers_div.className = 'pairing-players';
+                teamBPlayers_div.appendChild(createPlayerDropdown(`create-${i}-b1`, teamBPlayers, null, 'B'));
+                teamBPlayers_div.appendChild(createPlayerDropdown(`create-${i}-b2`, teamBPlayers, null, 'B'));
+                teamBDiv.appendChild(teamBPlayers_div);
+                teamsDiv.appendChild(teamBDiv);
+
+                matchDiv.appendChild(teamsDiv);
+                container.appendChild(matchDiv);
+            }
+        }
+
+        // Create doubles matches via API
+        async function createDoubles() {
+            const doublesCount = matchDay.format === '6_person' ? 3 : 2;
+            const statusEl = document.getElementById('pairing-status');
+            const saveBtn = document.getElementById('save-pairings-btn');
+
+            const pairings = [];
+            for (let i = 0; i < doublesCount; i++) {
+                const a1 = document.getElementById(`create-${i}-a1`)?.value;
+                const a2 = document.getElementById(`create-${i}-a2`)?.value;
+                const b1 = document.getElementById(`create-${i}-b1`)?.value;
+                const b2 = document.getElementById(`create-${i}-b2`)?.value;
+                if (!a1 || !a2 || !b1 || !b2) {
+                    statusEl.textContent = `Please select all players for Double ${i + 1}`;
+                    statusEl.className = 'pairing-status error';
+                    return;
                 }
+                pairings.push({ player_a1: a1, player_a2: a2, player_b1: b1, player_b2: b2 });
+            }
+
+            saveBtn.disabled = true;
+            statusEl.textContent = 'Creating doubles...';
+            statusEl.className = 'pairing-status';
+
+            try {
+                const response = await fetch(`/api/matchdays/${matchDay.id}/doubles`, {
+                    method: 'POST',
+                    headers: getAuthHeaders(),
+                    body: JSON.stringify({ pairings })
+                });
+                if (response.ok) {
+                    statusEl.textContent = 'Doubles created! Refreshing...';
+                    statusEl.className = 'pairing-status success';
+                    setTimeout(() => window.location.reload(), 800);
+                } else {
+                    const data = await response.json();
+                    statusEl.textContent = data.detail || 'Failed to create doubles';
+                    statusEl.className = 'pairing-status error';
+                    saveBtn.disabled = false;
+                }
+            } catch (error) {
+                statusEl.textContent = 'Error: ' + error.message;
+                statusEl.className = 'pairing-status error';
+                saveBtn.disabled = false;
             }
         }
 
@@ -655,9 +789,96 @@
             }
         });
 
+        // ---- Timer utilities ----
+        function formatElapsed(totalSeconds) {
+            const h = Math.floor(totalSeconds / 3600);
+            const m = Math.floor((totalSeconds % 3600) / 60);
+            const s = totalSeconds % 60;
+            if (h > 0) return `${h}h ${String(m).padStart(2, '0')}m`;
+            return `${m}m ${String(s).padStart(2, '0')}s`;
+        }
+
+        function parseUtc(str) {
+            if (!str) return null;
+            const utcStr = str.endsWith('Z') || str.includes('+') ? str : str + 'Z';
+            const ms = new Date(utcStr).getTime();
+            return isNaN(ms) ? null : ms;
+        }
+
+        function initMatchdayTimers() {
+            // Inject ticking .match-duration into live match cards
+            document.querySelectorAll('.scoreboard-card.live[data-started-at]').forEach(card => {
+                const startedAt = card.getAttribute('data-started-at');
+                if (!startedAt) return;
+
+                const link = card.querySelector('.scoreboard-link');
+                if (!link) return;
+
+                let durationEl = link.querySelector('.match-duration');
+                if (!durationEl) {
+                    durationEl = document.createElement('div');
+                    durationEl.className = 'match-duration';
+                    link.appendChild(durationEl);
+                }
+                durationEl.dataset.startedAt = startedAt;
+            });
+
+            // Compute matchday start/end from the JS matches array
+            const doublesMatches = matches.filter(m => m.match_type === 'doubles');
+            const startedTimes = matches
+                .filter(m => m.started_at)
+                .map(m => parseUtc(m.started_at))
+                .filter(t => t !== null);
+            const matchdayStart = startedTimes.length > 0 ? Math.min(...startedTimes) : null;
+
+            // End when all doubles are done (or all matches if no doubles exist)
+            const referenceMatches = doublesMatches.length > 0 ? doublesMatches : matches;
+            const allDone = referenceMatches.length > 0 && referenceMatches.every(m => m.score_state.winner !== null);
+            let matchdayEnd = null;
+            if (allDone) {
+                const finishedTimes = referenceMatches
+                    .filter(m => m.finished_at)
+                    .map(m => parseUtc(m.finished_at))
+                    .filter(t => t !== null);
+                if (finishedTimes.length > 0) matchdayEnd = Math.max(...finishedTimes);
+            }
+
+            const matchdayTimerEl = document.getElementById('matchday-timer');
+
+            function tick() {
+                const now = Date.now();
+
+                // Update per-card live timers
+                document.querySelectorAll('.match-duration[data-started-at]').forEach(el => {
+                    const startMs = parseUtc(el.dataset.startedAt);
+                    if (!startMs) return;
+                    el.textContent = formatElapsed(Math.max(0, Math.floor((now - startMs) / 1000)));
+                });
+
+                // Update matchday-level timer
+                if (matchdayTimerEl && matchdayStart && !matchdayEnd) {
+                    matchdayTimerEl.textContent = formatElapsed(Math.max(0, Math.floor((now - matchdayStart) / 1000)));
+                }
+            }
+
+            if (!matchdayStart) return; // Nothing has started yet
+
+            if (matchdayEnd) {
+                // Static finished duration
+                const totalSeconds = Math.max(0, Math.floor((matchdayEnd - matchdayStart) / 1000));
+                if (matchdayTimerEl) matchdayTimerEl.textContent = formatElapsed(totalSeconds);
+                // Still render any live card timers (shouldn't exist if all done, but handle gracefully)
+                tick();
+            } else {
+                tick();
+                setInterval(tick, 1000);
+            }
+        }
+
         // Initial updates
         updateTeamWins();
         initDoublesPairing();
+        initMatchdayTimers();
 
         // Refresh page periodically to get updates
         setInterval(() => {

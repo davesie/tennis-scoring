@@ -1,3 +1,5 @@
+@import url('https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@400;600;700&family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600;9..40,700&display=swap');
+
 /* Base Styles */
 :root {
     /* === Primary Colors === */
@@ -70,7 +72,7 @@
 }
 
 body {
-    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+    font-family: 'DM Sans', -apple-system, BlinkMacSystemFont, sans-serif;
     background-color: var(--bg-color);
     color: var(--text-color);
     line-height: 1.6;
@@ -270,9 +272,35 @@ footer {
 
 /* ==================== Match Page ==================== */
 .match-page {
-    background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+    background:
+        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='300' height='300'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='300' height='300' filter='url(%23n)' opacity='0.07'/%3E%3C/svg%3E") repeat,
+        linear-gradient(135deg, #0a0a0a 0%, #1a1a2e 100%);
     min-height: 100vh;
     padding: 16px;
+}
+
+/* OLED-optimized dark mode for mobile */
+@media (prefers-color-scheme: dark) and (max-width: 768px) {
+    .match-page {
+        background: #000000;
+    }
+
+    .scoreboard {
+        background: #0a0a0a;
+        box-shadow: 0 4px 16px rgba(0, 0, 0, 0.8);
+    }
+
+    .scoreboard-row.team-a {
+        background: #0d0d14;
+    }
+
+    .scoreboard-row.team-b {
+        background: #14141a;
+    }
+
+    .score-btn {
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.5);
+    }
 }
 
 .match-container {
@@ -303,9 +331,10 @@ footer {
     color: white;
     padding: 4px 12px;
     border-radius: 6px;
+    font-family: 'Chakra Petch', monospace;
     font-size: 0.75rem;
     font-weight: 700;
-    letter-spacing: 1px;
+    letter-spacing: 1.5px;
     animation: pulse 2s infinite;
 }
 
@@ -320,10 +349,32 @@ footer {
     50% { opacity: 0.7; }
 }
 
+.connection-status {
+    color: #48bb78;
+    font-size: 0.8rem;
+    transition: color 0.3s;
+    cursor: help;
+}
+
+.connection-status.disconnected {
+    color: #fc8181;
+}
+
+.connection-status.reconnecting {
+    color: #ffd700;
+    animation: blink 1s infinite;
+}
+
+@keyframes blink {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.3; }
+}
+
 .match-type {
-    color: rgba(255, 255, 255, 0.6);
-    font-size: 0.75rem;
-    letter-spacing: 1px;
+    font-family: 'Chakra Petch', monospace;
+    color: rgba(255, 255, 255, 0.5);
+    font-size: 0.7rem;
+    letter-spacing: 1.5px;
 }
 
 .score-table {
@@ -335,8 +386,11 @@ footer {
     grid-template-columns: 1fr 48px 48px 48px 64px;
     background: rgba(0, 0, 0, 0.3);
     padding: 8px 0;
-    font-size: 0.8rem;
-    color: rgba(255, 255, 255, 0.5);
+    font-family: 'Chakra Petch', monospace;
+    font-size: 0.75rem;
+    font-weight: 600;
+    letter-spacing: 1px;
+    color: rgba(255, 255, 255, 0.4);
     text-align: center;
 }
 
@@ -349,6 +403,7 @@ footer {
     display: grid;
     grid-template-columns: 1fr 48px 48px 48px 64px;
     padding: 12px 0;
+    font-family: 'Chakra Petch', monospace;
     font-size: 1.1rem;
     color: var(--white);
     border-bottom: 1px solid rgba(255, 255, 255, 0.1);
@@ -367,6 +422,7 @@ footer {
     align-items: center;
     gap: 8px;
     padding-left: 12px;
+    font-family: 'DM Sans', sans-serif;
     font-weight: 600;
 }
 
@@ -399,17 +455,30 @@ footer {
 
 .points-col {
     background: rgba(0, 0, 0, 0.2);
+    font-family: 'Chakra Petch', monospace;
     font-size: 1.3rem;
     color: var(--gold);
 }
 
 .scoreboard-footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
     padding: 8px 16px;
-    text-align: center;
-    font-size: 0.85rem;
+    font-family: 'Chakra Petch', monospace;
+    font-size: 0.8rem;
+    letter-spacing: 0.5px;
     color: var(--gold);
     background: rgba(0, 0, 0, 0.2);
     min-height: 32px;
+}
+
+.match-timer {
+    font-family: 'Chakra Petch', monospace;
+    font-size: 0.8rem;
+    color: rgba(255, 255, 255, 0.45);
+    font-variant-numeric: tabular-nums;
+    letter-spacing: 0.5px;
 }
 
 /* Winner Banner */
@@ -428,8 +497,10 @@ footer {
 }
 
 .winner-text {
+    font-family: 'Chakra Petch', monospace;
     font-size: 1.8rem;
-    font-weight: 800;
+    font-weight: 700;
+    letter-spacing: 1px;
     color: var(--scoreboard-bg);
 }
 
@@ -446,7 +517,7 @@ footer {
 }
 
 .score-btn {
-    padding: 32px 16px;
+    padding: 48px 20px;
     border: none;
     border-radius: 16px;
     font-size: 1rem;
@@ -458,6 +529,8 @@ footer {
     gap: 8px;
     touch-action: manipulation;
     -webkit-tap-highlight-color: transparent;
+    -webkit-user-select: none;
+    user-select: none;
 }
 
 .score-btn:active {
@@ -624,17 +697,23 @@ footer {
     }
 
     .score-btn {
-        padding: 28px 12px;
+        padding: 56px 16px;
+        font-size: 1.05rem;
     }
 
     .btn-team {
-        font-size: 1rem;
+        font-size: 1.15rem;
+        font-weight: 800;
+    }
+
+    .btn-label {
+        font-size: 0.95rem;
     }
 }
 
 @media (min-width: 481px) and (max-width: 768px) {
     .score-btn {
-        padding: 36px 20px;
+        padding: 52px 24px;
     }
 }
 
@@ -667,6 +746,18 @@ input[type="checkbox"] {
     height: 18px;
     margin-right: 8px;
     accent-color: var(--primary-color);
+}
+
+/* Prevent text selection during tapping */
+.score-btn,
+.scoreboard,
+.controls,
+.scoreboard-card,
+.match-card {
+    -webkit-user-select: none;
+    -moz-user-select: none;
+    user-select: none;
+    -webkit-touch-callout: none;
 }
 
 /* Accessibility - Focus states */
@@ -781,14 +872,43 @@ a:focus {
 
 /* ==================== Match Day Page ==================== */
 .matchday-page {
-    background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+    background:
+        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='300' height='300'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='300' height='300' filter='url(%23n)' opacity='0.07'/%3E%3C/svg%3E") repeat,
+        linear-gradient(135deg, #0a0a0a 0%, #1a1a2e 100%);
     min-height: 100vh;
     padding: 16px;
+}
+
+/* OLED-optimized dark mode for match day on mobile */
+@media (prefers-color-scheme: dark) and (max-width: 768px) {
+    .matchday-page {
+        background: #000000;
+    }
+
+    .team-scores {
+        background: #0a0a0a;
+        box-shadow: 0 4px 16px rgba(0, 0, 0, 0.8);
+    }
+
+    .scoreboard-card {
+        background: #1a1a1a;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.6);
+    }
 }
 
 .matchday-container {
     max-width: 800px;
     margin: 0 auto;
+}
+
+.matchday-timer {
+    font-family: 'Chakra Petch', monospace;
+    font-size: 0.8rem;
+    color: rgba(255, 255, 255, 0.4);
+    font-variant-numeric: tabular-nums;
+    letter-spacing: 0.5px;
+    margin-top: 8px;
+    min-height: 1.2em;
 }
 
 .matchday-header {
@@ -797,8 +917,11 @@ a:focus {
 }
 
 .matchday-header h1 {
+    font-family: 'Chakra Petch', monospace;
+    font-weight: 700;
     color: var(--white);
     font-size: 1.8rem;
+    letter-spacing: 0.5px;
     margin-bottom: 8px;
 }
 
@@ -825,9 +948,10 @@ a:focus {
 }
 
 .live-text {
-    color: rgba(255, 255, 255, 0.6);
-    font-size: 0.8rem;
-    letter-spacing: 0.5px;
+    font-family: 'Chakra Petch', monospace;
+    color: rgba(255, 255, 255, 0.5);
+    font-size: 0.75rem;
+    letter-spacing: 1px;
 }
 
 .team-scores {
@@ -844,21 +968,24 @@ a:focus {
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: 4px;
+    gap: 8px;
     min-width: 100px;
 }
 
 .team-score .team-name {
-    color: rgba(255, 255, 255, 0.7);
-    font-size: 0.85rem;
-    font-weight: 500;
+    font-family: 'Chakra Petch', monospace;
+    color: rgba(255, 255, 255, 0.6);
+    font-size: 0.75rem;
+    font-weight: 600;
     text-transform: uppercase;
-    letter-spacing: 0.5px;
+    letter-spacing: 1.5px;
+    order: -1;
 }
 
 .team-score .score {
+    font-family: 'Chakra Petch', monospace;
     font-size: 3rem;
-    font-weight: 800;
+    font-weight: 700;
     color: var(--gold);
     line-height: 1;
 }
@@ -875,8 +1002,11 @@ a:focus {
 }
 
 .matches-section h2 {
+    font-family: 'Chakra Petch', monospace;
+    font-weight: 600;
+    letter-spacing: 1px;
     color: var(--white);
-    font-size: 1.2rem;
+    font-size: 1.1rem;
     margin-bottom: 12px;
     padding-left: 8px;
     border-left: 3px solid var(--gold);
@@ -902,6 +1032,7 @@ a:focus {
     border-radius: 8px;
     overflow: hidden;
     transition: transform 0.2s, box-shadow 0.2s;
+    position: relative;
 }
 
 .scoreboard-card:hover {
@@ -910,7 +1041,48 @@ a:focus {
 }
 
 .scoreboard-card.finished {
-    opacity: 0.5;
+    opacity: 0.6;
+}
+
+.scoreboard-card.live {
+    border-left: 3px solid #48bb78;
+}
+
+.scoreboard-card.upcoming {
+    opacity: 0.9;
+}
+
+.status-badge {
+    position: absolute;
+    top: 8px;
+    left: 8px;
+    padding: 4px 10px;
+    border-radius: 12px;
+    font-size: 0.7rem;
+    font-weight: 700;
+    z-index: 10;
+    pointer-events: none;
+}
+
+.status-badge.live {
+    font-family: 'Chakra Petch', monospace;
+    background: #48bb78;
+    color: white;
+    letter-spacing: 0.5px;
+    animation: live-pulse 2s infinite;
+}
+
+.status-badge.final {
+    background: #ffd700;
+    color: #1a1a2e;
+    font-size: 1rem;
+    padding: 4px 8px;
+    border-radius: 50%;
+    width: 28px;
+    height: 28px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
 }
 
 .scoreboard-link {
@@ -954,6 +1126,7 @@ a:focus {
 }
 
 .scoreboard-table .player-name {
+    font-family: 'DM Sans', sans-serif;
     color: var(--white);
     font-size: 0.95rem;
     font-weight: 500;
@@ -964,9 +1137,16 @@ a:focus {
     max-width: 200px;
 }
 
+/* Add padding when badge is present */
+.scoreboard-card.live .scoreboard-table .player-name,
+.scoreboard-card.finished .scoreboard-table .player-name {
+    padding-left: 80px;
+}
+
 .scoreboard-table .set-score {
     width: 32px;
     text-align: center;
+    font-family: 'Chakra Petch', monospace;
     color: rgba(255, 255, 255, 0.9);
     font-size: 1rem;
     font-weight: 600;
@@ -1139,30 +1319,38 @@ a:focus {
 
     .team-scores {
         flex-direction: row;
-        gap: 12px;
+        gap: 16px;
         padding: 16px 20px;
     }
 
     .team-score {
-        min-width: 80px;
+        min-width: 90px;
     }
 
     .team-score .team-name {
         font-size: 0.75rem;
+        margin-bottom: 4px;
     }
 
     .team-score .score {
-        font-size: 2.2rem;
+        font-size: 2.5rem;
     }
 
     .score-separator {
-        font-size: 2rem;
+        font-size: 1.8rem;
+        margin-top: 20px;
     }
 
     /* Scoreboard mobile */
     .scoreboard-table .player-name {
         font-size: 0.85rem;
         max-width: 140px;
+    }
+
+    /* Adjust badge padding on mobile */
+    .scoreboard-card.live .scoreboard-table .player-name,
+    .scoreboard-card.finished .scoreboard-table .player-name {
+        padding-left: 70px;
     }
 
     .scoreboard-table .set-score {
@@ -2045,4 +2233,264 @@ a:focus {
 
 .archive-link-login a:hover {
     color: var(--primary-color);
+}
+
+/* ========================================
+   WTB Data Management Section
+   ======================================== */
+
+.wtb-section {
+    background: var(--card-bg);
+    padding: var(--space-6);
+    border-radius: var(--radius-lg);
+    margin-bottom: var(--space-6);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+}
+
+.wtb-section h2 {
+    margin-bottom: var(--space-4);
+    color: var(--text-primary);
+    font-size: 1.25rem;
+}
+
+.wtb-actions {
+    display: flex;
+    gap: var(--space-4);
+    align-items: center;
+    flex-wrap: wrap;
+}
+
+.sync-status {
+    font-size: 0.9rem;
+    padding: var(--space-2) var(--space-3);
+    border-radius: var(--radius-md);
+}
+
+.wtb-club-selector {
+    margin-top: var(--space-4);
+    padding-top: var(--space-4);
+    border-top: 1px solid var(--border-color);
+}
+
+.wtb-club-selector label {
+    display: block;
+    margin-bottom: var(--space-2);
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+/* ========================================
+   Autocomplete Dropdowns
+   ======================================== */
+
+.player-input-wrapper {
+    position: relative;
+    margin-bottom: var(--space-3);
+}
+
+.autocomplete-wrapper {
+    position: relative;
+    display: block;
+    width: 100%;
+    margin-bottom: 8px;
+}
+
+.autocomplete-wrapper input {
+    margin-bottom: 0 !important;
+}
+
+.autocomplete-dropdown {
+    position: absolute;
+    top: calc(100% + 2px);
+    left: 0;
+    right: 0;
+    background: var(--card-bg);
+    border: 2px solid var(--primary-color);
+    border-radius: 8px;
+    max-height: 280px;
+    overflow-y: auto;
+    z-index: 1000;
+    display: none;
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.2);
+}
+
+.autocomplete-item {
+    padding: 10px 14px;
+    cursor: pointer;
+    border-bottom: 1px solid var(--border-color);
+    transition: background 0.1s;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 8px;
+    font-size: 0.95rem;
+}
+
+.autocomplete-item:last-child {
+    border-bottom: none;
+}
+
+.autocomplete-item:hover,
+.autocomplete-item.selected {
+    background: var(--primary-color);
+    color: #fff;
+}
+
+.autocomplete-item:hover .ac-meta,
+.autocomplete-item.selected .ac-meta {
+    color: rgba(255, 255, 255, 0.8);
+}
+
+.ac-name {
+    font-weight: 500;
+    flex: 1;
+}
+
+.ac-meta {
+    font-size: 0.8em;
+    color: var(--text-secondary);
+    white-space: nowrap;
+}
+
+.club-search-hint {
+    display: block;
+    font-size: 0.75em;
+    color: var(--text-secondary);
+    margin-top: -4px;
+    margin-bottom: 6px;
+}
+
+/* Ensure dropdowns appear above other content */
+.player-dropdown {
+    margin-top: 0;
+}
+
+/* ========================================
+   Doubles Setup Panel
+   ======================================== */
+
+.doubles-setup-panel {
+    border-top: 1px solid var(--border-color);
+    padding: var(--space-4);
+    background: var(--bg-secondary);
+    border-radius: 0 0 var(--radius-lg) var(--radius-lg);
+}
+
+.doubles-setup-content h4 {
+    font-size: 1rem;
+    font-weight: 600;
+    margin-bottom: var(--space-3);
+    color: var(--text-primary);
+}
+
+.doubles-pairings-list {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-3);
+    margin-bottom: var(--space-4);
+}
+
+.doubles-pairing-row {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: var(--space-2);
+}
+
+.doubles-pairing-label {
+    font-weight: 600;
+    font-size: 0.9rem;
+    min-width: 70px;
+    color: var(--primary-color);
+}
+
+.doubles-pairing-team {
+    display: flex;
+    align-items: center;
+    gap: var(--space-1);
+    flex-wrap: wrap;
+}
+
+.doubles-team-label {
+    font-size: 0.8rem;
+    font-weight: 500;
+    color: var(--text-secondary);
+    min-width: 40px;
+}
+
+.doubles-select {
+    padding: 6px 10px;
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-sm);
+    background: var(--card-bg);
+    color: var(--text-primary);
+    font-size: 0.9rem;
+    min-width: 130px;
+    cursor: pointer;
+}
+
+.doubles-select:focus {
+    outline: none;
+    border-color: var(--primary-color);
+}
+
+.doubles-slash {
+    font-weight: 600;
+    color: var(--text-secondary);
+    padding: 0 2px;
+}
+
+.doubles-vs {
+    font-weight: 700;
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+    padding: 0 var(--space-2);
+}
+
+.doubles-setup-actions {
+    display: flex;
+    gap: var(--space-2);
+    flex-wrap: wrap;
+}
+
+.btn-setup-doubles {
+    background: var(--primary-color);
+    color: #fff;
+    font-weight: 600;
+}
+
+.btn-setup-doubles:hover {
+    background: var(--primary-dark, #2563eb);
+}
+
+@media (max-width: 768px) {
+    .doubles-pairing-row {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+
+    .doubles-pairing-team {
+        width: 100%;
+    }
+
+    .doubles-select {
+        flex: 1;
+        min-width: 100px;
+    }
+}
+
+/* Mobile Responsiveness */
+@media (max-width: 768px) {
+    .wtb-actions {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .autocomplete-dropdown {
+        font-size: 0.9rem;
+    }
+
+    .autocomplete-item {
+        padding: var(--space-2) var(--space-3);
+    }
 }
