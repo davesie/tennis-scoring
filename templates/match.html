@@ -89,6 +89,29 @@
         </div>
 
         {% if is_scorer %}
+        <!-- Serve Selection Overlay -->
+        <div class="serve-overlay" id="serve-overlay" style="display: none;">
+            <div class="serve-overlay-content">
+                <h3>Who serves first?</h3>
+                <div class="serve-overlay-buttons">
+                    <button class="serve-pick-btn team-a-btn" onclick="setInitialServer(0)">
+                        {% if match.match_type == 'doubles' %}
+                            {{ (match.player_a1 or 'A')[:12] }} / {{ (match.player_a2 or 'A')[:12] }}
+                        {% else %}
+                            {{ match.player_a1 or match.team_a_name }}
+                        {% endif %}
+                    </button>
+                    <button class="serve-pick-btn team-b-btn" onclick="setInitialServer(1)">
+                        {% if match.match_type == 'doubles' %}
+                            {{ (match.player_b1 or 'B')[:12] }} / {{ (match.player_b2 or 'B')[:12] }}
+                        {% else %}
+                            {{ match.player_b1 or match.team_b_name }}
+                        {% endif %}
+                    </button>
+                </div>
+            </div>
+        </div>
+
         <!-- Scoring Controls -->
         <div class="controls">
             <!-- Point Buttons -->
@@ -251,6 +274,12 @@
             setupShareLink();
             connectWebSocket();
             startMatchTimer();
+
+            // Serve indicator click to re-open overlay (correction)
+            if (isScorer) {
+                document.getElementById('serve-a').addEventListener('click', () => reopenServeOverlay());
+                document.getElementById('serve-b').addEventListener('click', () => reopenServeOverlay());
+            }
         });
 
         function setupShareLink() {
@@ -417,6 +446,9 @@
             document.getElementById('serve-a').classList.toggle('active', state.serving === 0);
             document.getElementById('serve-b').classList.toggle('active', state.serving === 1);
 
+            // Update serve selection overlay
+            updateServeOverlay(state);
+
             // Update game state text
             let gameStateText = '';
             if (state.is_super_tiebreak) {
@@ -483,6 +515,59 @@
             set3Header.style.visibility = showSet3 ? 'visible' : 'hidden';
             set3A.style.visibility = showSet3 ? 'visible' : 'hidden';
             set3B.style.visibility = showSet3 ? 'visible' : 'hidden';
+        }
+
+        function updateServeOverlay(state) {
+            if (!isScorer) return;
+            const overlay = document.getElementById('serve-overlay');
+            const controls = document.querySelector('.controls');
+            const serveA = document.getElementById('serve-a');
+            const serveB = document.getElementById('serve-b');
+
+            // Show overlay only when initial_server_set is strictly false (new matches)
+            // Missing key (old matches) → don't show overlay
+            if (state.initial_server_set === false) {
+                overlay.style.display = 'flex';
+                controls.style.display = 'none';
+            } else {
+                overlay.style.display = 'none';
+                controls.style.display = '';
+            }
+
+            // Allow correction while still in game 1 of set 1
+            const canCorrect = state.games[0][0] === 0 && state.games[0][1] === 0
+                && state.current_set === 0 && state.winner === null
+                && state.initial_server_set === true;
+            serveA.classList.toggle('clickable', canCorrect);
+            serveB.classList.toggle('clickable', canCorrect);
+        }
+
+        function reopenServeOverlay() {
+            const state = matchData.score_state;
+            const canCorrect = state.games[0][0] === 0 && state.games[0][1] === 0
+                && state.current_set === 0 && state.winner === null
+                && state.initial_server_set === true;
+            if (!canCorrect) return;
+
+            document.getElementById('serve-overlay').style.display = 'flex';
+            document.querySelector('.controls').style.display = 'none';
+        }
+
+        async function setInitialServer(team) {
+            try {
+                const response = await fetch(`/api/matches/${matchId}/set-server`, {
+                    method: 'POST',
+                    headers: getAuthHeaders(),
+                    body: JSON.stringify({ serving: team })
+                });
+                if (!response.ok) {
+                    const data = await response.json().catch(() => ({}));
+                    throw new Error(data.detail || 'Failed to set server');
+                }
+            } catch (error) {
+                console.error('Error setting server:', error);
+                alert(error.message || 'Failed to set server. Please try again.');
+            }
         }
 
         async function scorePoint(team) {

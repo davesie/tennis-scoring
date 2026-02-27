@@ -2494,3 +2494,70 @@ a:focus {
         padding: var(--space-2) var(--space-3);
     }
 }
+
+/* ==================== Serve Selection Overlay ==================== */
+.serve-overlay {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 24px 16px;
+}
+
+.serve-overlay-content {
+    text-align: center;
+    width: 100%;
+    max-width: 400px;
+}
+
+.serve-overlay-content h3 {
+    color: var(--gold);
+    font-family: 'DM Sans', sans-serif;
+    font-size: 1.2rem;
+    font-weight: 600;
+    margin-bottom: 20px;
+}
+
+.serve-overlay-buttons {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+}
+
+.serve-pick-btn {
+    padding: 20px 16px;
+    border: none;
+    border-radius: 12px;
+    font-size: 1rem;
+    font-weight: 600;
+    font-family: 'DM Sans', sans-serif;
+    cursor: pointer;
+    transition: transform 0.1s, opacity 0.15s;
+    color: white;
+}
+
+.serve-pick-btn.team-a-btn {
+    background: linear-gradient(135deg, var(--team-a) 0%, #2563eb 100%);
+}
+
+.serve-pick-btn.team-b-btn {
+    background: linear-gradient(135deg, var(--team-b) 0%, #dc2626 100%);
+}
+
+.serve-pick-btn:active {
+    transform: scale(0.96);
+    opacity: 0.9;
+}
+
+/* Clickable serve indicator for correction */
+.serve-indicator.clickable {
+    cursor: pointer;
+}
+
+.serve-indicator.clickable.active {
+    animation: pulse-gold 2s infinite;
+}
+
+@keyframes pulse-gold {
+    0%, 100% { box-shadow: 0 0 8px var(--gold); }
+    50% { box-shadow: 0 0 14px var(--gold); }
+}
