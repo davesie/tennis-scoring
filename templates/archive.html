@@ -11,6 +11,13 @@
         <header class="matchday-header">
             <h1>Match Day Archive</h1>
             <p class="archive-subtitle">View past match days and results</p>
+            <div style="margin-top: 0.5rem;">
+                {% if is_admin %}
+                <a href="/admin" class="btn btn-primary">Admin Dashboard</a>
+                {% else %}
+                <a href="/admin/login" class="btn btn-primary">Admin Login</a>
+                {% endif %}
+            </div>
         </header>
 
         {% if match_days %}
@@ -46,12 +53,12 @@
         {% else %}
         <div class="empty-archive">
             <p>No match days yet.</p>
-            <a href="/" class="btn btn-primary">Create a Match Day</a>
+            <a href="/admin" class="btn btn-primary">Create a Match Day</a>
         </div>
         {% endif %}
 
         <div class="back-link">
-            <a href="/">Create New Match Day</a>
+            <a href="/admin">Create New Match Day</a>
         </div>
     </div>
 </body>

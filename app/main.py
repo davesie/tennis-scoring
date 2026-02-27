@@ -100,12 +100,9 @@ manager = ConnectionManager()
 
 # Page routes
 @app.get("/", response_class=HTMLResponse)
-async def home(request: Request, db: AsyncSession = Depends(get_db)):
-    """Home page - redirects to admin login if not authenticated."""
-    admin_session = await get_admin_session(request, db)
-    if not admin_session:
-        return RedirectResponse(url="/admin/login", status_code=302)
-    return RedirectResponse(url="/admin", status_code=302)
+async def home(request: Request):
+    """Home page - shows the public archive."""
+    return RedirectResponse(url="/archive", status_code=302)
 
 
 # Admin routes
@@ -202,7 +199,7 @@ async def admin_logout(request: Request, db: AsyncSession = Depends(get_db)):
     if session_id:
         await delete_admin_session(session_id, db)
 
-    response = RedirectResponse(url="/admin/login", status_code=303)
+    response = RedirectResponse(url="/", status_code=303)
     response.delete_cookie(key=ADMIN_SESSION_COOKIE)
     return response
 
@@ -631,9 +628,13 @@ async def archive_page(request: Request, db: AsyncSession = Depends(get_db)):
             "completed_matches": completed_matches,
         })
 
+    # Check if user is logged in as admin
+    admin_session = await get_admin_session(request, db)
+
     return templates.TemplateResponse("archive.html", {
         "request": request,
-        "match_days": archive
+        "match_days": archive,
+        "is_admin": admin_session is not None
     })
 
 
