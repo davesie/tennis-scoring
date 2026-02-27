@@ -11,7 +11,7 @@ from contextlib import asynccontextmanager
 
 from .database import get_db, init_db
 from .models import Match, MatchDay, AdminSession, Club, Player
-from .schemas import MatchCreate, ScorePoint, MatchResponse, MatchDayCreate, ScoreGame, MatchPlayersUpdate, MatchScoreSet, DoublesCreate
+from .schemas import MatchCreate, ScorePoint, MatchResponse, MatchDayCreate, ScoreGame, MatchPlayersUpdate, MatchScoreSet, DoublesCreate, SetInitialServer
 from .scoring import score_point, score_game, create_initial_state, get_score_summary
 from .auth import (
     ADMIN_PASSWORD,
@@ -44,6 +44,8 @@ class ConnectionManager:
     def __init__(self):
         # match_id -> set of websocket connections
         self.active_connections: Dict[str, Set[WebSocket]] = {}
+        # match_day_id -> set of websocket connections
+        self.matchday_connections: Dict[str, Set[WebSocket]] = {}
 
     async def connect(self, websocket: WebSocket, match_id: str):
         await websocket.accept()
@@ -68,6 +70,29 @@ class ConnectionManager:
             # Clean up dead connections
             for conn in dead_connections:
                 self.active_connections[match_id].discard(conn)
+
+    async def connect_matchday(self, websocket: WebSocket, match_day_id: str):
+        await websocket.accept()
+        if match_day_id not in self.matchday_connections:
+            self.matchday_connections[match_day_id] = set()
+        self.matchday_connections[match_day_id].add(websocket)
+
+    def disconnect_matchday(self, websocket: WebSocket, match_day_id: str):
+        if match_day_id in self.matchday_connections:
+            self.matchday_connections[match_day_id].discard(websocket)
+            if not self.matchday_connections[match_day_id]:
+                del self.matchday_connections[match_day_id]
+
+    async def broadcast_matchday(self, match_day_id: str, message: dict):
+        if match_day_id in self.matchday_connections:
+            dead_connections = set()
+            for connection in self.matchday_connections[match_day_id]:
+                try:
+                    await connection.send_json(message)
+                except Exception:
+                    dead_connections.add(connection)
+            for conn in dead_connections:
+                self.matchday_connections[match_day_id].discard(conn)
 
 
 manager = ConnectionManager()
@@ -295,6 +320,9 @@ async def score(match_id: str, score_data: ScorePoint, request: Request, db: Asy
     if match.score_state.get("winner") is not None:
         raise HTTPException(status_code=400, detail="Match is already finished")
 
+    if not match.score_state.get("initial_server_set", True):
+        raise HTTPException(status_code=400, detail="Please select who serves first")
+
     # Set started_at on first point (when history is empty)
     if not match.started_at and not match.history:
         match.started_at = datetime.utcnow()
@@ -330,6 +358,11 @@ async def score(match_id: str, score_data: ScorePoint, request: Request, db: Asy
         "match": match.to_dict(),
         "summary": get_score_summary(new_state)
     })
+    if match.match_day_id:
+        await manager.broadcast_matchday(match.match_day_id, {
+            "type": "match_update",
+            "match": match.to_dict()
+        })
 
     return {"success": True, "match": match.to_dict()}
 
@@ -359,6 +392,11 @@ async def undo(match_id: str, request: Request, db: AsyncSession = Depends(get_d
         "match": match.to_dict(),
         "summary": get_score_summary(previous_state)
     })
+    if match.match_day_id:
+        await manager.broadcast_matchday(match.match_day_id, {
+            "type": "match_update",
+            "match": match.to_dict()
+        })
 
     return {"success": True, "match": match.to_dict()}
 
@@ -383,6 +421,45 @@ async def reset_match(match_id: str, request: Request, db: AsyncSession = Depend
         "match": match.to_dict(),
         "summary": get_score_summary(match.score_state)
     })
+    if match.match_day_id:
+        await manager.broadcast_matchday(match.match_day_id, {
+            "type": "match_update",
+            "match": match.to_dict()
+        })
+
+    return {"success": True, "match": match.to_dict()}
+
+
+@app.post("/api/matches/{match_id}/set-server")
+async def set_initial_server(match_id: str, data: SetInitialServer, request: Request, db: AsyncSession = Depends(get_db)):
+    """Set who serves first. Only allowed before any games have been played."""
+    match = await verify_scorer_for_match(match_id, request, db)
+
+    if data.serving not in (0, 1):
+        raise HTTPException(status_code=400, detail="serving must be 0 or 1")
+
+    state = match.score_state
+    # Only allowed while still in game 1 of set 1 with no winner
+    if state.get("games", [[0, 0]])[0] != [0, 0] or state.get("winner") is not None:
+        raise HTTPException(status_code=400, detail="Can only set server before first game is completed")
+
+    new_state = {**state, "serving": data.serving, "initial_server_set": True}
+    match.score_state = new_state
+    match.updated_at = datetime.utcnow()
+
+    await db.commit()
+    await db.refresh(match)
+
+    await manager.broadcast(match_id, {
+        "type": "score_update",
+        "match": match.to_dict(),
+        "summary": get_score_summary(new_state)
+    })
+    if match.match_day_id:
+        await manager.broadcast_matchday(match.match_day_id, {
+            "type": "match_update",
+            "match": match.to_dict()
+        })
 
     return {"success": True, "match": match.to_dict()}
 
@@ -451,6 +528,11 @@ async def set_match_score(match_id: str, data: MatchScoreSet, request: Request, 
         "match": match.to_dict(),
         "summary": get_score_summary(new_state)
     })
+    if match.match_day_id:
+        await manager.broadcast_matchday(match.match_day_id, {
+            "type": "match_update",
+            "match": match.to_dict()
+        })
 
     return {"success": True, "match": match.to_dict()}
 
@@ -466,6 +548,9 @@ async def score_game_endpoint(match_id: str, score_data: ScoreGame, request: Req
 
     if match.score_state.get("is_tiebreak") or match.score_state.get("is_super_tiebreak"):
         raise HTTPException(status_code=400, detail="Cannot score whole game during tiebreak")
+
+    if not match.score_state.get("initial_server_set", True):
+        raise HTTPException(status_code=400, detail="Please select who serves first")
 
     # Set started_at on first action (when history is empty)
     if not match.started_at and not match.history:
@@ -501,6 +586,11 @@ async def score_game_endpoint(match_id: str, score_data: ScoreGame, request: Req
         "match": match.to_dict(),
         "summary": get_score_summary(new_state)
     })
+    if match.match_day_id:
+        await manager.broadcast_matchday(match.match_day_id, {
+            "type": "match_update",
+            "match": match.to_dict()
+        })
 
     return {"success": True, "match": match.to_dict()}
 
@@ -981,6 +1071,33 @@ async def search_club_players(
     players = result.scalars().all()
 
     return [player.to_dict() for player in players]
+
+
+# WebSocket endpoint for matchday-level real-time updates
+@app.websocket("/ws/matchday/{match_day_id}")
+async def matchday_websocket_endpoint(websocket: WebSocket, match_day_id: str, db: AsyncSession = Depends(get_db)):
+    result = await db.execute(select(MatchDay).where(MatchDay.id == match_day_id))
+    match_day = result.scalar_one_or_none()
+    if not match_day:
+        await websocket.close(code=4004, reason="Match day not found")
+        return
+
+    await manager.connect_matchday(websocket, match_day_id)
+    try:
+        # Send initial state with all matches
+        matches_result = await db.execute(
+            select(Match).where(Match.match_day_id == match_day_id).order_by(Match.match_number)
+        )
+        matches = [m.to_dict() for m in matches_result.scalars().all()]
+        await websocket.send_json({"type": "initial", "matches": matches})
+
+        while True:
+            try:
+                await websocket.receive_text()
+            except WebSocketDisconnect:
+                break
+    finally:
+        manager.disconnect_matchday(websocket, match_day_id)
 
 
 # WebSocket endpoint for real-time updates

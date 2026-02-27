@@ -23,6 +23,10 @@ class ScoreGame(BaseModel):
     team: int  # 0 or 1
 
 
+class SetInitialServer(BaseModel):
+    serving: int  # 0 or 1
+
+
 class MatchDayCreate(BaseModel):
     name: str = "Match Day"
     format: str = "6_person"  # "6_person" or "4_person"

@@ -30,7 +30,8 @@ def create_initial_state() -> Dict[str, Any]:
         "tiebreak_scores": [[0, 0], [0, 0], [0, 0]],  # final tiebreak scores per set
         "super_tiebreak_score": [0, 0],                # final super tiebreak score
         "winner": None,
-        "deuce_advantage": None
+        "deuce_advantage": None,
+        "initial_server_set": False
     }
 
 

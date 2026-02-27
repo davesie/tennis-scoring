@@ -36,7 +36,7 @@
             <div class="matches-list" id="singles-matches">
                 {% for match in matches %}
                 {% if match.match_type == 'singles' %}
-                <div class="scoreboard-card {% if match.score_state.winner is not none %}finished{% elif match.started_at %}live{% else %}upcoming{% endif %}" data-started-at="{{ match.started_at or '' }}">
+                <div class="scoreboard-card {% if match.score_state.winner is not none %}finished{% elif match.started_at %}live{% else %}upcoming{% endif %}" data-match-id="{{ match.id }}" data-started-at="{{ match.started_at or '' }}">
                     {% if match.score_state.winner is not none %}
                         <span class="status-badge final">✓</span>
                     {% elif match.started_at %}
@@ -95,7 +95,7 @@
             <div class="matches-list" id="doubles-matches">
                 {% for match in matches %}
                 {% if match.match_type == 'doubles' %}
-                <div class="scoreboard-card {% if match.score_state.winner is not none %}finished{% elif match.started_at %}live{% else %}upcoming{% endif %}" data-started-at="{{ match.started_at or '' }}">
+                <div class="scoreboard-card {% if match.score_state.winner is not none %}finished{% elif match.started_at %}live{% else %}upcoming{% endif %}" data-match-id="{{ match.id }}" data-started-at="{{ match.started_at or '' }}">
                     {% if match.score_state.winner is not none %}
                         <span class="status-badge final">✓</span>
                     {% elif match.started_at %}
@@ -875,15 +875,131 @@
             }
         }
 
+        // Render the scoreboard table rows for a match
+        function renderMatchTableRows(matchData) {
+            const ss = matchData.score_state;
+            const tb = ss.tiebreak_scores || [[0,0],[0,0],[0,0]];
+            const stb = ss.super_tiebreak_score || [0,0];
+            const showS2 = ss.current_set >= 1 || ss.winner !== null;
+            const showS3 = ss.current_set >= 2 || (ss.winner !== null && ss.sets[0] === 1 && ss.sets[1] === 1);
+
+            function setCell(setIdx, team, show) {
+                if (setIdx === 2 && show) {
+                    // Super tiebreak or regular games
+                    if (stb[0] || stb[1]) return `<td class="set-score">${stb[team]}</td>`;
+                    return `<td class="set-score">${ss.games[2][team]}</td>`;
+                }
+                if (!show) return '<td class="set-score"></td>';
+                const g = ss.games[setIdx][team];
+                const t = tb[setIdx];
+                const other = 1 - team;
+                if ((t[0] || t[1]) && t[team] < t[other]) {
+                    return `<td class="set-score">${g}<sup>${t[team]}</sup></td>`;
+                }
+                return `<td class="set-score">${g}</td>`;
+            }
+
+            const isDoubles = matchData.match_type === 'doubles';
+            const nameA = isDoubles
+                ? `${matchData.player_a1 || 'Player A1'} / ${matchData.player_a2 || 'A2'}`
+                : (matchData.player_a1 || 'Player A');
+            const nameB = isDoubles
+                ? `${matchData.player_b1 || 'Player B1'} / ${matchData.player_b2 || 'B2'}`
+                : (matchData.player_b1 || 'Player B');
+
+            return `
+                <tr class="${ss.winner === 0 ? 'winner' : ''}">
+                    <td class="team-color team-a"></td>
+                    <td class="player-name">${nameA}</td>
+                    ${setCell(0, 0, true)}${setCell(1, 0, showS2)}${setCell(2, 0, showS3)}
+                </tr>
+                <tr class="${ss.winner === 1 ? 'winner' : ''}">
+                    <td class="team-color team-b"></td>
+                    <td class="player-name">${nameB}</td>
+                    ${setCell(0, 1, true)}${setCell(1, 1, showS2)}${setCell(2, 1, showS3)}
+                </tr>`;
+        }
+
+        // Update a single match card in-place from received match data
+        function updateMatchCard(matchData) {
+            const card = document.querySelector(`.scoreboard-card[data-match-id="${matchData.id}"]`);
+            if (!card) return;
+
+            const ss = matchData.score_state;
+            const isFinished = ss.winner !== null;
+            const isLive = !isFinished && matchData.started_at;
+
+            // Update card CSS class and data attribute
+            card.className = `scoreboard-card ${isFinished ? 'finished' : isLive ? 'live' : 'upcoming'}`;
+            card.setAttribute('data-started-at', matchData.started_at || '');
+
+            // Update status badge
+            let badge = card.querySelector('.status-badge');
+            if (isFinished) {
+                if (!badge) { badge = document.createElement('span'); card.insertBefore(badge, card.firstChild); }
+                badge.className = 'status-badge final';
+                badge.textContent = '✓';
+            } else if (isLive) {
+                if (!badge) { badge = document.createElement('span'); card.insertBefore(badge, card.firstChild); }
+                badge.className = 'status-badge live';
+                badge.textContent = '🟢 LIVE';
+            } else if (badge) {
+                badge.remove();
+            }
+
+            // Update scoreboard table
+            const table = card.querySelector('.scoreboard-table');
+            if (table) table.innerHTML = renderMatchTableRows(matchData);
+
+            // Update match duration element
+            const link = card.querySelector('.scoreboard-link');
+            if (link) {
+                let durationEl = link.querySelector('.match-duration');
+                if (matchData.duration_formatted) {
+                    if (!durationEl) { durationEl = document.createElement('div'); durationEl.className = 'match-duration'; link.appendChild(durationEl); }
+                    durationEl.textContent = matchData.duration_formatted;
+                    delete durationEl.dataset.startedAt;
+                } else if (isLive) {
+                    if (!durationEl) { durationEl = document.createElement('div'); durationEl.className = 'match-duration'; link.appendChild(durationEl); }
+                    durationEl.dataset.startedAt = matchData.started_at;
+                } else if (durationEl) {
+                    durationEl.remove();
+                }
+            }
+        }
+
+        // WebSocket connection for live matchday updates
+        function connectMatchdayWs() {
+            const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+            const ws = new WebSocket(`${protocol}//${window.location.host}/ws/matchday/${matchDay.id}`);
+
+            ws.onmessage = function(event) {
+                const data = JSON.parse(event.data);
+                if (data.type === 'match_update') {
+                    // Update local matches array
+                    const idx = matches.findIndex(m => m.id === data.match.id);
+                    if (idx !== -1) matches[idx] = data.match;
+                    // Update DOM
+                    updateMatchCard(data.match);
+                    updateTeamWins();
+                }
+            };
+
+            ws.onclose = function() {
+                // Reconnect after 3 seconds on unexpected close
+                setTimeout(connectMatchdayWs, 3000);
+            };
+
+            ws.onerror = function() {
+                ws.close();
+            };
+        }
+
         // Initial updates
         updateTeamWins();
         initDoublesPairing();
         initMatchdayTimers();
-
-        // Refresh page periodically to get updates
-        setInterval(() => {
-            window.location.reload();
-        }, 30000);
+        connectMatchdayWs();
     </script>
 </body>
 </html>
