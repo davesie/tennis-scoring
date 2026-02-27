@@ -5,6 +5,7 @@ import hashlib
 import secrets
 from datetime import datetime, timedelta
 from typing import Optional
+from dotenv import load_dotenv
 
 from fastapi import Request, HTTPException, Depends
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -12,6 +13,9 @@ from sqlalchemy import select
 
 from .database import get_db
 from .models import AdminSession, Match, MatchDay
+
+# Load environment variables from .env file
+load_dotenv()
 
 # Admin password from environment variable
 ADMIN_PASSWORD = os.getenv("ADMIN_PASSWORD", "")

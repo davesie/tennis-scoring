@@ -59,28 +59,16 @@
                 <div class="teams-container">
                     <div class="team-input">
                         <h3>Team A</h3>
-                        <input type="text" id="team-a-name" placeholder="Team A Name" value="Team A">
-                        <div id="team-a-players">
-                            <input type="text" class="player-input" placeholder="Player 1">
-                            <input type="text" class="player-input" placeholder="Player 2">
-                            <input type="text" class="player-input" placeholder="Player 3">
-                            <input type="text" class="player-input" placeholder="Player 4">
-                            <input type="text" class="player-input" placeholder="Player 5">
-                            <input type="text" class="player-input" placeholder="Player 6">
-                        </div>
+                        <input type="text" id="team-a-name" placeholder="Search club or type team name" autocomplete="off">
+                        <span class="club-search-hint">Type to search WTB clubs &mdash; players will autocomplete below</span>
+                        <div id="team-a-players"></div>
                     </div>
                     <div class="vs">VS</div>
                     <div class="team-input">
                         <h3>Team B</h3>
-                        <input type="text" id="team-b-name" placeholder="Team B Name" value="Team B">
-                        <div id="team-b-players">
-                            <input type="text" class="player-input" placeholder="Player 1">
-                            <input type="text" class="player-input" placeholder="Player 2">
-                            <input type="text" class="player-input" placeholder="Player 3">
-                            <input type="text" class="player-input" placeholder="Player 4">
-                            <input type="text" class="player-input" placeholder="Player 5">
-                            <input type="text" class="player-input" placeholder="Player 6">
-                        </div>
+                        <input type="text" id="team-b-name" placeholder="Search club or type team name" autocomplete="off">
+                        <span class="club-search-hint">Type to search WTB clubs &mdash; players will autocomplete below</span>
+                        <div id="team-b-players"></div>
                     </div>
                 </div>
 
@@ -104,16 +92,18 @@
                     <div class="teams-container">
                         <div class="team-input">
                             <h3>Side A (Serves First)</h3>
-                            <input type="text" name="team_a_name" placeholder="Team Name (optional)">
-                            <input type="text" name="player_a1" placeholder="Player Name" required>
-                            <input type="text" name="player_a2" placeholder="Partner Name (Doubles)" class="doubles-only" style="display: none;">
+                            <input type="text" name="team_a_name" id="side-a-team-name" placeholder="Search club or team name" autocomplete="off">
+                            <span class="club-search-hint">Search WTB club for player autocomplete</span>
+                            <input type="text" name="player_a1" id="player-a1" placeholder="Player Name" required autocomplete="off">
+                            <input type="text" name="player_a2" id="player-a2" placeholder="Partner Name (Doubles)" class="doubles-only" style="display: none;" autocomplete="off">
                         </div>
                         <div class="vs">VS</div>
                         <div class="team-input">
                             <h3>Side B</h3>
-                            <input type="text" name="team_b_name" placeholder="Team Name (optional)">
-                            <input type="text" name="player_b1" placeholder="Player Name" required>
-                            <input type="text" name="player_b2" placeholder="Partner Name (Doubles)" class="doubles-only" style="display: none;">
+                            <input type="text" name="team_b_name" id="side-b-team-name" placeholder="Search club or team name" autocomplete="off">
+                            <span class="club-search-hint">Search WTB club for player autocomplete</span>
+                            <input type="text" name="player_b1" id="player-b1" placeholder="Player Name" required autocomplete="off">
+                            <input type="text" name="player_b2" id="player-b2" placeholder="Partner Name (Doubles)" class="doubles-only" style="display: none;" autocomplete="off">
                         </div>
                     </div>
 
@@ -136,6 +126,178 @@
 
     <script>
         let currentFormat = '6_person';
+        let teamAClubId = null;
+        let teamBClubId = null;
+        let sideAClubId = null;
+        let sideBClubId = null;
+
+        // ==================== Autocomplete Widget ====================
+
+        class Autocomplete {
+            constructor(inputEl, fetchFn, onSelect, renderItem) {
+                this.input = inputEl;
+                this.fetchFn = fetchFn;
+                this.onSelect = onSelect;
+                this.renderItem = renderItem;
+                this.selectedItem = null;
+                this.items = [];
+                this.activeIndex = -1;
+                this.debounceTimer = null;
+                this._init();
+            }
+
+            _init() {
+                // Wrap the input
+                const wrapper = document.createElement('div');
+                wrapper.className = 'autocomplete-wrapper';
+                this.input.parentNode.insertBefore(wrapper, this.input);
+                wrapper.appendChild(this.input);
+
+                this.dropdown = document.createElement('div');
+                this.dropdown.className = 'autocomplete-dropdown';
+                wrapper.appendChild(this.dropdown);
+
+                this.input._acInstance = this;
+
+                this.input.addEventListener('input', () => this._onInput());
+                this.input.addEventListener('keydown', (e) => this._onKeydown(e));
+                this.input.addEventListener('blur', () => setTimeout(() => this._hide(), 150));
+                this.input.addEventListener('focus', () => {
+                    if (this.input.value.trim().length >= 1) this._onInput();
+                });
+            }
+
+            _onInput() {
+                clearTimeout(this.debounceTimer);
+                const q = this.input.value.trim();
+                // Clear selected if user typed something different
+                if (this.selectedItem && this.input.value !== this.selectedItem.name) {
+                    this.selectedItem = null;
+                    if (this.onSelect) this.onSelect(null);
+                }
+                if (q.length < 1) { this._hide(); return; }
+                this.debounceTimer = setTimeout(async () => {
+                    this.items = await this.fetchFn(q);
+                    this._show();
+                }, 250);
+            }
+
+            _show() {
+                this.dropdown.innerHTML = '';
+                this.activeIndex = -1;
+                if (!this.items.length) { this._hide(); return; }
+                this.items.forEach((item, i) => {
+                    const el = document.createElement('div');
+                    el.className = 'autocomplete-item';
+                    el.innerHTML = this.renderItem(item);
+                    el.addEventListener('mousedown', (e) => {
+                        e.preventDefault(); // Prevent blur before click
+                        this._select(item);
+                    });
+                    this.dropdown.appendChild(el);
+                });
+                this.dropdown.style.display = 'block';
+            }
+
+            _hide() {
+                this.dropdown.style.display = 'none';
+                this.activeIndex = -1;
+            }
+
+            _select(item) {
+                this.selectedItem = item;
+                this.input.value = item.name;
+                this._hide();
+                if (this.onSelect) this.onSelect(item);
+            }
+
+            _onKeydown(e) {
+                const els = this.dropdown.querySelectorAll('.autocomplete-item');
+                if (!els.length || this.dropdown.style.display === 'none') return;
+                if (e.key === 'ArrowDown') {
+                    e.preventDefault();
+                    this.activeIndex = Math.min(this.activeIndex + 1, els.length - 1);
+                    this._updateActive(els);
+                } else if (e.key === 'ArrowUp') {
+                    e.preventDefault();
+                    this.activeIndex = Math.max(this.activeIndex - 1, -1);
+                    this._updateActive(els);
+                } else if (e.key === 'Enter' && this.activeIndex >= 0) {
+                    e.preventDefault();
+                    this._select(this.items[this.activeIndex]);
+                } else if (e.key === 'Escape') {
+                    this._hide();
+                }
+            }
+
+            _updateActive(els) {
+                els.forEach((el, i) => el.classList.toggle('selected', i === this.activeIndex));
+                if (this.activeIndex >= 0) els[this.activeIndex].scrollIntoView({ block: 'nearest' });
+            }
+        }
+
+        // ==================== Fetch helpers ====================
+
+        async function fetchClubs(q) {
+            try {
+                const res = await fetch(`/api/clubs/search?q=${encodeURIComponent(q)}&limit=8`);
+                return await res.json();
+            } catch { return []; }
+        }
+
+        async function fetchPlayers(clubId, q) {
+            if (!clubId) return [];
+            try {
+                const res = await fetch(`/api/clubs/${clubId}/players/search?q=${encodeURIComponent(q)}&limit=8`);
+                return await res.json();
+            } catch { return []; }
+        }
+
+        function renderClub(club) {
+            const meta = [club.location, club.district].filter(Boolean).join(' · ');
+            return `<span class="ac-name">${club.name}</span>${meta ? `<span class="ac-meta">${meta}</span>` : ''}`;
+        }
+
+        function renderPlayer(player) {
+            const meta = player.birth_year ? `*${player.birth_year}` : '';
+            return `<span class="ac-name">${player.name}</span>${meta ? `<span class="ac-meta">${meta}</span>` : ''}`;
+        }
+
+        // ==================== Setup helpers ====================
+
+        // Attach club autocomplete to an input; when a club is selected, call onClubSelect(club)
+        function setupClubAutocomplete(input, onClubSelect) {
+            if (input._acInstance) return; // Already set up
+            new Autocomplete(input, fetchClubs, onClubSelect, renderClub);
+        }
+
+        // Attach player autocomplete to a single input, getClubId is a function returning current club id
+        function setupPlayerAutocomplete(input, getClubId) {
+            if (input._acInstance) return; // Already set up
+            new Autocomplete(
+                input,
+                (q) => fetchPlayers(getClubId(), q),
+                null, // selecting just fills the input (default Autocomplete behavior)
+                renderPlayer
+            );
+        }
+
+        // Rebuild player inputs for a team container, attaching player autocomplete
+        function buildPlayerInputs(containerId, count, getClubId) {
+            const container = document.getElementById(containerId);
+            container.innerHTML = '';
+            for (let i = 0; i < count; i++) {
+                const input = document.createElement('input');
+                input.type = 'text';
+                input.className = 'player-input';
+                input.placeholder = `Player ${i + 1}`;
+                input.autocomplete = 'off';
+                container.appendChild(input);
+                setupPlayerAutocomplete(input, getClubId);
+            }
+        }
+
+        // ==================== Page setup ====================
 
         function showModeSelection() {
             document.getElementById('mode-selection').style.display = 'block';
@@ -147,6 +309,7 @@
             document.getElementById('mode-selection').style.display = 'none';
             document.getElementById('matchday-setup').style.display = 'block';
             document.getElementById('single-match-setup').style.display = 'none';
+            initMatchDay();
         }
 
         function showSingleMatchSetup() {
@@ -155,27 +318,42 @@
             document.getElementById('single-match-setup').style.display = 'block';
         }
 
+        function initMatchDay() {
+            const count = currentFormat === '6_person' ? 6 : 4;
+
+            // Build player inputs with autocomplete
+            buildPlayerInputs('team-a-players', count, () => teamAClubId);
+            buildPlayerInputs('team-b-players', count, () => teamBClubId);
+
+            // Setup club autocomplete on team name inputs (once only)
+            const teamANameInput = document.getElementById('team-a-name');
+            setupClubAutocomplete(teamANameInput, (club) => {
+                if (club) {
+                    teamAClubId = club.id;
+                    // Player inputs already have the closure — they'll pick up the new clubId automatically
+                } else {
+                    teamAClubId = null;
+                }
+            });
+
+            const teamBNameInput = document.getElementById('team-b-name');
+            setupClubAutocomplete(teamBNameInput, (club) => {
+                if (club) {
+                    teamBClubId = club.id;
+                } else {
+                    teamBClubId = null;
+                }
+            });
+        }
+
         function selectFormat(format) {
             currentFormat = format;
             document.querySelectorAll('[data-format]').forEach(btn => {
                 btn.classList.toggle('active', btn.dataset.format === format);
             });
-
-            const playerCount = format === '6_person' ? 6 : 4;
-            updatePlayerInputs('team-a-players', playerCount);
-            updatePlayerInputs('team-b-players', playerCount);
-        }
-
-        function updatePlayerInputs(containerId, count) {
-            const container = document.getElementById(containerId);
-            container.innerHTML = '';
-            for (let i = 0; i < count; i++) {
-                const input = document.createElement('input');
-                input.type = 'text';
-                input.className = 'player-input';
-                input.placeholder = `Player ${i + 1}`;
-                container.appendChild(input);
-            }
+            const count = format === '6_person' ? 6 : 4;
+            buildPlayerInputs('team-a-players', count, () => teamAClubId);
+            buildPlayerInputs('team-b-players', count, () => teamBClubId);
         }
 
         async function createMatchDay() {
@@ -202,7 +380,6 @@
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(data)
                 });
-
                 if (response.ok) {
                     const result = await response.json();
                     window.location.href = `/matchday/${result.match_day.id}`;
@@ -215,17 +392,37 @@
             }
         }
 
-        // Toggle match type for single match
+        // ==================== Single match setup ====================
+
+        // Toggle match type
         document.querySelectorAll('#single-match-setup .toggle-btn').forEach(btn => {
             btn.addEventListener('click', () => {
                 document.querySelectorAll('#single-match-setup .toggle-btn').forEach(b => b.classList.remove('active'));
                 btn.classList.add('active');
                 document.getElementById('match_type').value = btn.dataset.value;
-
                 const isDoubles = btn.dataset.value === 'doubles';
                 document.querySelectorAll('.doubles-only').forEach(el => {
                     el.style.display = isDoubles ? 'block' : 'none';
                 });
+            });
+        });
+
+        // Club autocomplete on side A team name → unlocks player autocomplete for side A
+        setupClubAutocomplete(document.getElementById('side-a-team-name'), (club) => {
+            sideAClubId = club ? club.id : null;
+            // Lazily attach player autocomplete now that we have a club
+            ['player-a1', 'player-a2'].forEach(id => {
+                const el = document.getElementById(id);
+                if (el) setupPlayerAutocomplete(el, () => sideAClubId);
+            });
+        });
+
+        // Club autocomplete on side B team name → unlocks player autocomplete for side B
+        setupClubAutocomplete(document.getElementById('side-b-team-name'), (club) => {
+            sideBClubId = club ? club.id : null;
+            ['player-b1', 'player-b2'].forEach(id => {
+                const el = document.getElementById(id);
+                if (el) setupPlayerAutocomplete(el, () => sideBClubId);
             });
         });
 
@@ -253,7 +450,6 @@
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(data)
                 });
-
                 if (response.ok) {
                     const match = await response.json();
                     window.location.href = `/match/${match.id}`;

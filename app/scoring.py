@@ -27,6 +27,8 @@ def create_initial_state() -> Dict[str, Any]:
         "is_tiebreak": False,
         "is_super_tiebreak": False,
         "tiebreak_points": [0, 0],
+        "tiebreak_scores": [[0, 0], [0, 0], [0, 0]],  # final tiebreak scores per set
+        "super_tiebreak_score": [0, 0],                # final super tiebreak score
         "winner": None,
         "deuce_advantage": None
     }
@@ -130,8 +132,9 @@ def _score_tiebreak_point(state: Dict[str, Any], team: int, super_tiebreak_final
     # Check for tiebreak win (7+ points, win by 2)
     if state["tiebreak_points"][team] >= 7:
         if state["tiebreak_points"][team] - state["tiebreak_points"][1 - team] >= 2:
-            # Win the tiebreak game
+            # Win the tiebreak game — save score before resetting
             current_set = state["current_set"]
+            state["tiebreak_scores"][current_set] = list(state["tiebreak_points"])
             state["games"][current_set][team] += 1
             state["is_tiebreak"] = False
             state["tiebreak_points"] = [0, 0]
@@ -150,7 +153,8 @@ def _score_super_tiebreak_point(state: Dict[str, Any], team: int):
     # Check for super tiebreak win (10+ points, win by 2)
     if state["tiebreak_points"][team] >= 10:
         if state["tiebreak_points"][team] - state["tiebreak_points"][1 - team] >= 2:
-            # Win the match
+            # Win the match — save score before resetting
+            state["super_tiebreak_score"] = list(state["tiebreak_points"])
             state["sets"][team] += 1
             state["is_super_tiebreak"] = False
             state["winner"] = team
@@ -215,6 +219,8 @@ def get_score_summary(state: Dict[str, Any]) -> Dict[str, Any]:
         "serving": state["serving"],
         "is_tiebreak": state["is_tiebreak"],
         "is_super_tiebreak": state["is_super_tiebreak"],
+        "tiebreak_scores": state.get("tiebreak_scores", [[0, 0], [0, 0], [0, 0]]),
+        "super_tiebreak_score": state.get("super_tiebreak_score", [0, 0]),
         "current_set": state["current_set"],
         "winner": state["winner"],
     }

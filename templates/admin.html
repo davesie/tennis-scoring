@@ -19,6 +19,23 @@
             </div>
         </header>
 
+        <!-- WTB Data Management Section -->
+        <section class="wtb-section">
+            <h2>WTB Player Database</h2>
+            <div class="wtb-actions">
+                <button class="btn btn-secondary" id="sync-clubs-btn" onclick="syncClubs()">
+                    Sync All Clubs from WTB
+                </button>
+                <div class="sync-status" id="sync-status"></div>
+            </div>
+
+            <div class="wtb-club-selector" id="club-selector-wtb" style="display: none;">
+                <label>Sync Players for Club</label>
+                <input type="text" id="wtb-club-search" placeholder="Search for a club..." onkeyup="searchWTBClubs(this.value)">
+                <div class="autocomplete-dropdown" id="wtb-club-dropdown"></div>
+            </div>
+        </section>
+
         <!-- Create Match Day Section -->
         <section class="create-section" id="create-section">
             <h2>Create New Match Day</h2>
@@ -43,28 +60,16 @@
             <div class="teams-container">
                 <div class="team-input">
                     <h3>Team A</h3>
-                    <input type="text" id="team-a-name" placeholder="Team A Name" value="Team A">
-                    <div id="team-a-players">
-                        <input type="text" class="player-input" placeholder="Player 1">
-                        <input type="text" class="player-input" placeholder="Player 2">
-                        <input type="text" class="player-input" placeholder="Player 3">
-                        <input type="text" class="player-input" placeholder="Player 4">
-                        <input type="text" class="player-input" placeholder="Player 5">
-                        <input type="text" class="player-input" placeholder="Player 6">
-                    </div>
+                    <input type="text" id="team-a-name" placeholder="Search club or type team name" autocomplete="off">
+                    <span class="club-search-hint">Type to search WTB clubs &mdash; players will autocomplete below</span>
+                    <div id="team-a-players"></div>
                 </div>
                 <div class="vs">VS</div>
                 <div class="team-input">
                     <h3>Team B</h3>
-                    <input type="text" id="team-b-name" placeholder="Team B Name" value="Team B">
-                    <div id="team-b-players">
-                        <input type="text" class="player-input" placeholder="Player 1">
-                        <input type="text" class="player-input" placeholder="Player 2">
-                        <input type="text" class="player-input" placeholder="Player 3">
-                        <input type="text" class="player-input" placeholder="Player 4">
-                        <input type="text" class="player-input" placeholder="Player 5">
-                        <input type="text" class="player-input" placeholder="Player 6">
-                    </div>
+                    <input type="text" id="team-b-name" placeholder="Search club or type team name" autocomplete="off">
+                    <span class="club-search-hint">Type to search WTB clubs &mdash; players will autocomplete below</span>
+                    <div id="team-b-players"></div>
                 </div>
             </div>
 
@@ -80,7 +85,7 @@
 
             {% if match_days %}
             {% for md in match_days %}
-            <div class="match-day-card">
+            <div class="match-day-card" id="md-card-{{ md.id }}">
                 <div class="match-day-info">
                     <h3>{{ md.name }}</h3>
                     <div class="match-day-meta">
@@ -97,9 +102,17 @@
                         <a href="/matchday/{{ md.id }}" class="link-btn">Open</a>
                         <button class="link-btn" onclick="copyToClipboard('{{ request.url_for('scorer_match_day_page', scorer_token=md.scorer_token) }}', this)">Copy Scorer Link</button>
                         <button class="link-btn" onclick="copyToClipboard('{{ request.url_for('spectator_match_day_page', share_code=md.share_code) }}', this)">Copy Spectator Link</button>
+                        {% if not md.has_doubles %}
+                        {% if md.singles_completed == md.singles_total and md.singles_total > 0 %}
+                        <button class="link-btn btn-setup-doubles" onclick="openDoublesSetup('{{ md.id }}', '{{ md.format }}', {{ md.team_a_players | tojson }}, {{ md.team_b_players | tojson }}, '{{ md.team_a_name }}', '{{ md.team_b_name }}')">Set up Doubles</button>
+                        {% else %}
+                        <button class="link-btn" disabled title="{{ md.singles_completed }}/{{ md.singles_total }} singles done">Doubles ({{ md.singles_completed }}/{{ md.singles_total }} singles)</button>
+                        {% endif %}
+                        {% endif %}
                         <button class="link-btn btn-delete" onclick="deleteMatchDay('{{ md.id }}', '{{ md.name }}', this)">Delete</button>
                     </div>
                 </div>
+                <div class="doubles-setup-panel" id="doubles-panel-{{ md.id }}" style="display:none;"></div>
             </div>
             {% endfor %}
             {% else %}
@@ -113,24 +126,150 @@
 
     <script>
         let currentFormat = '6_person';
+        let teamAClubId = null;
+        let teamBClubId = null;
 
-        function toggleCreateSection() {
-            const section = document.getElementById('create-section');
-            section.classList.toggle('active');
+        // ==================== Autocomplete Widget ====================
+
+        class Autocomplete {
+            constructor(inputEl, fetchFn, onSelect, renderItem) {
+                this.input = inputEl;
+                this.fetchFn = fetchFn;
+                this.onSelect = onSelect;
+                this.renderItem = renderItem;
+                this.selectedItem = null;
+                this.items = [];
+                this.activeIndex = -1;
+                this.debounceTimer = null;
+                this._init();
+            }
+
+            _init() {
+                const wrapper = document.createElement('div');
+                wrapper.className = 'autocomplete-wrapper';
+                this.input.parentNode.insertBefore(wrapper, this.input);
+                wrapper.appendChild(this.input);
+
+                this.dropdown = document.createElement('div');
+                this.dropdown.className = 'autocomplete-dropdown';
+                wrapper.appendChild(this.dropdown);
+
+                this.input._acInstance = this;
+
+                this.input.addEventListener('input', () => this._onInput());
+                this.input.addEventListener('keydown', (e) => this._onKeydown(e));
+                this.input.addEventListener('blur', () => setTimeout(() => this._hide(), 150));
+                this.input.addEventListener('focus', () => {
+                    if (this.input.value.trim().length >= 1) this._onInput();
+                });
+            }
+
+            _onInput() {
+                clearTimeout(this.debounceTimer);
+                const q = this.input.value.trim();
+                if (this.selectedItem && this.input.value !== this.selectedItem.name) {
+                    this.selectedItem = null;
+                    if (this.onSelect) this.onSelect(null);
+                }
+                if (q.length < 1) { this._hide(); return; }
+                this.debounceTimer = setTimeout(async () => {
+                    this.items = await this.fetchFn(q);
+                    this._show();
+                }, 250);
+            }
+
+            _show() {
+                this.dropdown.innerHTML = '';
+                this.activeIndex = -1;
+                if (!this.items.length) { this._hide(); return; }
+                this.items.forEach((item) => {
+                    const el = document.createElement('div');
+                    el.className = 'autocomplete-item';
+                    el.innerHTML = this.renderItem(item);
+                    el.addEventListener('mousedown', (e) => {
+                        e.preventDefault();
+                        this._select(item);
+                    });
+                    this.dropdown.appendChild(el);
+                });
+                this.dropdown.style.display = 'block';
+            }
+
+            _hide() {
+                this.dropdown.style.display = 'none';
+                this.activeIndex = -1;
+            }
+
+            _select(item) {
+                this.selectedItem = item;
+                this.input.value = item.name;
+                this._hide();
+                if (this.onSelect) this.onSelect(item);
+            }
+
+            _onKeydown(e) {
+                const els = this.dropdown.querySelectorAll('.autocomplete-item');
+                if (!els.length || this.dropdown.style.display === 'none') return;
+                if (e.key === 'ArrowDown') {
+                    e.preventDefault();
+                    this.activeIndex = Math.min(this.activeIndex + 1, els.length - 1);
+                    this._updateActive(els);
+                } else if (e.key === 'ArrowUp') {
+                    e.preventDefault();
+                    this.activeIndex = Math.max(this.activeIndex - 1, -1);
+                    this._updateActive(els);
+                } else if (e.key === 'Enter' && this.activeIndex >= 0) {
+                    e.preventDefault();
+                    this._select(this.items[this.activeIndex]);
+                } else if (e.key === 'Escape') {
+                    this._hide();
+                }
+            }
+
+            _updateActive(els) {
+                els.forEach((el, i) => el.classList.toggle('selected', i === this.activeIndex));
+                if (this.activeIndex >= 0) els[this.activeIndex].scrollIntoView({ block: 'nearest' });
+            }
         }
 
-        function selectFormat(format) {
-            currentFormat = format;
-            document.querySelectorAll('[data-format]').forEach(btn => {
-                btn.classList.toggle('active', btn.dataset.format === format);
-            });
+        // ==================== Fetch helpers ====================
 
-            const playerCount = format === '6_person' ? 6 : 4;
-            updatePlayerInputs('team-a-players', playerCount);
-            updatePlayerInputs('team-b-players', playerCount);
+        async function fetchClubs(q) {
+            try {
+                const res = await fetch(`/api/clubs/search?q=${encodeURIComponent(q)}&limit=8`);
+                return await res.json();
+            } catch { return []; }
         }
 
-        function updatePlayerInputs(containerId, count) {
+        async function fetchPlayers(clubId, q) {
+            if (!clubId) return [];
+            try {
+                const res = await fetch(`/api/clubs/${clubId}/players/search?q=${encodeURIComponent(q)}&limit=8`);
+                return await res.json();
+            } catch { return []; }
+        }
+
+        function renderClub(club) {
+            const meta = [club.location, club.district].filter(Boolean).join(' · ');
+            return `<span class="ac-name">${club.name}</span>${meta ? `<span class="ac-meta">${meta}</span>` : ''}`;
+        }
+
+        function renderPlayer(player) {
+            const meta = player.birth_year ? `*${player.birth_year}` : '';
+            return `<span class="ac-name">${player.name}</span>${meta ? `<span class="ac-meta">${meta}</span>` : ''}`;
+        }
+
+        function setupClubAutocomplete(input, onClubSelect) {
+            if (input._acInstance) return;
+            new Autocomplete(input, fetchClubs, onClubSelect, renderClub);
+        }
+
+        function setupPlayerAutocomplete(input, getClubId) {
+            if (input._acInstance) return;
+            new Autocomplete(input, (q) => fetchPlayers(getClubId(), q), null, renderPlayer);
+        }
+
+        function buildPlayerInputs(containerId, count, getClubId) {
             const container = document.getElementById(containerId);
             container.innerHTML = '';
             for (let i = 0; i < count; i++) {
@@ -138,8 +277,44 @@
                 input.type = 'text';
                 input.className = 'player-input';
                 input.placeholder = `Player ${i + 1}`;
+                input.autocomplete = 'off';
                 container.appendChild(input);
+                setupPlayerAutocomplete(input, getClubId);
             }
+        }
+
+        // ==================== Page functions ====================
+
+        function toggleCreateSection() {
+            const section = document.getElementById('create-section');
+            const isActive = section.classList.toggle('active');
+            if (isActive) initMatchDay();
+        }
+
+        function initMatchDay() {
+            const count = currentFormat === '6_person' ? 6 : 4;
+            buildPlayerInputs('team-a-players', count, () => teamAClubId);
+            buildPlayerInputs('team-b-players', count, () => teamBClubId);
+
+            const teamAInput = document.getElementById('team-a-name');
+            setupClubAutocomplete(teamAInput, (club) => {
+                teamAClubId = club ? club.id : null;
+            });
+
+            const teamBInput = document.getElementById('team-b-name');
+            setupClubAutocomplete(teamBInput, (club) => {
+                teamBClubId = club ? club.id : null;
+            });
+        }
+
+        function selectFormat(format) {
+            currentFormat = format;
+            document.querySelectorAll('[data-format]').forEach(btn => {
+                btn.classList.toggle('active', btn.dataset.format === format);
+            });
+            const count = format === '6_person' ? 6 : 4;
+            buildPlayerInputs('team-a-players', count, () => teamAClubId);
+            buildPlayerInputs('team-b-players', count, () => teamBClubId);
         }
 
         async function createMatchDay() {
@@ -166,7 +341,6 @@
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(data)
                 });
-
                 if (response.ok) {
                     const result = await response.json();
                     window.location.href = `/matchday/${result.match_day.id}`;
@@ -179,20 +353,113 @@
             }
         }
 
+        // ==================== Doubles Setup ====================
+
+        function openDoublesSetup(matchDayId, format, teamAPlayers, teamBPlayers, teamAName, teamBName) {
+            const panel = document.getElementById(`doubles-panel-${matchDayId}`);
+            if (panel.style.display !== 'none') {
+                panel.style.display = 'none';
+                return;
+            }
+
+            const doublesCount = format === '6_person' ? 3 : 2;
+
+            // Build the player options HTML
+            function playerOptions(players, teamName) {
+                return players.map((p, i) =>
+                    `<option value="${escHtml(p)}">${escHtml(p)}</option>`
+                ).join('');
+            }
+
+            function escHtml(s) {
+                return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+            }
+
+            let pairingsHtml = '';
+            for (let i = 0; i < doublesCount; i++) {
+                pairingsHtml += `
+                <div class="doubles-pairing-row">
+                    <span class="doubles-pairing-label">Double ${i + 1}</span>
+                    <div class="doubles-pairing-team">
+                        <span class="doubles-team-label">${escHtml(teamAName)}</span>
+                        <select class="doubles-select" id="d${matchDayId}-a1-${i}">
+                            ${playerOptions(teamAPlayers)}
+                        </select>
+                        <span class="doubles-slash">/</span>
+                        <select class="doubles-select" id="d${matchDayId}-a2-${i}">
+                            ${playerOptions(teamAPlayers)}
+                        </select>
+                    </div>
+                    <span class="doubles-vs">vs</span>
+                    <div class="doubles-pairing-team">
+                        <span class="doubles-team-label">${escHtml(teamBName)}</span>
+                        <select class="doubles-select" id="d${matchDayId}-b1-${i}">
+                            ${playerOptions(teamBPlayers)}
+                        </select>
+                        <span class="doubles-slash">/</span>
+                        <select class="doubles-select" id="d${matchDayId}-b2-${i}">
+                            ${playerOptions(teamBPlayers)}
+                        </select>
+                    </div>
+                </div>`;
+            }
+
+            panel.innerHTML = `
+                <div class="doubles-setup-content">
+                    <h4>Set up Doubles Pairings</h4>
+                    <div class="doubles-pairings-list">${pairingsHtml}</div>
+                    <div class="doubles-setup-actions">
+                        <button class="btn btn-primary" onclick="submitDoubles('${matchDayId}', ${doublesCount})">Create Doubles</button>
+                        <button class="btn btn-secondary" onclick="document.getElementById('doubles-panel-${matchDayId}').style.display='none'">Cancel</button>
+                    </div>
+                </div>`;
+            panel.style.display = 'block';
+        }
+
+        async function submitDoubles(matchDayId, doublesCount) {
+            const pairings = [];
+            for (let i = 0; i < doublesCount; i++) {
+                const a1 = document.getElementById(`d${matchDayId}-a1-${i}`)?.value;
+                const a2 = document.getElementById(`d${matchDayId}-a2-${i}`)?.value;
+                const b1 = document.getElementById(`d${matchDayId}-b1-${i}`)?.value;
+                const b2 = document.getElementById(`d${matchDayId}-b2-${i}`)?.value;
+                if (!a1 || !a2 || !b1 || !b2) {
+                    alert(`Please fill in all players for Double ${i + 1}`);
+                    return;
+                }
+                pairings.push({ player_a1: a1, player_a2: a2, player_b1: b1, player_b2: b2 });
+            }
+
+            try {
+                const response = await fetch(`/api/matchdays/${matchDayId}/doubles`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ pairings })
+                });
+                if (response.ok) {
+                    window.location.reload();
+                } else {
+                    const data = await response.json();
+                    alert(data.detail || 'Failed to create doubles');
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                alert('Failed to create doubles');
+            }
+        }
+
         function copyToClipboard(text, btn) {
             navigator.clipboard.writeText(text).then(() => {
                 const originalText = btn.textContent;
                 btn.textContent = 'Copied!';
                 setTimeout(() => btn.textContent = originalText, 2000);
             }).catch(() => {
-                // Fallback for older browsers
                 const textarea = document.createElement('textarea');
                 textarea.value = text;
                 document.body.appendChild(textarea);
                 textarea.select();
                 document.execCommand('copy');
                 document.body.removeChild(textarea);
-
                 const originalText = btn.textContent;
                 btn.textContent = 'Copied!';
                 setTimeout(() => btn.textContent = originalText, 2000);
@@ -200,21 +467,15 @@
         }
 
         async function deleteMatchDay(matchDayId, matchDayName, btn) {
-            if (!confirm(`Delete "${matchDayName}" and all its matches? This cannot be undone.`)) {
-                return;
-            }
-
+            if (!confirm(`Delete "${matchDayName}" and all its matches? This cannot be undone.`)) return;
             btn.disabled = true;
             btn.textContent = 'Deleting...';
-
             try {
                 const response = await fetch(`/api/matchdays/${matchDayId}`, {
                     method: 'DELETE',
                     headers: { 'Content-Type': 'application/json' }
                 });
-
                 if (response.ok) {
-                    // Remove the card from the DOM
                     const card = btn.closest('.match-day-card');
                     card.style.opacity = '0';
                     card.style.transform = 'translateX(-20px)';
@@ -231,6 +492,89 @@
                 alert('Failed to delete match day');
                 btn.disabled = false;
                 btn.textContent = 'Delete';
+            }
+        }
+
+        // WTB Sync (legacy - per-club sync)
+        async function syncClubs() {
+            const btn = document.getElementById('sync-clubs-btn');
+            const statusDiv = document.getElementById('sync-status');
+            btn.disabled = true;
+            btn.textContent = 'Syncing...';
+            statusDiv.textContent = 'Fetching all clubs from WTB website... This may take a minute.';
+            try {
+                const response = await fetch('/api/admin/sync-clubs', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' }
+                });
+                const data = await response.json();
+                if (response.ok) {
+                    statusDiv.textContent = `✓ Successfully synced ${data.synced} clubs!`;
+                    statusDiv.style.color = '#48bb78';
+                    document.getElementById('club-selector-wtb').style.display = 'block';
+                } else {
+                    statusDiv.textContent = `✗ Error: ${data.detail || 'Failed to sync clubs'}`;
+                    statusDiv.style.color = '#f56565';
+                }
+            } catch (error) {
+                statusDiv.textContent = `✗ Error: ${error.message}`;
+                statusDiv.style.color = '#f56565';
+            } finally {
+                btn.disabled = false;
+                btn.textContent = 'Sync All Clubs from WTB';
+            }
+        }
+
+        // WTB club search in the sync section (legacy)
+        async function searchWTBClubs(query) {
+            const dropdown = document.getElementById('wtb-club-dropdown');
+            if (!query || query.trim().length < 2) {
+                dropdown.innerHTML = '';
+                dropdown.style.display = 'none';
+                return;
+            }
+            try {
+                const clubs = await fetchClubs(query);
+                if (clubs.length > 0) {
+                    dropdown.innerHTML = clubs.map(club => `
+                        <div class="autocomplete-item" onclick="selectWTBClub('${club.id}', '${club.name.replace(/'/g, "\\'")}', '${club.wtb_id}')">
+                            <span class="ac-name">${club.name}</span>
+                            ${club.location ? `<span class="ac-meta">${club.location}</span>` : ''}
+                        </div>
+                    `).join('');
+                    dropdown.style.display = 'block';
+                } else {
+                    dropdown.innerHTML = '<div class="autocomplete-item" style="color: #999;">No clubs found</div>';
+                    dropdown.style.display = 'block';
+                }
+            } catch (error) {
+                console.error('Error searching clubs:', error);
+            }
+        }
+
+        async function selectWTBClub(clubId, clubName, wtbId) {
+            const dropdown = document.getElementById('wtb-club-dropdown');
+            const statusDiv = document.getElementById('sync-status');
+            dropdown.innerHTML = '';
+            dropdown.style.display = 'none';
+            statusDiv.textContent = `Syncing players for ${clubName}...`;
+            statusDiv.style.color = '#3182ce';
+            try {
+                const response = await fetch(`/api/admin/sync-club-players/${clubId}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' }
+                });
+                const data = await response.json();
+                if (response.ok) {
+                    statusDiv.textContent = `✓ Successfully synced ${data.synced} players for ${clubName}!`;
+                    statusDiv.style.color = '#48bb78';
+                } else {
+                    statusDiv.textContent = `✗ Error: ${data.detail || 'Unknown error'}`;
+                    statusDiv.style.color = '#f56565';
+                }
+            } catch (error) {
+                statusDiv.textContent = `✗ Error: ${error.message}`;
+                statusDiv.style.color = '#f56565';
             }
         }
     </script>

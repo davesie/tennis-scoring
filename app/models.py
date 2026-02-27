@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, Boolean, DateTime, JSON, ForeignKey
+from sqlalchemy import Column, Integer, String, Boolean, DateTime, JSON, ForeignKey, Index
 from sqlalchemy.orm import relationship
 from datetime import datetime, timedelta
 import uuid
@@ -155,4 +155,64 @@ class Match(Base):
             "finished_at": self.finished_at.isoformat() if self.finished_at else None,
             "duration_seconds": self.get_duration_seconds(),
             "duration_formatted": self.get_duration_formatted(),
+        }
+
+
+class Club(Base):
+    """WTB Tennis Club."""
+    __tablename__ = "clubs"
+
+    id = Column(String, primary_key=True, default=generate_uuid)
+    wtb_id = Column(String, unique=True, nullable=False, index=True)  # e.g., "20004"
+    name = Column(String, nullable=False)  # e.g., "TA TSV Crailsheim"
+    location = Column(String)  # e.g., "Crailsheim"
+    district = Column(String)  # e.g., "WTB Bezirk A"
+    url = Column(String)  # Full URL to club page
+    last_synced = Column(DateTime, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    # Relationship
+    players = relationship("Player", back_populates="club", cascade="all, delete-orphan")
+
+    def to_dict(self):
+        return {
+            "id": self.id,
+            "wtb_id": self.wtb_id,
+            "name": self.name,
+            "location": self.location,
+            "district": self.district,
+            "last_synced": self.last_synced.isoformat() if self.last_synced else None,
+            "created_at": self.created_at.isoformat() if self.created_at else None,
+        }
+
+
+class Player(Base):
+    """WTB Registered Player (Herren only)."""
+    __tablename__ = "players"
+
+    id = Column(String, primary_key=True, default=generate_uuid)
+    name = Column(String, nullable=False)  # e.g., "Max Mustermann"
+    birth_year = Column(Integer, nullable=True)  # e.g., 1995
+    category = Column(String, default="Herren")  # Only "Herren" for now
+    wtb_id_nummer = Column(String, nullable=True)  # ID number from WTB
+    club_id = Column(String, ForeignKey("clubs.id"), nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    # Relationship
+    club = relationship("Club", back_populates="players")
+
+    # Index for fast name searching
+    __table_args__ = (
+        Index('ix_players_name_search', 'name'),
+    )
+
+    def to_dict(self):
+        return {
+            "id": self.id,
+            "name": self.name,
+            "birth_year": self.birth_year,
+            "category": self.category,
+            "wtb_id_nummer": self.wtb_id_nummer,
+            "club_id": self.club_id,
+            "created_at": self.created_at.isoformat() if self.created_at else None,
         }

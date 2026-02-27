@@ -33,6 +33,17 @@ class MatchDayCreate(BaseModel):
     team_b_players: List[str] = []
 
 
+class DoublesPairingCreate(BaseModel):
+    player_a1: str
+    player_a2: str
+    player_b1: str
+    player_b2: str
+
+
+class DoublesCreate(BaseModel):
+    pairings: List[DoublesPairingCreate]
+
+
 class MatchPlayersUpdate(BaseModel):
     player_a1: Optional[str] = None
     player_a2: Optional[str] = None

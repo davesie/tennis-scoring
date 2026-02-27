@@ -10,8 +10,8 @@ from datetime import datetime
 from contextlib import asynccontextmanager
 
 from .database import get_db, init_db
-from .models import Match, MatchDay, AdminSession
-from .schemas import MatchCreate, ScorePoint, MatchResponse, MatchDayCreate, ScoreGame, MatchPlayersUpdate, MatchScoreSet
+from .models import Match, MatchDay, AdminSession, Club, Player
+from .schemas import MatchCreate, ScorePoint, MatchResponse, MatchDayCreate, ScoreGame, MatchPlayersUpdate, MatchScoreSet, DoublesCreate
 from .scoring import score_point, score_game, create_initial_state, get_score_summary
 from .auth import (
     ADMIN_PASSWORD,
@@ -23,6 +23,7 @@ from .auth import (
     get_scorer_token,
     verify_scorer_for_match,
 )
+from .wtb_scraper import scrape_all_clubs, scrape_club_players
 
 
 @asynccontextmanager
@@ -144,10 +145,13 @@ async def admin_dashboard(request: Request, db: AsyncSession = Depends(get_db)):
         )
         matches = matches_result.scalars().all()
 
+        singles = [m for m in matches if m.match_type == "singles"]
+        doubles = [m for m in matches if m.match_type == "doubles"]
         team_a_wins = sum(1 for m in matches if m.score_state.get("winner") == 0)
         team_b_wins = sum(1 for m in matches if m.score_state.get("winner") == 1)
         total_matches = len(matches)
         completed_matches = sum(1 for m in matches if m.score_state.get("winner") is not None)
+        singles_completed = sum(1 for m in singles if m.score_state.get("winner") is not None)
 
         match_days_data.append({
             **md.to_dict(),
@@ -155,6 +159,9 @@ async def admin_dashboard(request: Request, db: AsyncSession = Depends(get_db)):
             "team_b_wins": team_b_wins,
             "total_matches": total_matches,
             "completed_matches": completed_matches,
+            "singles_total": len(singles),
+            "singles_completed": singles_completed,
+            "has_doubles": len(doubles) > 0,
         })
 
     return templates.TemplateResponse("admin.html", {
@@ -633,93 +640,27 @@ async def create_match_day(data: MatchDayCreate, request: Request, db: AsyncSess
     matches = []
     match_number = 1
 
-    if data.format == "6_person":
-        # 6 singles + 3 doubles (6 players per team)
-        team_a = data.team_a_players[:6]
-        team_b = data.team_b_players[:6]
+    # Determine player count based on format
+    player_count = 6 if data.format == "6_person" else 4
+    team_a = data.team_a_players[:player_count]
+    team_b = data.team_b_players[:player_count]
 
-        # 6 singles: Player 1 vs Player 1, Player 2 vs Player 2, etc.
-        for i in range(6):
-            match = Match(
-                match_day_id=match_day.id,
-                match_number=match_number,
-                match_type="singles",
-                team_a_name=data.team_a_name,
-                team_b_name=data.team_b_name,
-                player_a1=team_a[i] if i < len(team_a) else f"Player A{i+1}",
-                player_b1=team_b[i] if i < len(team_b) else f"Player B{i+1}",
-                score_state=create_initial_state(),
-                history=[]
-            )
-            db.add(match)
-            matches.append(match)
-            match_number += 1
-
-        # 3 doubles: (1,2) vs (1,2), (3,4) vs (3,4), (5,6) vs (5,6)
-        doubles_pairings = [
-            ((0, 1), (0, 1)), ((2, 3), (2, 3)), ((4, 5), (4, 5))
-        ]
-        for (a1, a2), (b1, b2) in doubles_pairings:
-            match = Match(
-                match_day_id=match_day.id,
-                match_number=match_number,
-                match_type="doubles",
-                team_a_name=data.team_a_name,
-                team_b_name=data.team_b_name,
-                player_a1=team_a[a1] if a1 < len(team_a) else f"Player A{a1+1}",
-                player_a2=team_a[a2] if a2 < len(team_a) else f"Player A{a2+1}",
-                player_b1=team_b[b1] if b1 < len(team_b) else f"Player B{b1+1}",
-                player_b2=team_b[b2] if b2 < len(team_b) else f"Player B{b2+1}",
-                score_state=create_initial_state(),
-                history=[]
-            )
-            db.add(match)
-            matches.append(match)
-            match_number += 1
-
-    else:  # 4_person
-        # 4 singles + 2 doubles (4 players per team)
-        team_a = data.team_a_players[:4]
-        team_b = data.team_b_players[:4]
-
-        # 4 singles: Player 1 vs Player 1, Player 2 vs Player 2, etc.
-        for i in range(4):
-            match = Match(
-                match_day_id=match_day.id,
-                match_number=match_number,
-                match_type="singles",
-                team_a_name=data.team_a_name,
-                team_b_name=data.team_b_name,
-                player_a1=team_a[i] if i < len(team_a) else f"Player A{i+1}",
-                player_b1=team_b[i] if i < len(team_b) else f"Player B{i+1}",
-                score_state=create_initial_state(),
-                history=[]
-            )
-            db.add(match)
-            matches.append(match)
-            match_number += 1
-
-        # 2 doubles: (1,2) vs (1,2), (3,4) vs (3,4)
-        doubles_pairings = [
-            ((0, 1), (0, 1)), ((2, 3), (2, 3))
-        ]
-        for (a1, a2), (b1, b2) in doubles_pairings:
-            match = Match(
-                match_day_id=match_day.id,
-                match_number=match_number,
-                match_type="doubles",
-                team_a_name=data.team_a_name,
-                team_b_name=data.team_b_name,
-                player_a1=team_a[a1] if a1 < len(team_a) else f"Player A{a1+1}",
-                player_a2=team_a[a2] if a2 < len(team_a) else f"Player A{a2+1}",
-                player_b1=team_b[b1] if b1 < len(team_b) else f"Player B{b1+1}",
-                player_b2=team_b[b2] if b2 < len(team_b) else f"Player B{b2+1}",
-                score_state=create_initial_state(),
-                history=[]
-            )
-            db.add(match)
-            matches.append(match)
-            match_number += 1
+    # Create singles only — doubles are set up separately after all singles complete
+    for i in range(player_count):
+        match = Match(
+            match_day_id=match_day.id,
+            match_number=match_number,
+            match_type="singles",
+            team_a_name=data.team_a_name,
+            team_b_name=data.team_b_name,
+            player_a1=team_a[i] if i < len(team_a) else f"Player A{i+1}",
+            player_b1=team_b[i] if i < len(team_b) else f"Player B{i+1}",
+            score_state=create_initial_state(),
+            history=[]
+        )
+        db.add(match)
+        matches.append(match)
+        match_number += 1
 
     await db.commit()
     await db.refresh(match_day)
@@ -729,6 +670,65 @@ async def create_match_day(data: MatchDayCreate, request: Request, db: AsyncSess
         "match_day": match_day.to_dict(),
         "matches": [m.to_dict() for m in matches]
     }
+
+
+@app.post("/api/matchdays/{match_day_id}/doubles")
+async def create_match_day_doubles(match_day_id: str, data: DoublesCreate, request: Request, db: AsyncSession = Depends(get_db)):
+    """Create doubles matches for a match day after all singles are complete. Requires admin authentication."""
+    admin_session = await get_admin_session(request, db)
+    if not admin_session:
+        raise HTTPException(status_code=401, detail="Admin authentication required")
+
+    result = await db.execute(select(MatchDay).where(MatchDay.id == match_day_id))
+    match_day = result.scalar_one_or_none()
+    if not match_day:
+        raise HTTPException(status_code=404, detail="Match day not found")
+
+    matches_result = await db.execute(
+        select(Match).where(Match.match_day_id == match_day_id).order_by(Match.match_number)
+    )
+    all_matches = matches_result.scalars().all()
+
+    singles = [m for m in all_matches if m.match_type == "singles"]
+    doubles_existing = [m for m in all_matches if m.match_type == "doubles"]
+
+    if doubles_existing:
+        raise HTTPException(status_code=400, detail="Doubles already created for this match day")
+
+    incomplete_singles = [m for m in singles if m.score_state.get("winner") is None]
+    if incomplete_singles:
+        raise HTTPException(
+            status_code=400,
+            detail=f"{len(incomplete_singles)} singles match(es) not yet complete"
+        )
+
+    max_number = max((m.match_number or 0) for m in all_matches) if all_matches else 0
+    match_number = max_number + 1
+
+    created = []
+    for pairing in data.pairings:
+        match = Match(
+            match_day_id=match_day_id,
+            match_number=match_number,
+            match_type="doubles",
+            team_a_name=match_day.team_a_name,
+            team_b_name=match_day.team_b_name,
+            player_a1=pairing.player_a1,
+            player_a2=pairing.player_a2,
+            player_b1=pairing.player_b1,
+            player_b2=pairing.player_b2,
+            score_state=create_initial_state(),
+            history=[]
+        )
+        db.add(match)
+        created.append(match)
+        match_number += 1
+
+    await db.commit()
+    for m in created:
+        await db.refresh(m)
+
+    return {"success": True, "matches": [m.to_dict() for m in created]}
 
 
 @app.get("/api/matchdays")
@@ -808,6 +808,179 @@ async def delete_match_day(match_day_id: str, request: Request, db: AsyncSession
     await db.commit()
 
     return {"success": True, "message": f"Match day '{match_day.name}' and {len(matches)} matches deleted"}
+
+
+# ==================== WTB Club & Player Integration ====================
+
+@app.post("/api/admin/sync-clubs")
+async def sync_wtb_clubs(request: Request, db: AsyncSession = Depends(get_db)):
+    """
+    Scrape and sync all WTB clubs. Admin only.
+    This will scrape all pages from the WTB website and update the database.
+    """
+    # Verify admin authentication
+    admin_session = await get_admin_session(request, db)
+    if not admin_session:
+        raise HTTPException(status_code=401, detail="Admin authentication required")
+
+    try:
+        # Scrape all clubs from WTB
+        clubs_data = await scrape_all_clubs()
+
+        synced_count = 0
+        for club_data in clubs_data:
+            # Check if club already exists
+            result = await db.execute(
+                select(Club).where(Club.wtb_id == club_data["wtb_id"])
+            )
+            existing_club = result.scalar_one_or_none()
+
+            if existing_club:
+                # Update existing club
+                existing_club.name = club_data["name"]
+                existing_club.location = club_data.get("location")
+                existing_club.district = club_data.get("district")
+                existing_club.url = club_data["url"]
+                existing_club.last_synced = datetime.utcnow()
+            else:
+                # Create new club
+                new_club = Club(
+                    wtb_id=club_data["wtb_id"],
+                    name=club_data["name"],
+                    location=club_data.get("location"),
+                    district=club_data.get("district"),
+                    url=club_data["url"],
+                    last_synced=datetime.utcnow()
+                )
+                db.add(new_club)
+
+            synced_count += 1
+
+        await db.commit()
+
+        return {
+            "success": True,
+            "synced": synced_count,
+            "message": f"Successfully synced {synced_count} clubs from WTB"
+        }
+
+    except Exception as e:
+        await db.rollback()
+        raise HTTPException(status_code=500, detail=f"Error syncing clubs: {str(e)}")
+
+
+@app.post("/api/admin/sync-club-players/{club_id}")
+async def sync_club_players_endpoint(
+    club_id: str,
+    request: Request,
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Scrape and sync players for a specific club. Admin only.
+    Only scrapes Herren (Men) category.
+    """
+    # Verify admin authentication
+    admin_session = await get_admin_session(request, db)
+    if not admin_session:
+        raise HTTPException(status_code=401, detail="Admin authentication required")
+
+    # Find the club
+    result = await db.execute(select(Club).where(Club.id == club_id))
+    club = result.scalar_one_or_none()
+    if not club:
+        raise HTTPException(status_code=404, detail="Club not found")
+
+    try:
+        # Scrape players from WTB
+        players_data = await scrape_club_players(club.wtb_id)
+
+        # Delete existing players for this club (to avoid duplicates)
+        await db.execute(
+            select(Player).where(Player.club_id == club_id)
+        )
+        existing_players = (await db.execute(
+            select(Player).where(Player.club_id == club_id)
+        )).scalars().all()
+
+        for player in existing_players:
+            await db.delete(player)
+
+        # Add new players
+        for player_data in players_data:
+            new_player = Player(
+                name=player_data["name"],
+                birth_year=player_data.get("birth_year"),
+                category=player_data.get("category", "Herren"),
+                wtb_id_nummer=player_data.get("wtb_id_nummer"),
+                club_id=club_id
+            )
+            db.add(new_player)
+
+        # Update club's last_synced timestamp
+        club.last_synced = datetime.utcnow()
+
+        await db.commit()
+
+        return {
+            "success": True,
+            "synced": len(players_data),
+            "club_name": club.name,
+            "message": f"Successfully synced {len(players_data)} Herren players for {club.name}"
+        }
+
+    except Exception as e:
+        await db.rollback()
+        raise HTTPException(
+            status_code=500,
+            detail=f"Error syncing players for club {club.name}: {str(e)}"
+        )
+
+
+@app.get("/api/clubs/search")
+async def search_clubs(q: str = "", limit: int = 10, db: AsyncSession = Depends(get_db)):
+    """
+    Search clubs by name.
+    Public endpoint - no authentication required.
+    """
+    query = select(Club)
+
+    if q:
+        query = query.where(Club.name.ilike(f"%{q}%"))
+
+    query = query.limit(limit)
+
+    result = await db.execute(query)
+    clubs = result.scalars().all()
+
+    return [club.to_dict() for club in clubs]
+
+
+@app.get("/api/clubs/{club_id}/players/search")
+async def search_club_players(
+    club_id: str,
+    q: str = "",
+    limit: int = 20,
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Search players within a specific club.
+    Only returns Herren (Men) players.
+    Public endpoint - no authentication required.
+    """
+    query = select(Player).where(
+        Player.club_id == club_id,
+        Player.category == "Herren"
+    )
+
+    if q:
+        query = query.where(Player.name.ilike(f"%{q}%"))
+
+    query = query.limit(limit)
+
+    result = await db.execute(query)
+    players = result.scalars().all()
+
+    return [player.to_dict() for player in players]
 
 
 # WebSocket endpoint for real-time updates
