@@ -428,11 +428,24 @@
         }
 
         function initMatchDay() {
+            // Reset all state for a fresh form
+            teamAClubId = null;
+            teamBClubId = null;
+            teamASelectedPlayers = [];
+            teamBSelectedPlayers = [];
+
+            const teamAInput = document.getElementById('team-a-name');
+            const teamBInput = document.getElementById('team-b-name');
+            teamAInput.value = '';
+            teamBInput.value = '';
+            document.getElementById('matchday-name').value = 'Match Day';
+            if (teamAInput._acInstance) teamAInput._acInstance.selectedItem = null;
+            if (teamBInput._acInstance) teamBInput._acInstance.selectedItem = null;
+
             const count = currentFormat === '6_person' ? 6 : 4;
             buildPlayerInputs('team-a-players', count);
             buildPlayerInputs('team-b-players', count);
 
-            const teamAInput = document.getElementById('team-a-name');
             setupClubAutocomplete(teamAInput, (club) => {
                 if (club) {
                     teamAClubId = club.id;
@@ -444,7 +457,6 @@
                 }
             });
 
-            const teamBInput = document.getElementById('team-b-name');
             setupClubAutocomplete(teamBInput, (club) => {
                 if (club) {
                     teamBClubId = club.id;
