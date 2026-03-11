@@ -3,14 +3,18 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from fastapi.responses import HTMLResponse, RedirectResponse
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
+from sqlalchemy import select, func
 from typing import Dict, List, Set
 import json
+import asyncio
+import logging
 from datetime import datetime
 from contextlib import asynccontextmanager
 
-from .database import get_db, init_db
+from .database import get_db, init_db, async_session_maker
 from .models import Match, MatchDay, AdminSession, Club, Player
+
+logger = logging.getLogger(__name__)
 from .schemas import MatchCreate, ScorePoint, MatchResponse, MatchDayCreate, ScoreGame, MatchPlayersUpdate, MatchScoreSet, DoublesCreate, SetInitialServer
 from .scoring import score_point, score_game, create_initial_state, get_score_summary
 from .auth import (
@@ -26,9 +30,40 @@ from .auth import (
 from .wtb_scraper import scrape_all_clubs, scrape_club_players
 
 
+async def _startup_sync_clubs():
+    """Background task: sync WTB clubs on startup. Swallows all errors."""
+    try:
+        logger.info("Background startup: syncing WTB clubs...")
+        clubs_data = await scrape_all_clubs()
+        async with async_session_maker() as db:
+            for club_data in clubs_data:
+                result = await db.execute(select(Club).where(Club.wtb_id == club_data["wtb_id"]))
+                existing = result.scalar_one_or_none()
+                if existing:
+                    existing.name = club_data["name"]
+                    existing.location = club_data.get("location")
+                    existing.district = club_data.get("district")
+                    existing.url = club_data["url"]
+                    existing.last_synced = datetime.utcnow()
+                else:
+                    db.add(Club(
+                        wtb_id=club_data["wtb_id"],
+                        name=club_data["name"],
+                        location=club_data.get("location"),
+                        district=club_data.get("district"),
+                        url=club_data["url"],
+                        last_synced=datetime.utcnow(),
+                    ))
+            await db.commit()
+        logger.info(f"Background startup: synced {len(clubs_data)} clubs")
+    except Exception as e:
+        logger.warning(f"Background startup club sync failed (non-fatal): {e}")
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     await init_db()
+    asyncio.create_task(_startup_sync_clubs())
     yield
 
 
@@ -949,10 +984,14 @@ async def sync_wtb_clubs(request: Request, db: AsyncSession = Depends(get_db)):
 
         await db.commit()
 
+        total_result = await db.execute(select(func.count()).select_from(Club))
+        total_in_db = total_result.scalar()
+
         return {
             "success": True,
             "synced": synced_count,
-            "message": f"Successfully synced {synced_count} clubs from WTB"
+            "total_in_db": total_in_db,
+            "message": f"Successfully synced {synced_count} clubs from WTB ({total_in_db} total in database)"
         }
 
     except Exception as e:
@@ -1003,6 +1042,7 @@ async def sync_club_players_endpoint(
                 birth_year=player_data.get("birth_year"),
                 category=player_data.get("category", "Herren"),
                 wtb_id_nummer=player_data.get("wtb_id_nummer"),
+                ranking=player_data.get("ranking"),
                 club_id=club_id
             )
             db.add(new_player)
@@ -1044,6 +1084,56 @@ async def search_clubs(q: str = "", limit: int = 10, db: AsyncSession = Depends(
     clubs = result.scalars().all()
 
     return [club.to_dict() for club in clubs]
+
+
+@app.get("/api/clubs/{club_id}/players")
+async def get_club_players(club_id: str, db: AsyncSession = Depends(get_db)):
+    """
+    Return all Herren players for a club, sorted by ranking ASC (nulls last).
+    If the club has no players yet, auto-triggers a scrape first.
+    Public endpoint - no authentication required.
+    """
+    # Look up club
+    club_result = await db.execute(select(Club).where(Club.id == club_id))
+    club = club_result.scalar_one_or_none()
+    if not club:
+        raise HTTPException(status_code=404, detail="Club not found")
+
+    # Count existing Herren players
+    count_result = await db.execute(
+        select(func.count()).select_from(Player).where(
+            Player.club_id == club_id, Player.category == "Herren"
+        )
+    )
+    player_count = count_result.scalar()
+
+    if player_count == 0:
+        # Auto-sync: scrape and store players for this club
+        try:
+            players_data = await scrape_club_players(club.wtb_id)
+            for player_data in players_data:
+                db.add(Player(
+                    name=player_data["name"],
+                    birth_year=player_data.get("birth_year"),
+                    category=player_data.get("category", "Herren"),
+                    wtb_id_nummer=player_data.get("wtb_id_nummer"),
+                    ranking=player_data.get("ranking"),
+                    club_id=club_id,
+                ))
+            club.last_synced = datetime.utcnow()
+            await db.commit()
+        except Exception as e:
+            logger.warning(f"Auto-sync players for club {club_id} failed: {e}")
+            await db.rollback()
+
+    # Query ordered by ranking ASC, NULLs last
+    result = await db.execute(
+        select(Player)
+        .where(Player.club_id == club_id, Player.category == "Herren")
+        .order_by(Player.ranking.is_(None), Player.ranking.asc())
+    )
+    players = result.scalars().all()
+    return [p.to_dict() for p in players]
 
 
 @app.get("/api/clubs/{club_id}/players/search")
