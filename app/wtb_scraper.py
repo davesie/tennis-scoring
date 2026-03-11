@@ -27,6 +27,8 @@ async def scrape_all_clubs() -> List[Dict]:
     """
     clubs = []
 
+    seen_ids = set()
+
     async with httpx.AsyncClient(timeout=30.0, headers=HEADERS) as client:
         try:
             # GET first page
@@ -36,14 +38,18 @@ async def scrape_all_clubs() -> List[Dict]:
 
             # Parse first page
             page_clubs = _parse_clubs_page(soup)
+            for c in page_clubs:
+                seen_ids.add(c["wtb_id"])
             clubs.extend(page_clubs)
+
+            # Determine total pages from pagination
+            total_pages = _get_total_pages(soup)
 
             # Extract TYPO3 form tokens from first page (reused for all subsequent POSTs)
             form_data = _extract_form_data(soup)
 
-            # Keep fetching pages until an empty page is returned
-            page = 2
-            while page_clubs:
+            # Fetch remaining pages
+            for page in range(2, total_pages + 1):
                 await asyncio.sleep(1.0)  # Be polite
 
                 offset = (page - 1) * 100
@@ -58,8 +64,13 @@ async def scrape_all_clubs() -> List[Dict]:
                 soup = BeautifulSoup(response.text, "lxml")
 
                 page_clubs = _parse_clubs_page(soup)
-                clubs.extend(page_clubs)
-                page += 1
+                # Deduplicate: stop if all clubs on this page were already seen
+                new_clubs = [c for c in page_clubs if c["wtb_id"] not in seen_ids]
+                if not new_clubs:
+                    break
+                for c in new_clubs:
+                    seen_ids.add(c["wtb_id"])
+                clubs.extend(new_clubs)
 
         except Exception as e:
             print(f"Error scraping clubs: {e}")
@@ -154,10 +165,11 @@ async def scrape_all_clubs_with_progress():
     Scrape all clubs from WTB website, yielding progress after each page.
 
     Yields:
-        {"type": "progress", "page": N, "clubs_so_far": count}  — after each page
+        {"type": "progress", "page": N, "total_pages": N, "clubs_so_far": count}  — after each page
         {"type": "complete", "total_clubs": N, "clubs": [...]}  — at the end
     """
     clubs = []
+    seen_ids = set()
 
     async with httpx.AsyncClient(timeout=30.0, headers=HEADERS) as client:
         # GET first page
@@ -165,14 +177,13 @@ async def scrape_all_clubs_with_progress():
         response.raise_for_status()
         soup = BeautifulSoup(response.text, "lxml")
 
-        # Try to detect total pages for informational purposes
-        try:
-            total_pages = _get_total_pages(soup)
-        except Exception:
-            total_pages = None
+        # Determine total pages from pagination
+        total_pages = _get_total_pages(soup)
 
         # Parse first page
         page_clubs = _parse_clubs_page(soup)
+        for c in page_clubs:
+            seen_ids.add(c["wtb_id"])
         clubs.extend(page_clubs)
 
         # Extract TYPO3 form tokens from first page (reused for all subsequent POSTs)
@@ -181,13 +192,12 @@ async def scrape_all_clubs_with_progress():
         yield {
             "type": "progress",
             "page": 1,
+            "total_pages": total_pages,
             "clubs_so_far": len(clubs),
-            **({"total_pages": total_pages} if total_pages is not None else {}),
         }
 
-        # Keep fetching pages until an empty page is returned
-        page = 2
-        while page_clubs:
+        # Fetch remaining pages
+        for page in range(2, total_pages + 1):
             await asyncio.sleep(1.0)  # Be polite
 
             offset = (page - 1) * 100
@@ -202,16 +212,19 @@ async def scrape_all_clubs_with_progress():
             soup = BeautifulSoup(response.text, "lxml")
 
             page_clubs = _parse_clubs_page(soup)
-            clubs.extend(page_clubs)
+            new_clubs = [c for c in page_clubs if c["wtb_id"] not in seen_ids]
+            if not new_clubs:
+                break
+            for c in new_clubs:
+                seen_ids.add(c["wtb_id"])
+            clubs.extend(new_clubs)
 
             yield {
                 "type": "progress",
                 "page": page,
+                "total_pages": total_pages,
                 "clubs_so_far": len(clubs),
-                **({"total_pages": total_pages} if total_pages is not None else {}),
             }
-
-            page += 1
 
     yield {"type": "complete", "total_clubs": len(clubs), "clubs": clubs}
 
