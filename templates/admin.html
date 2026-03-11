@@ -28,6 +28,13 @@
                     Sync All Clubs from WTB
                 </button>
                 <div class="sync-status" id="sync-status"></div>
+                <div class="sync-meta" id="sync-meta">
+                    {% if last_club_sync %}
+                    Last synced: <time id="last-sync-time" datetime="{{ last_club_sync }}">{{ last_club_sync }}</time>
+                    {% else %}
+                    Never synced
+                    {% endif %}
+                </div>
             </div>
 
             <div class="wtb-club-selector" id="club-selector-wtb" style="display: none;">
@@ -670,33 +677,89 @@
             }
         }
 
-        // WTB Sync (legacy - per-club sync)
+        // WTB Sync — SSE streaming version
         async function syncClubs() {
             const btn = document.getElementById('sync-clubs-btn');
             const statusDiv = document.getElementById('sync-status');
             btn.disabled = true;
             btn.textContent = 'Syncing...';
-            statusDiv.textContent = 'Fetching all clubs from WTB website... This may take a minute.';
+            statusDiv.textContent = 'Starting sync...';
+            statusDiv.style.color = '';
+
             try {
-                const response = await fetch('/api/admin/sync-clubs', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' }
-                });
-                const data = await response.json();
-                if (response.ok) {
-                    statusDiv.textContent = `✓ ${data.message}`;
-                    statusDiv.style.color = '#48bb78';
-                    document.getElementById('club-selector-wtb').style.display = 'block';
-                } else {
-                    statusDiv.textContent = `✗ Error: ${data.detail || 'Failed to sync clubs'}`;
+                const response = await fetch('/api/admin/sync-clubs-stream', { method: 'POST' });
+
+                if (response.status === 409) {
+                    statusDiv.textContent = 'Sync already in progress';
+                    statusDiv.style.color = '#ed8936';
+                    btn.disabled = false;
+                    btn.textContent = 'Sync All Clubs from WTB';
+                    return;
+                }
+
+                if (!response.ok) {
+                    let detail = 'Failed to start sync';
+                    try { const d = await response.json(); detail = d.detail || detail; } catch {}
+                    statusDiv.textContent = `✗ Error: ${detail}`;
                     statusDiv.style.color = '#f56565';
+                    btn.disabled = false;
+                    btn.textContent = 'Sync All Clubs from WTB';
+                    return;
+                }
+
+                const reader = response.body.getReader();
+                const decoder = new TextDecoder();
+                let buffer = '';
+
+                while (true) {
+                    const { done, value } = await reader.read();
+                    if (done) break;
+                    buffer += decoder.decode(value, { stream: true });
+
+                    // Parse SSE lines
+                    const lines = buffer.split('\n');
+                    buffer = lines.pop(); // keep incomplete last line
+
+                    for (const line of lines) {
+                        if (!line.startsWith('data:')) continue;
+                        let event;
+                        try { event = JSON.parse(line.slice(5).trim()); } catch { continue; }
+
+                        if (event.type === 'progress') {
+                            const pageInfo = event.total_pages ? ` of ${event.total_pages}` : '';
+                            statusDiv.textContent = `Fetching page ${event.page}${pageInfo}... ${event.clubs_so_far} clubs found`;
+                            statusDiv.style.color = '';
+                        } else if (event.type === 'saving') {
+                            statusDiv.textContent = `Saving ${event.total_clubs} clubs to database...`;
+                            statusDiv.style.color = '';
+                        } else if (event.type === 'done') {
+                            statusDiv.textContent = `✓ Synced ${event.synced} clubs (${event.total_in_db} total in database)`;
+                            statusDiv.style.color = '#48bb78';
+                            document.getElementById('club-selector-wtb').style.display = 'block';
+                            updateLastSyncTime(event.last_synced);
+                            btn.disabled = false;
+                            btn.textContent = 'Sync All Clubs from WTB';
+                        } else if (event.type === 'error') {
+                            statusDiv.textContent = `✗ Error: ${event.message}`;
+                            statusDiv.style.color = '#f56565';
+                            btn.disabled = false;
+                            btn.textContent = 'Sync All Clubs from WTB';
+                        }
+                    }
                 }
             } catch (error) {
                 statusDiv.textContent = `✗ Error: ${error.message}`;
                 statusDiv.style.color = '#f56565';
-            } finally {
                 btn.disabled = false;
                 btn.textContent = 'Sync All Clubs from WTB';
+            }
+        }
+
+        function updateLastSyncTime(isoString) {
+            const meta = document.getElementById('sync-meta');
+            if (meta && isoString) {
+                const d = new Date(isoString);
+                meta.innerHTML = 'Last synced: <time id="last-sync-time">' + d.toLocaleString() + '</time>';
             }
         }
 
@@ -752,6 +815,16 @@
                 statusDiv.style.color = '#f56565';
             }
         }
+    </script>
+    <script>
+        // Format ISO timestamp to locale string on page load
+        (function() {
+            const lastSyncEl = document.getElementById('last-sync-time');
+            if (lastSyncEl && lastSyncEl.textContent.trim()) {
+                const d = new Date(lastSyncEl.textContent.trim());
+                if (!isNaN(d)) lastSyncEl.textContent = d.toLocaleString();
+            }
+        })();
     </script>
     <script>
         (function() {

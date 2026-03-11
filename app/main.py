@@ -1,7 +1,7 @@
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect, Depends, HTTPException, Request, Form
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
-from fastapi.responses import HTMLResponse, RedirectResponse
+from fastapi.responses import HTMLResponse, RedirectResponse, StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func
 from typing import Dict, List, Set
@@ -27,7 +27,10 @@ from .auth import (
     get_scorer_token,
     verify_scorer_for_match,
 )
-from .wtb_scraper import scrape_all_clubs, scrape_club_players
+from .wtb_scraper import scrape_all_clubs, scrape_all_clubs_with_progress, scrape_club_players
+
+# Flag to prevent concurrent club syncs
+_sync_in_progress = False
 
 
 async def _startup_sync_clubs():
@@ -221,9 +224,15 @@ async def admin_dashboard(request: Request, db: AsyncSession = Depends(get_db)):
             "has_doubles": len(doubles) > 0,
         })
 
+    # Query last club sync timestamp
+    last_sync_result = await db.execute(select(func.max(Club.last_synced)))
+    last_club_sync_dt = last_sync_result.scalar()
+    last_club_sync = last_club_sync_dt.isoformat() if last_club_sync_dt else None
+
     return templates.TemplateResponse("admin.html", {
         "request": request,
-        "match_days": match_days_data
+        "match_days": match_days_data,
+        "last_club_sync": last_club_sync,
     })
 
 
@@ -997,6 +1006,107 @@ async def sync_wtb_clubs(request: Request, db: AsyncSession = Depends(get_db)):
     except Exception as e:
         await db.rollback()
         raise HTTPException(status_code=500, detail=f"Error syncing clubs: {str(e)}")
+
+
+@app.post("/api/admin/sync-clubs-stream")
+async def sync_wtb_clubs_stream(request: Request, db: AsyncSession = Depends(get_db)):
+    """
+    Scrape and sync all WTB clubs with real-time SSE progress. Admin only.
+    Returns a Server-Sent Events stream showing progress after each page.
+    Returns 409 if a sync is already running.
+    """
+    global _sync_in_progress
+
+    # Verify admin authentication
+    admin_session = await get_admin_session(request, db)
+    if not admin_session:
+        raise HTTPException(status_code=401, detail="Admin authentication required")
+
+    if _sync_in_progress:
+        raise HTTPException(status_code=409, detail="Sync already in progress")
+
+    async def event_generator():
+        global _sync_in_progress
+        _sync_in_progress = True
+        try:
+            clubs_data = []
+            async for event in scrape_all_clubs_with_progress():
+                if event["type"] == "progress":
+                    payload = json.dumps({
+                        "type": "progress",
+                        "page": event["page"],
+                        "clubs_so_far": event["clubs_so_far"],
+                        **({"total_pages": event["total_pages"]} if "total_pages" in event else {}),
+                    })
+                    yield f"data: {payload}\n\n"
+                elif event["type"] == "complete":
+                    clubs_data = event["clubs"]
+                    # Signal that we're now saving
+                    saving_payload = json.dumps({
+                        "type": "saving",
+                        "total_clubs": event["total_clubs"],
+                    })
+                    yield f"data: {saving_payload}\n\n"
+
+            # DB upsert
+            synced_count = 0
+            async with async_session_maker() as save_db:
+                for club_data in clubs_data:
+                    result = await save_db.execute(
+                        select(Club).where(Club.wtb_id == club_data["wtb_id"])
+                    )
+                    existing_club = result.scalar_one_or_none()
+
+                    if existing_club:
+                        existing_club.name = club_data["name"]
+                        existing_club.location = club_data.get("location")
+                        existing_club.district = club_data.get("district")
+                        existing_club.url = club_data["url"]
+                        existing_club.last_synced = datetime.utcnow()
+                    else:
+                        new_club = Club(
+                            wtb_id=club_data["wtb_id"],
+                            name=club_data["name"],
+                            location=club_data.get("location"),
+                            district=club_data.get("district"),
+                            url=club_data["url"],
+                            last_synced=datetime.utcnow(),
+                        )
+                        save_db.add(new_club)
+
+                    synced_count += 1
+
+                await save_db.commit()
+
+                total_result = await save_db.execute(select(func.count()).select_from(Club))
+                total_in_db = total_result.scalar()
+
+                last_sync_result = await save_db.execute(select(func.max(Club.last_synced)))
+                last_sync_dt = last_sync_result.scalar()
+                last_synced_iso = last_sync_dt.isoformat() if last_sync_dt else None
+
+            done_payload = json.dumps({
+                "type": "done",
+                "synced": synced_count,
+                "total_in_db": total_in_db,
+                "last_synced": last_synced_iso,
+            })
+            yield f"data: {done_payload}\n\n"
+
+        except Exception as e:
+            error_payload = json.dumps({"type": "error", "message": str(e)})
+            yield f"data: {error_payload}\n\n"
+        finally:
+            _sync_in_progress = False
+
+    return StreamingResponse(
+        event_generator(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "X-Accel-Buffering": "no",
+        },
+    )
 
 
 @app.post("/api/admin/sync-club-players/{club_id}")

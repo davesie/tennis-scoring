@@ -2199,6 +2199,13 @@ a:focus {
     border-radius: var(--radius-md);
 }
 
+.sync-meta {
+    font-family: var(--font-score, monospace);
+    font-size: 0.78rem;
+    color: var(--text-muted, #888);
+    margin-top: 6px;
+}
+
 .wtb-club-selector {
     margin-top: var(--space-4);
     padding-top: var(--space-4);

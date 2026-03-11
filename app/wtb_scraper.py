@@ -149,6 +149,73 @@ def _parse_clubs_page(soup: BeautifulSoup) -> List[Dict]:
     return clubs
 
 
+async def scrape_all_clubs_with_progress():
+    """
+    Scrape all clubs from WTB website, yielding progress after each page.
+
+    Yields:
+        {"type": "progress", "page": N, "clubs_so_far": count}  — after each page
+        {"type": "complete", "total_clubs": N, "clubs": [...]}  — at the end
+    """
+    clubs = []
+
+    async with httpx.AsyncClient(timeout=30.0, headers=HEADERS) as client:
+        # GET first page
+        response = await client.get(CLUBS_URL, params=CLUBS_PARAMS)
+        response.raise_for_status()
+        soup = BeautifulSoup(response.text, "lxml")
+
+        # Try to detect total pages for informational purposes
+        try:
+            total_pages = _get_total_pages(soup)
+        except Exception:
+            total_pages = None
+
+        # Parse first page
+        page_clubs = _parse_clubs_page(soup)
+        clubs.extend(page_clubs)
+
+        # Extract TYPO3 form tokens from first page (reused for all subsequent POSTs)
+        form_data = _extract_form_data(soup)
+
+        yield {
+            "type": "progress",
+            "page": 1,
+            "clubs_so_far": len(clubs),
+            **({"total_pages": total_pages} if total_pages is not None else {}),
+        }
+
+        # Keep fetching pages until an empty page is returned
+        page = 2
+        while page_clubs:
+            await asyncio.sleep(1.0)  # Be polite
+
+            offset = (page - 1) * 100
+            post_data = {
+                **form_data,
+                "tx_nuportalrs_clubs[clubsFilter][firstResult]": str(offset),
+            }
+            response = await client.post(
+                CLUBS_URL, params=CLUBS_PARAMS, data=post_data
+            )
+            response.raise_for_status()
+            soup = BeautifulSoup(response.text, "lxml")
+
+            page_clubs = _parse_clubs_page(soup)
+            clubs.extend(page_clubs)
+
+            yield {
+                "type": "progress",
+                "page": page,
+                "clubs_so_far": len(clubs),
+                **({"total_pages": total_pages} if total_pages is not None else {}),
+            }
+
+            page += 1
+
+    yield {"type": "complete", "total_clubs": len(clubs), "clubs": clubs}
+
+
 async def scrape_club_players(wtb_id: str, category: str = "Herren") -> List[Dict]:
     """
     Scrape all players for a specific club in the Herren category.
