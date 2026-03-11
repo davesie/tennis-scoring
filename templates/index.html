@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-theme="light">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -7,6 +7,7 @@
     <link rel="stylesheet" href="/static/css/style.css">
 </head>
 <body>
+    <button class="theme-toggle" id="theme-toggle" aria-label="Toggle theme"></button>
     <div class="container">
         <header>
             <div class="header-row">
@@ -131,6 +132,10 @@
         let sideAClubId = null;
         let sideBClubId = null;
 
+        // Player picker state: sorted arrays of selected player objects {id, name, ranking, birth_year}
+        let teamASelectedPlayers = [];
+        let teamBSelectedPlayers = [];
+
         // ==================== Autocomplete Widget ====================
 
         class Autocomplete {
@@ -147,7 +152,6 @@
             }
 
             _init() {
-                // Wrap the input
                 const wrapper = document.createElement('div');
                 wrapper.className = 'autocomplete-wrapper';
                 this.input.parentNode.insertBefore(wrapper, this.input);
@@ -170,7 +174,6 @@
             _onInput() {
                 clearTimeout(this.debounceTimer);
                 const q = this.input.value.trim();
-                // Clear selected if user typed something different
                 if (this.selectedItem && this.input.value !== this.selectedItem.name) {
                     this.selectedItem = null;
                     if (this.onSelect) this.onSelect(null);
@@ -191,7 +194,7 @@
                     el.className = 'autocomplete-item';
                     el.innerHTML = this.renderItem(item);
                     el.addEventListener('mousedown', (e) => {
-                        e.preventDefault(); // Prevent blur before click
+                        e.preventDefault();
                         this._select(item);
                     });
                     this.dropdown.appendChild(el);
@@ -253,6 +256,14 @@
             } catch { return []; }
         }
 
+        async function fetchAllClubPlayers(clubId) {
+            try {
+                const res = await fetch(`/api/clubs/${clubId}/players`);
+                if (!res.ok) return [];
+                return await res.json();
+            } catch { return []; }
+        }
+
         function renderClub(club) {
             const meta = [club.location, club.district].filter(Boolean).join(' · ');
             return `<span class="ac-name">${club.name}</span>${meta ? `<span class="ac-meta">${meta}</span>` : ''}`;
@@ -265,36 +276,181 @@
 
         // ==================== Setup helpers ====================
 
-        // Attach club autocomplete to an input; when a club is selected, call onClubSelect(club)
         function setupClubAutocomplete(input, onClubSelect) {
-            if (input._acInstance) return; // Already set up
+            if (input._acInstance) return;
             new Autocomplete(input, fetchClubs, onClubSelect, renderClub);
         }
 
-        // Attach player autocomplete to a single input, getClubId is a function returning current club id
         function setupPlayerAutocomplete(input, getClubId) {
-            if (input._acInstance) return; // Already set up
+            if (input._acInstance) return;
             new Autocomplete(
                 input,
                 (q) => fetchPlayers(getClubId(), q),
-                null, // selecting just fills the input (default Autocomplete behavior)
+                null,
                 renderPlayer
             );
         }
 
-        // Rebuild player inputs for a team container, attaching player autocomplete
+        // Fallback: plain text inputs for when no club is selected
         function buildPlayerInputs(containerId, count, getClubId) {
             const container = document.getElementById(containerId);
             container.innerHTML = '';
+            const wrapper = document.createElement('div');
+            wrapper.className = 'player-fallback';
             for (let i = 0; i < count; i++) {
                 const input = document.createElement('input');
                 input.type = 'text';
                 input.className = 'player-input';
                 input.placeholder = `Player ${i + 1}`;
                 input.autocomplete = 'off';
-                container.appendChild(input);
+                wrapper.appendChild(input);
                 setupPlayerAutocomplete(input, getClubId);
             }
+            container.appendChild(wrapper);
+        }
+
+        // ==================== Player Picker ====================
+
+        function sortByRanking(players) {
+            return [...players].sort((a, b) => {
+                if (a.ranking == null && b.ranking == null) return 0;
+                if (a.ranking == null) return 1;
+                if (b.ranking == null) return -1;
+                return a.ranking - b.ranking;
+            });
+        }
+
+        async function loadPlayerPicker(team, clubId) {
+            const containerId = team === 'A' ? 'team-a-players' : 'team-b-players';
+            const container = document.getElementById(containerId);
+
+            // Reset selected for this team
+            if (team === 'A') teamASelectedPlayers = [];
+            else teamBSelectedPlayers = [];
+
+            container.innerHTML = '<div class="picker-loading">Loading players\u2026</div>';
+
+            const players = await fetchAllClubPlayers(clubId);
+
+            if (!players.length) {
+                container.innerHTML = '<p class="picker-empty">No players found for this club.</p>';
+                return;
+            }
+
+            renderPlayerPicker(team, players);
+        }
+
+        function renderPlayerPicker(team, availablePlayers) {
+            const containerId = team === 'A' ? 'team-a-players' : 'team-b-players';
+            const container = document.getElementById(containerId);
+            const selected = team === 'A' ? teamASelectedPlayers : teamBSelectedPlayers;
+            const selectedIds = new Set(selected.map(p => p.id));
+
+            container.innerHTML = '';
+            const picker = document.createElement('div');
+            picker.className = 'player-picker';
+
+            // Available panel
+            const availPanel = document.createElement('div');
+            availPanel.className = 'player-picker-available';
+            availPanel.innerHTML = '<div class="picker-panel-label">Available Players</div>';
+
+            availablePlayers.forEach(player => {
+                const chip = document.createElement('div');
+                chip.className = 'player-chip' + (selectedIds.has(player.id) ? ' selected' : '');
+                chip.dataset.playerId = player.id;
+                const rankLabel = player.ranking != null ? `<span class="player-chip-rank">Rang\u00a0${player.ranking}</span>` : '';
+                const yearLabel = player.birth_year ? `<span class="player-chip-meta">*${player.birth_year}</span>` : '';
+                chip.innerHTML = `${rankLabel}<span class="player-chip-name">${player.name}</span>${yearLabel}`;
+                chip.addEventListener('click', () => togglePlayer(team, player, availablePlayers));
+                availPanel.appendChild(chip);
+            });
+
+            // Selected panel
+            const selPanel = document.createElement('div');
+            selPanel.className = 'player-picker-selected';
+            selPanel.innerHTML = '<div class="picker-panel-label">Selected (by Rang)</div>';
+            selPanel.id = `picker-selected-${team}`;
+
+            picker.appendChild(availPanel);
+            picker.appendChild(selPanel);
+            container.appendChild(picker);
+
+            renderSelectedSlots(team);
+        }
+
+        function togglePlayer(team, player, availablePlayers) {
+            const arr = team === 'A' ? teamASelectedPlayers : teamBSelectedPlayers;
+            const idx = arr.findIndex(p => p.id === player.id);
+            if (idx >= 0) {
+                arr.splice(idx, 1);
+            } else {
+                arr.push(player);
+                // Sort by ranking, nulls last
+                const sorted = sortByRanking(arr);
+                if (team === 'A') teamASelectedPlayers = sorted;
+                else teamBSelectedPlayers = sorted;
+            }
+            renderSelectedSlots(team);
+
+            // Update chip selected state
+            const containerId = team === 'A' ? 'team-a-players' : 'team-b-players';
+            const container = document.getElementById(containerId);
+            const updatedArr = team === 'A' ? teamASelectedPlayers : teamBSelectedPlayers;
+            const selectedIds = new Set(updatedArr.map(p => p.id));
+            container.querySelectorAll('.player-chip').forEach(chip => {
+                chip.classList.toggle('selected', selectedIds.has(chip.dataset.playerId));
+            });
+        }
+
+        function deselectPlayer(team, playerId) {
+            if (team === 'A') {
+                teamASelectedPlayers = teamASelectedPlayers.filter(p => p.id !== playerId);
+            } else {
+                teamBSelectedPlayers = teamBSelectedPlayers.filter(p => p.id !== playerId);
+            }
+            renderSelectedSlots(team);
+
+            const containerId = team === 'A' ? 'team-a-players' : 'team-b-players';
+            const container = document.getElementById(containerId);
+            const arr = team === 'A' ? teamASelectedPlayers : teamBSelectedPlayers;
+            const selectedIds = new Set(arr.map(p => p.id));
+            container.querySelectorAll('.player-chip').forEach(chip => {
+                chip.classList.toggle('selected', selectedIds.has(chip.dataset.playerId));
+            });
+        }
+
+        function renderSelectedSlots(team) {
+            const panelId = `picker-selected-${team}`;
+            const panel = document.getElementById(panelId);
+            if (!panel) return;
+
+            const arr = team === 'A' ? teamASelectedPlayers : teamBSelectedPlayers;
+            // Keep only the label div, rebuild slots
+            const label = panel.querySelector('.picker-panel-label');
+            panel.innerHTML = '';
+            panel.appendChild(label);
+
+            if (!arr.length) {
+                const empty = document.createElement('p');
+                empty.className = 'picker-slots-empty';
+                empty.textContent = 'Click players to add them';
+                panel.appendChild(empty);
+                return;
+            }
+
+            arr.forEach((player, i) => {
+                const slot = document.createElement('div');
+                slot.className = 'player-slot';
+                const rankLabel = player.ranking != null ? `<span class="slot-rank">Rang\u00a0${player.ranking}</span>` : '';
+                slot.innerHTML = `
+                    <span class="slot-number">${i + 1}</span>
+                    <span class="slot-name">${player.name}</span>
+                    ${rankLabel}
+                    <button class="slot-remove" title="Remove" onclick="deselectPlayer('${team}', '${player.id}')">&times;</button>
+                `;
+                panel.appendChild(slot);
+            });
         }
 
         // ==================== Page setup ====================
@@ -321,7 +477,7 @@
         function initMatchDay() {
             const count = currentFormat === '6_person' ? 6 : 4;
 
-            // Build player inputs with autocomplete
+            // Start with fallback text inputs (no club selected yet)
             buildPlayerInputs('team-a-players', count, () => teamAClubId);
             buildPlayerInputs('team-b-players', count, () => teamBClubId);
 
@@ -330,9 +486,12 @@
             setupClubAutocomplete(teamANameInput, (club) => {
                 if (club) {
                     teamAClubId = club.id;
-                    // Player inputs already have the closure — they'll pick up the new clubId automatically
+                    loadPlayerPicker('A', club.id);
                 } else {
                     teamAClubId = null;
+                    teamASelectedPlayers = [];
+                    const count2 = currentFormat === '6_person' ? 6 : 4;
+                    buildPlayerInputs('team-a-players', count2, () => teamAClubId);
                 }
             });
 
@@ -340,8 +499,12 @@
             setupClubAutocomplete(teamBNameInput, (club) => {
                 if (club) {
                     teamBClubId = club.id;
+                    loadPlayerPicker('B', club.id);
                 } else {
                     teamBClubId = null;
+                    teamBSelectedPlayers = [];
+                    const count2 = currentFormat === '6_person' ? 6 : 4;
+                    buildPlayerInputs('team-b-players', count2, () => teamBClubId);
                 }
             });
         }
@@ -352,17 +515,37 @@
                 btn.classList.toggle('active', btn.dataset.format === format);
             });
             const count = format === '6_person' ? 6 : 4;
-            buildPlayerInputs('team-a-players', count, () => teamAClubId);
-            buildPlayerInputs('team-b-players', count, () => teamBClubId);
+            // If a club is selected, reload picker; otherwise rebuild text inputs
+            if (teamAClubId) {
+                loadPlayerPicker('A', teamAClubId);
+            } else {
+                buildPlayerInputs('team-a-players', count, () => teamAClubId);
+            }
+            if (teamBClubId) {
+                loadPlayerPicker('B', teamBClubId);
+            } else {
+                buildPlayerInputs('team-b-players', count, () => teamBClubId);
+            }
         }
 
         async function createMatchDay() {
-            const teamAPlayers = Array.from(document.querySelectorAll('#team-a-players input'))
-                .map(input => input.value.trim())
-                .filter(v => v);
-            const teamBPlayers = Array.from(document.querySelectorAll('#team-b-players input'))
-                .map(input => input.value.trim())
-                .filter(v => v);
+            let teamAPlayers, teamBPlayers;
+
+            if (teamAClubId && teamASelectedPlayers.length) {
+                teamAPlayers = teamASelectedPlayers.map(p => p.name);
+            } else {
+                teamAPlayers = Array.from(document.querySelectorAll('#team-a-players input'))
+                    .map(input => input.value.trim())
+                    .filter(v => v);
+            }
+
+            if (teamBClubId && teamBSelectedPlayers.length) {
+                teamBPlayers = teamBSelectedPlayers.map(p => p.name);
+            } else {
+                teamBPlayers = Array.from(document.querySelectorAll('#team-b-players input'))
+                    .map(input => input.value.trim())
+                    .filter(v => v);
+            }
 
             const data = {
                 name: document.getElementById('matchday-name').value || 'Match Day',
@@ -410,7 +593,6 @@
         // Club autocomplete on side A team name → unlocks player autocomplete for side A
         setupClubAutocomplete(document.getElementById('side-a-team-name'), (club) => {
             sideAClubId = club ? club.id : null;
-            // Lazily attach player autocomplete now that we have a club
             ['player-a1', 'player-a2'].forEach(id => {
                 const el = document.getElementById(id);
                 if (el) setupPlayerAutocomplete(el, () => sideAClubId);
@@ -461,6 +643,21 @@
                 alert('Failed to create match');
             }
         });
+    </script>
+    <script>
+        (function() {
+            const toggle = document.getElementById('theme-toggle');
+            const html = document.documentElement;
+            const theme = localStorage.getItem('theme') || 'light';
+            html.dataset.theme = theme;
+            toggle.textContent = theme === 'dark' ? '\u2600' : '\u263E';
+            toggle.addEventListener('click', () => {
+                const next = html.dataset.theme === 'dark' ? 'light' : 'dark';
+                html.dataset.theme = next;
+                localStorage.setItem('theme', next);
+                toggle.textContent = next === 'dark' ? '\u2600' : '\u263E';
+            });
+        })();
     </script>
 </body>
 </html>

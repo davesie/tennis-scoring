@@ -56,6 +56,7 @@ podman run -d -p 8000:8000 -v tennis_data:/app/data tennis-scoring
     "serving": 0,                        # 0=Team A, 1=Team B
     "is_tiebreak": False,
     "tiebreak_points": [0, 0],
+    "tiebreak_first_server": None,       # Who served first in current/last tiebreak
     "winner": None,                      # None, 0, or 1
     "deuce_advantage": None              # None, 0, or 1
 }
@@ -78,3 +79,102 @@ podman run -d -p 8000:8000 -v tennis_data:/app/data tennis-scoring
 | Variable | Default | Description |
 |----------|---------|-------------|
 | `DATABASE_URL` | `sqlite+aiosqlite:///./data/tennis.db` | Database connection string |
+
+---
+
+## User Roles & Access
+
+Three roles exist, all fully implemented:
+
+| Role | How | URL |
+|------|-----|-----|
+| **Admin** | Password login → session cookie | `/admin/login` → `/admin` |
+| **Scorer** | 12-char token, no login needed | `/scoreday/{scorer_token}` |
+| **Watcher** | 8-char share code, no login | `/watchday/{share_code}` |
+
+- Token auth: `app/auth.py` — `verify_scorer_for_match()` checks `X-Scorer-Token` header
+- Share links are shown on the match day page (`/matchday/{id}`) under "Share Match Day"
+
+## Navigation Flow
+
+- `GET /` → redirects to `/archive` (public landing page, no login required)
+- `GET /archive` → public archive of all match days; shows "Admin Login" or "Admin Dashboard" link
+- `GET /admin/login` → login form
+- `GET /admin` → admin dashboard (requires auth)
+- Post-logout → redirects to `/` (archive)
+
+## Git / Branch State
+
+- **`main`** — production-ready branch, tracks `origin/main`
+- **`dev`** — active development branch; contains work from this session
+- **`feature/initial-server-selection`** — previous feature branch (merged to main)
+
+Current `dev` branch contains:
+- Archive as default landing page (`GET /` → `/archive`)
+- Admin login/dashboard link added to archive header
+- `is_admin` context variable passed to `archive.html` template
+- Theme system: light default + dark mode toggle (persists to localStorage)
+- Tiebreak serving logic fix (`tiebreak_first_server` field)
+- "Broadcast Court" visual redesign (archive, matchday, match pages)
+
+## Pending / Planned Work
+
+### Share Link Discoverability
+Share links exist but could be more visible. Currently:
+- Admin dashboard (`/admin`) has "Copy Scorer Link" / "Copy Spectator Link" buttons per card
+- Match day page has a collapsed "Share Match Day" section at the bottom
+- Archive page has no share links
+
+## Theme System
+
+All pages use CSS custom properties with `[data-theme]` on `<html>`:
+- **Light (default):** warm off-white (`#F7F5EE`) background, dark text, Broadcast Court palette
+- **Dark (toggle):** deep neutral (`#131210`) background, reuses existing dark scoreboard vars
+- Toggle button (sun/moon icon) in top-right corner of every page, persists to `localStorage`
+- Variables defined in `:root` (light) and `[data-theme="dark"]` (dark) in `style.css`
+
+## Design System — "Broadcast Court"
+
+Applied to all three public pages (`archive.html`, `matchday.html`, `match.html`). No admin page changes.
+
+### Fonts (Google Fonts, imported in `style.css` line 1)
+| Variable | Font | Use |
+|---|---|---|
+| `--font-display` | Barlow Condensed 400/600/700/800 | Headings, player names, team names, buttons |
+| `--font-score` | Chakra Petch 400/600/700 | Score numbers, dates, timers, badges |
+| `--font-body` | DM Sans 400–700 | All other text, labels |
+
+### Key Design Tokens (`--bc-*`)
+- `--bc-bg` / `--bc-text` — page background (light: `#F7F5EE`, dark: `#131210`)
+- `--bc-team-a` / `--bc-team-b` — team colors (light: `#1B4FA8` / `#D44030`; dark: `#3D72D9` / `#E05545`)
+- `--bc-accent` — tennis ball lime `#C6EF3E` (used for CTAs, hover, accents)
+- `--bc-muted` / `--bc-border` — secondary text and dividers
+
+### Match Scoreboard (`--match-scoreboard-*`)
+The match scoreboard (`.scoreboard` on `match.html`) is **always dark** regardless of theme:
+- Light mode: uses hardcoded dark values (`#16161A` bg, `#F0EDE8` text, `#C6EF3E` accent)
+- Dark mode: maps to existing `--scoreboard-bg`, `--score-text` etc. dark vars
+- This is achieved via `--match-scoreboard-*` variable layer in both `:root` and `[data-theme="dark"]`
+
+### Archive Page Layout
+- Fixture list (not cards) — CSS grid: `100px 1fr auto auto` columns
+- Classes: `.archive-list` > `.archive-card` > `.fixture-meta`, `.fixture-name`, `.fixture-matchup`, `.fixture-status`
+- `.fixture-team-a` blue, `.fixture-team-b` red, `.fixture-score-a/b` in Chakra Petch
+- Status shows `FT` badge when all matches completed
+
+### Match Day Header
+- `.matchday-hero-top` wraps `<h1>` and `.live-indicator`
+- `.team-scores` is a dark pill (`--bc-scoreboard-dark`) with `.team-score-a` / `.team-score-b` classes
+- Team name color comes from `.team-score-a .team-name` / `.team-score-b .team-name` rules
+- JS hooks `id="team-a-wins"` / `id="team-b-wins"` are unchanged — all existing JS works
+
+## Templates Overview
+
+| Template | Purpose |
+|----------|---------|
+| `templates/archive.html` | Public landing page — list of all match days |
+| `templates/admin_login.html` | Admin password login |
+| `templates/admin.html` | Admin dashboard — create/manage match days |
+| `templates/index.html` | Create match day / single match forms (reached via `/admin`) |
+| `templates/matchday.html` | Live match day view (scorer + spectator) |
+| `templates/match.html` | Individual match scoring / spectator view |

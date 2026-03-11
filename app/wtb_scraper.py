@@ -8,6 +8,14 @@ import asyncio
 from datetime import datetime
 
 BASE_URL = "https://www.wtb-tennis.de"
+CLUBS_URL = "https://www.wtb-tennis.de/spielbetrieb/vereine.html"
+CLUBS_PARAMS = {
+    "tx_nuportalrs_clubs[controller]": "nuCore",
+    "cHash": "9f1ab9c76668b46aee3522471919da87",
+}
+HEADERS = {
+    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
+}
 
 
 async def scrape_all_clubs() -> List[Dict]:
@@ -19,31 +27,39 @@ async def scrape_all_clubs() -> List[Dict]:
     """
     clubs = []
 
-    async with httpx.AsyncClient(timeout=30.0) as client:
-        # First, get the first page to determine total pages
-        first_page_url = f"{BASE_URL}/spielbetrieb/vereine/"
-
+    async with httpx.AsyncClient(timeout=30.0, headers=HEADERS) as client:
         try:
-            response = await client.get(first_page_url)
+            # GET first page
+            response = await client.get(CLUBS_URL, params=CLUBS_PARAMS)
             response.raise_for_status()
-            soup = BeautifulSoup(response.text, 'html.parser')
+            soup = BeautifulSoup(response.text, "lxml")
 
             # Parse first page
-            clubs.extend(_parse_clubs_page(soup))
+            page_clubs = _parse_clubs_page(soup)
+            clubs.extend(page_clubs)
 
-            # Find pagination to get total pages
-            total_pages = _get_total_pages(soup)
+            # Extract TYPO3 form tokens from first page (reused for all subsequent POSTs)
+            form_data = _extract_form_data(soup)
 
-            # Scrape remaining pages
-            for page in range(2, total_pages + 1):
-                await asyncio.sleep(0.5)  # Rate limiting
+            # Keep fetching pages until an empty page is returned
+            page = 2
+            while page_clubs:
+                await asyncio.sleep(1.0)  # Be polite
 
-                page_url = f"{BASE_URL}/spielbetrieb/vereine/?page={page}"
-                response = await client.get(page_url)
+                offset = (page - 1) * 100
+                post_data = {
+                    **form_data,
+                    "tx_nuportalrs_clubs[clubsFilter][firstResult]": str(offset),
+                }
+                response = await client.post(
+                    CLUBS_URL, params=CLUBS_PARAMS, data=post_data
+                )
                 response.raise_for_status()
-                soup = BeautifulSoup(response.text, 'html.parser')
+                soup = BeautifulSoup(response.text, "lxml")
 
-                clubs.extend(_parse_clubs_page(soup))
+                page_clubs = _parse_clubs_page(soup)
+                clubs.extend(page_clubs)
+                page += 1
 
         except Exception as e:
             print(f"Error scraping clubs: {e}")
@@ -52,72 +68,85 @@ async def scrape_all_clubs() -> List[Dict]:
     return clubs
 
 
+def _extract_form_data(soup: BeautifulSoup) -> Dict[str, str]:
+    """Extract all form inputs from clubsFilterForm (TYPO3 security tokens)."""
+    form = soup.find("form", id="clubsFilterForm")
+    if not form:
+        return {}
+    data = {}
+    for inp in form.find_all("input"):
+        name = inp.get("name")
+        if name:
+            data[name] = inp.get("value") or ""
+    return data
+
+
+def _get_total_pages(soup: BeautifulSoup) -> int:
+    """Extract total number of pages from pagination onclick attributes."""
+    offsets = []
+    for a in soup.select("ul.pagination li.page-item a.page-link"):
+        onclick = a.get("onclick", "")
+        # Extract the .value = N assignment (offset) from the onclick handler
+        m = re.search(r"\.value\s*=\s*(\d+)", onclick)
+        if m:
+            offsets.append(int(m.group(1)))
+    if offsets:
+        return max(offsets) // 100 + 1
+    return 1
+
+
 def _parse_clubs_page(soup: BeautifulSoup) -> List[Dict]:
-    """Parse a single page of clubs."""
+    """Parse a single page of clubs from the table."""
     clubs = []
 
-    # Find all club links
-    links = soup.select('a[href*="/spielbetrieb/vereine/verein/v/"]')
+    table = soup.find("table", class_=re.compile(r"\bclubs\b"))
+    if not table:
+        return clubs
 
-    for link in links:
+    tbody = table.find("tbody")
+    rows = tbody.find_all("tr") if tbody else table.find_all("tr")[1:]
+
+    for tr in rows:
+        cells = tr.find_all("td")
+        if len(cells) < 3:
+            continue
+
         try:
-            href = link.get('href', '')
-            wtb_id = _extract_id_from_url(href)
+            verein_cell = cells[0]
+            link = verein_cell.find("a")
+            name = link.get_text(strip=True) if link else verein_cell.get_text(strip=True)
+
+            # Extract 5-digit WTB ID from cell text
+            cell_text = verein_cell.get_text(" ", strip=True)
+            id_match = re.search(r"\b(\d{5})\b", cell_text)
+            wtb_id = id_match.group(1) if id_match else None
 
             if not wtb_id:
                 continue
 
-            name = link.text.strip()
+            # Strip the ID from the name if it got concatenated
+            if name.endswith(wtb_id):
+                name = name[: -len(wtb_id)].strip()
 
-            # Try to get location and district from nearby text
-            parent = link.parent
-            if parent:
-                text_content = parent.get_text(separator='|', strip=True)
-                parts = text_content.split('|')
+            location = cells[1].get_text(strip=True)
+            district = cells[2].get_text(strip=True)
 
-                location = parts[1] if len(parts) > 1 else None
-                district = parts[2] if len(parts) > 2 else None
-            else:
-                location = None
-                district = None
+            href = link.get("href", "") if link else ""
+            club_url = BASE_URL + href if href.startswith("/") else href
 
             clubs.append({
                 "wtb_id": wtb_id,
                 "name": name,
                 "location": location,
                 "district": district,
-                "url": BASE_URL + href
+                "url": club_url,
             })
 
         except Exception as e:
-            print(f"Error parsing club link: {e}")
+            print(f"Error parsing club row: {e}")
             continue
 
     return clubs
-
-
-def _get_total_pages(soup: BeautifulSoup) -> int:
-    """Extract total number of pages from pagination."""
-    # Look for pagination links
-    pagination = soup.find_all('a', href=re.compile(r'\?page=\d+'))
-
-    if not pagination:
-        return 1
-
-    # Extract page numbers
-    page_numbers = []
-    for link in pagination:
-        match = re.search(r'page=(\d+)', link.get('href', ''))
-        if match:
-            page_numbers.append(int(match.group(1)))
-
-    return max(page_numbers) if page_numbers else 1
-
-
-def _extract_id_from_url(url: str) -> Optional[str]:
-    """Extract WTB ID from club URL."""
-    match = re.search(r'/v/(\d+)', url)
-    return match.group(1) if match else None
 
 
 async def scrape_club_players(wtb_id: str, category: str = "Herren") -> List[Dict]:
@@ -172,6 +201,8 @@ async def scrape_club_players(wtb_id: str, category: str = "Herren") -> List[Dic
                         continue
 
                     # Cell structure: [Rang, LK, Name (Birth Year), ID-Nummer, Nation]
+                    rang_cell = cells[0].text.strip()
+                    ranking = int(rang_cell) if rang_cell.isdigit() else None
                     name_cell = cells[2].text.strip()
                     wtb_id_cell = cells[3].text.strip() if len(cells) > 3 else ""
 
@@ -186,7 +217,8 @@ async def scrape_club_players(wtb_id: str, category: str = "Herren") -> List[Dic
                             "name": player_name,
                             "birth_year": birth_year,
                             "category": cat_name,
-                            "wtb_id_nummer": wtb_id_cell
+                            "wtb_id_nummer": wtb_id_cell,
+                            "ranking": ranking,
                         })
 
         except httpx.HTTPError as e:
@@ -213,10 +245,9 @@ async def test_scraper():
 
     # Test scraping first page of clubs
     print("\n2. Testing club scraping (first page)...")
-    clubs = []
-    async with httpx.AsyncClient(timeout=30.0) as client:
-        response = await client.get(f"{BASE_URL}/spielbetrieb/vereine/")
-        soup = BeautifulSoup(response.text, 'html.parser')
+    async with httpx.AsyncClient(timeout=30.0, headers=HEADERS) as client:
+        response = await client.get(CLUBS_URL, params=CLUBS_PARAMS)
+        soup = BeautifulSoup(response.text, "lxml")
         clubs = _parse_clubs_page(soup)
 
     print(f"Found {len(clubs)} clubs on first page")

@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-theme="light">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -7,6 +7,7 @@
     <link rel="stylesheet" href="/static/css/style.css">
 </head>
 <body>
+    <button class="theme-toggle" id="theme-toggle" aria-label="Toggle theme"></button>
     <div class="admin-container">
         <header class="admin-header">
             <h1>Tennis Scoring Admin</h1>
@@ -61,14 +62,14 @@
                 <div class="team-input">
                     <h3>Team A</h3>
                     <input type="text" id="team-a-name" placeholder="Search club or type team name" autocomplete="off">
-                    <span class="club-search-hint">Type to search WTB clubs &mdash; players will autocomplete below</span>
+                    <span class="club-search-hint">Type to search WTB clubs &mdash; then click players to select them</span>
                     <div id="team-a-players"></div>
                 </div>
                 <div class="vs">VS</div>
                 <div class="team-input">
                     <h3>Team B</h3>
                     <input type="text" id="team-b-name" placeholder="Search club or type team name" autocomplete="off">
-                    <span class="club-search-hint">Type to search WTB clubs &mdash; players will autocomplete below</span>
+                    <span class="club-search-hint">Type to search WTB clubs &mdash; then click players to select them</span>
                     <div id="team-b-players"></div>
                 </div>
             </div>
@@ -128,6 +129,8 @@
         let currentFormat = '6_person';
         let teamAClubId = null;
         let teamBClubId = null;
+        let teamASelectedPlayers = [];  // [{id, name, ranking, birth_year}, ...]
+        let teamBSelectedPlayers = [];
 
         // ==================== Autocomplete Widget ====================
 
@@ -241,10 +244,10 @@
             } catch { return []; }
         }
 
-        async function fetchPlayers(clubId, q) {
-            if (!clubId) return [];
+        async function fetchAllClubPlayers(clubId) {
             try {
-                const res = await fetch(`/api/clubs/${clubId}/players/search?q=${encodeURIComponent(q)}&limit=8`);
+                const res = await fetch(`/api/clubs/${clubId}/players`);
+                if (!res.ok) return [];
                 return await res.json();
             } catch { return []; }
         }
@@ -254,33 +257,166 @@
             return `<span class="ac-name">${club.name}</span>${meta ? `<span class="ac-meta">${meta}</span>` : ''}`;
         }
 
-        function renderPlayer(player) {
-            const meta = player.birth_year ? `*${player.birth_year}` : '';
-            return `<span class="ac-name">${player.name}</span>${meta ? `<span class="ac-meta">${meta}</span>` : ''}`;
-        }
-
         function setupClubAutocomplete(input, onClubSelect) {
             if (input._acInstance) return;
             new Autocomplete(input, fetchClubs, onClubSelect, renderClub);
         }
 
-        function setupPlayerAutocomplete(input, getClubId) {
-            if (input._acInstance) return;
-            new Autocomplete(input, (q) => fetchPlayers(getClubId(), q), null, renderPlayer);
-        }
-
-        function buildPlayerInputs(containerId, count, getClubId) {
+        // Fallback text inputs when no club is selected
+        function buildPlayerInputs(containerId, count) {
             const container = document.getElementById(containerId);
             container.innerHTML = '';
+            const wrapper = document.createElement('div');
+            wrapper.className = 'player-fallback';
             for (let i = 0; i < count; i++) {
                 const input = document.createElement('input');
                 input.type = 'text';
                 input.className = 'player-input';
                 input.placeholder = `Player ${i + 1}`;
                 input.autocomplete = 'off';
-                container.appendChild(input);
-                setupPlayerAutocomplete(input, getClubId);
+                wrapper.appendChild(input);
             }
+            container.appendChild(wrapper);
+        }
+
+        // ==================== Player Picker ====================
+
+        function sortByRanking(players) {
+            return [...players].sort((a, b) => {
+                if (a.ranking == null && b.ranking == null) return 0;
+                if (a.ranking == null) return 1;
+                if (b.ranking == null) return -1;
+                return a.ranking - b.ranking;
+            });
+        }
+
+        async function loadPlayerPicker(team, clubId) {
+            const containerId = team === 'A' ? 'team-a-players' : 'team-b-players';
+            const container = document.getElementById(containerId);
+
+            if (team === 'A') teamASelectedPlayers = [];
+            else teamBSelectedPlayers = [];
+
+            container.innerHTML = '<div class="picker-loading">Loading players\u2026</div>';
+
+            const players = await fetchAllClubPlayers(clubId);
+
+            if (!players.length) {
+                container.innerHTML = '<p class="picker-empty">No players found for this club.</p>';
+                return;
+            }
+
+            renderPlayerPicker(team, players);
+        }
+
+        function renderPlayerPicker(team, availablePlayers) {
+            const containerId = team === 'A' ? 'team-a-players' : 'team-b-players';
+            const container = document.getElementById(containerId);
+            const selected = team === 'A' ? teamASelectedPlayers : teamBSelectedPlayers;
+            const selectedIds = new Set(selected.map(p => p.id));
+
+            container.innerHTML = '';
+            const picker = document.createElement('div');
+            picker.className = 'player-picker';
+
+            // Available panel
+            const availPanel = document.createElement('div');
+            availPanel.className = 'player-picker-available';
+            availPanel.innerHTML = '<div class="picker-panel-label">Available Players</div>';
+
+            availablePlayers.forEach(player => {
+                const chip = document.createElement('div');
+                chip.className = 'player-chip' + (selectedIds.has(player.id) ? ' selected' : '');
+                chip.dataset.playerId = player.id;
+                const rankLabel = player.ranking != null ? `<span class="player-chip-rank">Rang\u00a0${player.ranking}</span>` : '';
+                const yearLabel = player.birth_year ? `<span class="player-chip-meta">*${player.birth_year}</span>` : '';
+                chip.innerHTML = `${rankLabel}<span class="player-chip-name">${player.name}</span>${yearLabel}`;
+                chip.addEventListener('click', () => togglePlayer(team, player, availablePlayers));
+                availPanel.appendChild(chip);
+            });
+
+            // Selected panel
+            const selPanel = document.createElement('div');
+            selPanel.className = 'player-picker-selected';
+            selPanel.innerHTML = '<div class="picker-panel-label">Selected (by Rang)</div>';
+            selPanel.id = `picker-selected-${team}`;
+
+            picker.appendChild(availPanel);
+            picker.appendChild(selPanel);
+            container.appendChild(picker);
+
+            renderSelectedSlots(team);
+        }
+
+        function togglePlayer(team, player, availablePlayers) {
+            const arr = team === 'A' ? teamASelectedPlayers : teamBSelectedPlayers;
+            const idx = arr.findIndex(p => p.id === player.id);
+            if (idx >= 0) {
+                arr.splice(idx, 1);
+            } else {
+                arr.push(player);
+                const sorted = sortByRanking(arr);
+                if (team === 'A') teamASelectedPlayers = sorted;
+                else teamBSelectedPlayers = sorted;
+            }
+            renderSelectedSlots(team);
+
+            const containerId = team === 'A' ? 'team-a-players' : 'team-b-players';
+            const container = document.getElementById(containerId);
+            const updatedArr = team === 'A' ? teamASelectedPlayers : teamBSelectedPlayers;
+            const selectedIds = new Set(updatedArr.map(p => p.id));
+            container.querySelectorAll('.player-chip').forEach(chip => {
+                chip.classList.toggle('selected', selectedIds.has(chip.dataset.playerId));
+            });
+        }
+
+        function deselectPlayer(team, playerId) {
+            if (team === 'A') {
+                teamASelectedPlayers = teamASelectedPlayers.filter(p => p.id !== playerId);
+            } else {
+                teamBSelectedPlayers = teamBSelectedPlayers.filter(p => p.id !== playerId);
+            }
+            renderSelectedSlots(team);
+
+            const containerId = team === 'A' ? 'team-a-players' : 'team-b-players';
+            const container = document.getElementById(containerId);
+            const arr = team === 'A' ? teamASelectedPlayers : teamBSelectedPlayers;
+            const selectedIds = new Set(arr.map(p => p.id));
+            container.querySelectorAll('.player-chip').forEach(chip => {
+                chip.classList.toggle('selected', selectedIds.has(chip.dataset.playerId));
+            });
+        }
+
+        function renderSelectedSlots(team) {
+            const panelId = `picker-selected-${team}`;
+            const panel = document.getElementById(panelId);
+            if (!panel) return;
+
+            const arr = team === 'A' ? teamASelectedPlayers : teamBSelectedPlayers;
+            const label = panel.querySelector('.picker-panel-label');
+            panel.innerHTML = '';
+            panel.appendChild(label);
+
+            if (!arr.length) {
+                const empty = document.createElement('p');
+                empty.className = 'picker-slots-empty';
+                empty.textContent = 'Click players to add them';
+                panel.appendChild(empty);
+                return;
+            }
+
+            arr.forEach((player, i) => {
+                const slot = document.createElement('div');
+                slot.className = 'player-slot';
+                const rankLabel = player.ranking != null ? `<span class="slot-rank">Rang\u00a0${player.ranking}</span>` : '';
+                slot.innerHTML = `
+                    <span class="slot-number">${i + 1}</span>
+                    <span class="slot-name">${player.name}</span>
+                    ${rankLabel}
+                    <button class="slot-remove" title="Remove" onclick="deselectPlayer('${team}', '${player.id}')">&times;</button>
+                `;
+                panel.appendChild(slot);
+            });
         }
 
         // ==================== Page functions ====================
@@ -292,18 +428,44 @@
         }
 
         function initMatchDay() {
-            const count = currentFormat === '6_person' ? 6 : 4;
-            buildPlayerInputs('team-a-players', count, () => teamAClubId);
-            buildPlayerInputs('team-b-players', count, () => teamBClubId);
+            // Reset all state for a fresh form
+            teamAClubId = null;
+            teamBClubId = null;
+            teamASelectedPlayers = [];
+            teamBSelectedPlayers = [];
 
             const teamAInput = document.getElementById('team-a-name');
+            const teamBInput = document.getElementById('team-b-name');
+            teamAInput.value = '';
+            teamBInput.value = '';
+            document.getElementById('matchday-name').value = 'Match Day';
+            if (teamAInput._acInstance) teamAInput._acInstance.selectedItem = null;
+            if (teamBInput._acInstance) teamBInput._acInstance.selectedItem = null;
+
+            const count = currentFormat === '6_person' ? 6 : 4;
+            buildPlayerInputs('team-a-players', count);
+            buildPlayerInputs('team-b-players', count);
+
             setupClubAutocomplete(teamAInput, (club) => {
-                teamAClubId = club ? club.id : null;
+                if (club) {
+                    teamAClubId = club.id;
+                    loadPlayerPicker('A', club.id);
+                } else {
+                    teamAClubId = null;
+                    teamASelectedPlayers = [];
+                    buildPlayerInputs('team-a-players', currentFormat === '6_person' ? 6 : 4);
+                }
             });
 
-            const teamBInput = document.getElementById('team-b-name');
             setupClubAutocomplete(teamBInput, (club) => {
-                teamBClubId = club ? club.id : null;
+                if (club) {
+                    teamBClubId = club.id;
+                    loadPlayerPicker('B', club.id);
+                } else {
+                    teamBClubId = null;
+                    teamBSelectedPlayers = [];
+                    buildPlayerInputs('team-b-players', currentFormat === '6_person' ? 6 : 4);
+                }
             });
         }
 
@@ -313,17 +475,30 @@
                 btn.classList.toggle('active', btn.dataset.format === format);
             });
             const count = format === '6_person' ? 6 : 4;
-            buildPlayerInputs('team-a-players', count, () => teamAClubId);
-            buildPlayerInputs('team-b-players', count, () => teamBClubId);
+            if (teamAClubId) loadPlayerPicker('A', teamAClubId);
+            else buildPlayerInputs('team-a-players', count);
+            if (teamBClubId) loadPlayerPicker('B', teamBClubId);
+            else buildPlayerInputs('team-b-players', count);
         }
 
         async function createMatchDay() {
-            const teamAPlayers = Array.from(document.querySelectorAll('#team-a-players input'))
-                .map(input => input.value.trim())
-                .filter(v => v);
-            const teamBPlayers = Array.from(document.querySelectorAll('#team-b-players input'))
-                .map(input => input.value.trim())
-                .filter(v => v);
+            let teamAPlayers, teamBPlayers;
+
+            if (teamAClubId && teamASelectedPlayers.length) {
+                teamAPlayers = teamASelectedPlayers.map(p => p.name);
+            } else {
+                teamAPlayers = Array.from(document.querySelectorAll('#team-a-players input'))
+                    .map(input => input.value.trim())
+                    .filter(v => v);
+            }
+
+            if (teamBClubId && teamBSelectedPlayers.length) {
+                teamBPlayers = teamBSelectedPlayers.map(p => p.name);
+            } else {
+                teamBPlayers = Array.from(document.querySelectorAll('#team-b-players input'))
+                    .map(input => input.value.trim())
+                    .filter(v => v);
+            }
 
             const data = {
                 name: document.getElementById('matchday-name').value || 'Match Day',
@@ -509,7 +684,7 @@
                 });
                 const data = await response.json();
                 if (response.ok) {
-                    statusDiv.textContent = `✓ Successfully synced ${data.synced} clubs!`;
+                    statusDiv.textContent = `✓ ${data.message}`;
                     statusDiv.style.color = '#48bb78';
                     document.getElementById('club-selector-wtb').style.display = 'block';
                 } else {
@@ -577,6 +752,21 @@
                 statusDiv.style.color = '#f56565';
             }
         }
+    </script>
+    <script>
+        (function() {
+            const toggle = document.getElementById('theme-toggle');
+            const html = document.documentElement;
+            const theme = localStorage.getItem('theme') || 'light';
+            html.dataset.theme = theme;
+            toggle.textContent = theme === 'dark' ? '\u2600' : '\u263E';
+            toggle.addEventListener('click', () => {
+                const next = html.dataset.theme === 'dark' ? 'light' : 'dark';
+                html.dataset.theme = next;
+                localStorage.setItem('theme', next);
+                toggle.textContent = next === 'dark' ? '\u2600' : '\u263E';
+            });
+        })();
     </script>
 </body>
 </html>
