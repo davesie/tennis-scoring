@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-theme="light">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -7,6 +7,7 @@
     <link rel="stylesheet" href="/static/css/style.css">
 </head>
 <body>
+    <button class="theme-toggle" id="theme-toggle" aria-label="Toggle theme"></button>
     <div class="login-container">
         <form class="login-form" method="POST" action="/admin/login">
             <div class="login-header">
@@ -32,5 +33,20 @@
             <a href="/archive">View Archive (Public)</a>
         </div>
     </div>
+    <script>
+        (function() {
+            const toggle = document.getElementById('theme-toggle');
+            const html = document.documentElement;
+            const theme = localStorage.getItem('theme') || 'light';
+            html.dataset.theme = theme;
+            toggle.textContent = theme === 'dark' ? '\u2600' : '\u263E';
+            toggle.addEventListener('click', () => {
+                const next = html.dataset.theme === 'dark' ? 'light' : 'dark';
+                html.dataset.theme = next;
+                localStorage.setItem('theme', next);
+                toggle.textContent = next === 'dark' ? '\u2600' : '\u263E';
+            });
+        })();
+    </script>
 </body>
 </html>

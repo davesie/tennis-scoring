@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-theme="light">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
@@ -10,6 +10,7 @@
     <link rel="stylesheet" href="/static/css/style.css">
 </head>
 <body class="match-page">
+    <button class="theme-toggle" id="theme-toggle" aria-label="Toggle theme"></button>
     <div class="match-container">
         <!-- TV-Style Scoreboard -->
         <div class="scoreboard">
@@ -692,6 +693,21 @@
                 }
             }
         }
+    </script>
+    <script>
+        (function() {
+            const toggle = document.getElementById('theme-toggle');
+            const html = document.documentElement;
+            const theme = localStorage.getItem('theme') || 'light';
+            html.dataset.theme = theme;
+            toggle.textContent = theme === 'dark' ? '\u2600' : '\u263E';
+            toggle.addEventListener('click', () => {
+                const next = html.dataset.theme === 'dark' ? 'light' : 'dark';
+                html.dataset.theme = next;
+                localStorage.setItem('theme', next);
+                toggle.textContent = next === 'dark' ? '\u2600' : '\u263E';
+            });
+        })();
     </script>
 </body>
 </html>

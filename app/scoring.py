@@ -29,6 +29,7 @@ def create_initial_state() -> Dict[str, Any]:
         "tiebreak_points": [0, 0],
         "tiebreak_scores": [[0, 0], [0, 0], [0, 0]],  # final tiebreak scores per set
         "super_tiebreak_score": [0, 0],                # final super tiebreak score
+        "tiebreak_first_server": None,                  # who served first in tiebreak
         "winner": None,
         "deuce_advantage": None,
         "initial_server_set": False
@@ -113,6 +114,9 @@ def _win_game(state: Dict[str, Any], team: int, super_tiebreak_final: bool):
     if games_team == 6 and games_other == 6:
         state["is_tiebreak"] = True
         state["tiebreak_points"] = [0, 0]
+        # Receiver of last game serves first in tiebreak
+        state["serving"] = 1 - state["serving"]
+        state["tiebreak_first_server"] = state["serving"]
     # Check for set win (6 games with 2+ lead, or 7-6 after tiebreak)
     elif games_team >= 6 and games_team - games_other >= 2:
         _win_set(state, team, super_tiebreak_final)
@@ -175,14 +179,21 @@ def _win_set(state: Dict[str, Any], team: int, super_tiebreak_final: bool):
     # Move to next set
     state["current_set"] += 1
 
+    # Determine server for next set
+    tiebreak_server = state.get("tiebreak_first_server")
+    if tiebreak_server is not None:
+        # After a tiebreak: receiver of first TB point serves next set
+        state["serving"] = 1 - tiebreak_server
+        state["tiebreak_first_server"] = None
+    else:
+        # Normal set end: switch server
+        state["serving"] = 1 - state["serving"]
+
     # Check if this is the final set and super tiebreak is enabled
     if state["current_set"] == 2 and super_tiebreak_final:
         # Third set is a super tiebreak
         state["is_super_tiebreak"] = True
         state["tiebreak_points"] = [0, 0]
-    else:
-        # Switch server for new set
-        state["serving"] = 1 - state["serving"]
 
 
 def score_game(state: Dict[str, Any], team: int, super_tiebreak_final: bool = True) -> Dict[str, Any]:
