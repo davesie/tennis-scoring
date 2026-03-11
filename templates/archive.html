@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-theme="light">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -7,47 +7,49 @@
     <link rel="stylesheet" href="/static/css/style.css">
 </head>
 <body class="matchday-page">
+    <button class="theme-toggle" id="theme-toggle" aria-label="Toggle theme"></button>
     <div class="matchday-container">
-        <header class="matchday-header">
-            <h1>Match Day Archive</h1>
-            <p class="archive-subtitle">View past match days and results</p>
-            <div style="margin-top: 0.5rem;">
+        <header class="matchday-header archive-page-header">
+            <div class="archive-header-top">
+                <h1>Match Day Archive</h1>
                 {% if is_admin %}
-                <a href="/admin" class="btn btn-primary">Admin Dashboard</a>
+                <a href="/admin" class="archive-admin-link">Admin Dashboard</a>
                 {% else %}
-                <a href="/admin/login" class="btn btn-primary">Admin Login</a>
+                <a href="/admin/login" class="archive-admin-link">Admin Login</a>
                 {% endif %}
             </div>
+            <p class="archive-subtitle">View past match days and results</p>
         </header>
 
         {% if match_days %}
         <section class="archive-list">
             {% for md in match_days %}
-            <a href="/watchday/{{ md.share_code }}" class="archive-card">
-                <div class="archive-card-header">
-                    <h3 class="archive-name">{{ md.name }}</h3>
-                    <span class="archive-date">{{ md.created_at[:10] if md.created_at else 'Unknown date' }}</span>
-                </div>
-                <div class="archive-teams">
-                    <span class="archive-team">{{ md.team_a_name }}</span>
-                    <span class="archive-score">
-                        <span class="team-a-score">{{ md.team_a_wins }}</span>
-                        <span class="score-dash">-</span>
-                        <span class="team-b-score">{{ md.team_b_wins }}</span>
-                    </span>
-                    <span class="archive-team">{{ md.team_b_name }}</span>
-                </div>
-                <div class="archive-meta">
-                    <span class="archive-format">{{ '6-person' if md.format == '6_person' else '4-person' }}</span>
-                    <span class="archive-progress">
+            <div class="archive-row">
+                <a href="/watchday/{{ md.share_code }}" class="archive-card">
+                    <div class="fixture-meta">
+                        <span class="fixture-date">{{ md.created_at[:10] if md.created_at else '' }}</span>
+                        <span class="fixture-format">{{ '6-person' if md.format == '6_person' else '4-person' }}</span>
+                    </div>
+                    <div class="fixture-name">{{ md.name }}</div>
+                    <div class="fixture-matchup">
+                        <span class="fixture-team fixture-team-a">{{ md.team_a_name }}</span>
+                        <span class="fixture-score">
+                            <span class="fixture-score-a">{{ md.team_a_wins }}</span>
+                            <span class="fixture-score-sep">–</span>
+                            <span class="fixture-score-b">{{ md.team_b_wins }}</span>
+                        </span>
+                        <span class="fixture-team fixture-team-b">{{ md.team_b_name }}</span>
+                    </div>
+                    <div class="fixture-status">
                         {% if md.completed_matches == md.total_matches %}
-                        <span class="completed-badge">Completed</span>
+                        <span class="fixture-completed">FT</span>
                         {% else %}
-                        {{ md.completed_matches }}/{{ md.total_matches }} matches
+                        <span class="fixture-progress">{{ md.completed_matches }}/{{ md.total_matches }}</span>
                         {% endif %}
-                    </span>
-                </div>
-            </a>
+                    </div>
+                </a>
+                <button class="fixture-share-btn" onclick="copyArchiveLink(this, '{{ request.url_for('spectator_match_day_page', share_code=md.share_code) }}')" title="Copy spectator link">Share</button>
+            </div>
             {% endfor %}
         </section>
         {% else %}
@@ -56,10 +58,30 @@
             <a href="/admin" class="btn btn-primary">Create a Match Day</a>
         </div>
         {% endif %}
-
-        <div class="back-link">
-            <a href="/admin">Create New Match Day</a>
-        </div>
     </div>
+    <script>
+        function copyArchiveLink(btn, url) {
+            navigator.clipboard.writeText(url).then(() => {
+                const orig = btn.textContent;
+                btn.textContent = 'Copied!';
+                btn.classList.add('copied');
+                setTimeout(() => { btn.textContent = orig; btn.classList.remove('copied'); }, 2000);
+            });
+        }
+
+        (function() {
+            const toggle = document.getElementById('theme-toggle');
+            const html = document.documentElement;
+            const theme = localStorage.getItem('theme') || 'light';
+            html.dataset.theme = theme;
+            toggle.textContent = theme === 'dark' ? '\u2600' : '\u263E';
+            toggle.addEventListener('click', () => {
+                const next = html.dataset.theme === 'dark' ? 'light' : 'dark';
+                html.dataset.theme = next;
+                localStorage.setItem('theme', next);
+                toggle.textContent = next === 'dark' ? '\u2600' : '\u263E';
+            });
+        })();
+    </script>
 </body>
 </html>
