@@ -1083,13 +1083,6 @@ a:focus {
 }
 [data-theme="dark"] .matches-section h2 { color: var(--text-color); border-left-color: var(--score-accent); }
 
-.matches-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-    gap: 12px;
-    margin-bottom: 24px;
-}
-
 /* TV-Style Scoreboard */
 .matches-list {
     display: flex;
@@ -1751,18 +1744,6 @@ a:focus {
     text-align: center;
 }
 
-.archive-text-link {
-    display: inline-block;
-    color: var(--primary-color);
-    text-decoration: none;
-    font-size: 0.95rem;
-    margin-bottom: 12px;
-}
-
-.archive-text-link:hover {
-    text-decoration: underline;
-}
-
 /* ==================== Archive Page — Broadcast Court ==================== */
 .archive-page-header { padding: 40px 0 28px; margin-bottom: 0; text-align: left; }
 .archive-header-top { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 6px; }
@@ -2308,11 +2289,6 @@ a:focus {
     color: var(--text-secondary);
     margin-top: -4px;
     margin-bottom: 6px;
-}
-
-/* Ensure dropdowns appear above other content */
-.player-dropdown {
-    margin-top: 0;
 }
 
 /* ========================================

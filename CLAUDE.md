@@ -186,6 +186,5 @@ The match scoreboard (`.scoreboard` on `match.html`) is **always dark** regardle
 | `templates/archive.html` | Public landing page — list of all match days |
 | `templates/admin_login.html` | Admin password login |
 | `templates/admin.html` | Admin dashboard — create/manage match days |
-| `templates/index.html` | Create match day / single match forms (reached via `/admin`) |
 | `templates/matchday.html` | Live match day view (scorer + spectator) |
 | `templates/match.html` | Individual match scoring / spectator view |

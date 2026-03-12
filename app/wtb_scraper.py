@@ -25,58 +25,10 @@ async def scrape_all_clubs() -> List[Dict]:
     Returns:
         List of club dictionaries with wtb_id, name, location, district, url
     """
-    clubs = []
-
-    seen_ids = set()
-
-    async with httpx.AsyncClient(timeout=30.0, headers=HEADERS) as client:
-        try:
-            # GET first page
-            response = await client.get(CLUBS_URL, params=CLUBS_PARAMS)
-            response.raise_for_status()
-            soup = BeautifulSoup(response.text, "lxml")
-
-            # Parse first page
-            page_clubs = _parse_clubs_page(soup)
-            for c in page_clubs:
-                seen_ids.add(c["wtb_id"])
-            clubs.extend(page_clubs)
-
-            # Determine total pages from pagination
-            total_pages = _get_total_pages(soup)
-
-            # Extract TYPO3 form tokens from first page (reused for all subsequent POSTs)
-            form_data = _extract_form_data(soup)
-
-            # Fetch remaining pages
-            for page in range(2, total_pages + 1):
-                await asyncio.sleep(1.0)  # Be polite
-
-                offset = (page - 1) * 100
-                post_data = {
-                    **form_data,
-                    "tx_nuportalrs_clubs[clubsFilter][firstResult]": str(offset),
-                }
-                response = await client.post(
-                    CLUBS_URL, params=CLUBS_PARAMS, data=post_data
-                )
-                response.raise_for_status()
-                soup = BeautifulSoup(response.text, "lxml")
-
-                page_clubs = _parse_clubs_page(soup)
-                # Deduplicate: stop if all clubs on this page were already seen
-                new_clubs = [c for c in page_clubs if c["wtb_id"] not in seen_ids]
-                if not new_clubs:
-                    break
-                for c in new_clubs:
-                    seen_ids.add(c["wtb_id"])
-                clubs.extend(new_clubs)
-
-        except Exception as e:
-            print(f"Error scraping clubs: {e}")
-            raise
-
-    return clubs
+    async for event in scrape_all_clubs_with_progress():
+        if event["type"] == "complete":
+            return event["clubs"]
+    return []
 
 
 def _extract_form_data(soup: BeautifulSoup) -> Dict[str, str]:
@@ -315,33 +267,3 @@ async def scrape_club_players(wtb_id: str, category: str = "Herren") -> List[Dic
             return []
 
     return players
-
-
-async def test_scraper():
-    """Test the scraper with a single club."""
-    print("Testing WTB scraper...")
-
-    # Test scraping a single club's players
-    print("\n1. Testing player scraping for TA TSV Crailsheim (20004)...")
-    players = await scrape_club_players("20004")
-    print(f"Found {len(players)} Herren players")
-    if players:
-        print(f"Sample: {players[0]}")
-
-    # Test scraping first page of clubs
-    print("\n2. Testing club scraping (first page)...")
-    async with httpx.AsyncClient(timeout=30.0, headers=HEADERS) as client:
-        response = await client.get(CLUBS_URL, params=CLUBS_PARAMS)
-        soup = BeautifulSoup(response.text, "lxml")
-        clubs = _parse_clubs_page(soup)
-
-    print(f"Found {len(clubs)} clubs on first page")
-    if clubs:
-        print(f"Sample: {clubs[0]}")
-
-    print("\nTest complete!")
-
-
-if __name__ == "__main__":
-    # Run test
-    asyncio.run(test_scraper())

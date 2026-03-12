@@ -12,13 +12,12 @@ from datetime import datetime
 from contextlib import asynccontextmanager
 
 from .database import get_db, init_db, async_session_maker
-from .models import Match, MatchDay, AdminSession, Club, Player
+from .models import Match, MatchDay, Club, Player
 
 logger = logging.getLogger(__name__)
 from .schemas import MatchCreate, ScorePoint, MatchResponse, MatchDayCreate, ScoreGame, MatchPlayersUpdate, MatchScoreSet, DoublesCreate, SetInitialServer
 from .scoring import score_point, score_game, create_initial_state, get_score_summary
 from .auth import (
-    ADMIN_PASSWORD,
     ADMIN_SESSION_COOKIE,
     verify_admin_password,
     create_admin_session,
@@ -33,6 +32,80 @@ from .wtb_scraper import scrape_all_clubs, scrape_all_clubs_with_progress, scrap
 _sync_in_progress = False
 
 
+# ==================== Helpers ====================
+
+def compute_matchday_stats(matches) -> dict:
+    """Compute win/completion stats from a list of Match objects."""
+    return {
+        "team_a_wins": sum(1 for m in matches if m.score_state.get("winner") == 0),
+        "team_b_wins": sum(1 for m in matches if m.score_state.get("winner") == 1),
+        "total_matches": len(matches),
+        "completed_matches": sum(1 for m in matches if m.score_state.get("winner") is not None),
+    }
+
+
+async def upsert_club(db, club_data: dict):
+    """Insert or update a Club record from scraped data."""
+    result = await db.execute(select(Club).where(Club.wtb_id == club_data["wtb_id"]))
+    existing = result.scalar_one_or_none()
+    if existing:
+        existing.name = club_data["name"]
+        existing.location = club_data.get("location")
+        existing.district = club_data.get("district")
+        existing.url = club_data["url"]
+        existing.last_synced = datetime.utcnow()
+    else:
+        db.add(Club(
+            wtb_id=club_data["wtb_id"],
+            name=club_data["name"],
+            location=club_data.get("location"),
+            district=club_data.get("district"),
+            url=club_data["url"],
+            last_synced=datetime.utcnow(),
+        ))
+
+
+def create_player_from_data(player_data: dict, club_id: str) -> Player:
+    """Construct a Player ORM instance from scraped dict."""
+    return Player(
+        name=player_data["name"],
+        birth_year=player_data.get("birth_year"),
+        category=player_data.get("category", "Herren"),
+        wtb_id_nummer=player_data.get("wtb_id_nummer"),
+        ranking=player_data.get("ranking"),
+        is_captain=player_data.get("is_captain", False),
+        club_id=club_id,
+    )
+
+
+async def broadcast_match_update(match, state):
+    """Broadcast score_update to match viewers and match_update to matchday viewers."""
+    await manager.broadcast(match.id, {
+        "type": "score_update",
+        "match": match.to_dict(),
+        "summary": get_score_summary(state)
+    })
+    if match.match_day_id:
+        await manager.broadcast_matchday(match.match_day_id, {
+            "type": "match_update",
+            "match": match.to_dict()
+        })
+
+
+async def _render_matchday(request, db, match_day, is_scorer):
+    """Fetch matches for a match day and render matchday.html."""
+    matches_result = await db.execute(
+        select(Match).where(Match.match_day_id == match_day.id).order_by(Match.match_number)
+    )
+    matches = [m.to_dict() for m in matches_result.scalars().all()]
+    return templates.TemplateResponse("matchday.html", {
+        "request": request,
+        "match_day": match_day.to_dict(),
+        "matches": matches,
+        "is_scorer": is_scorer
+    })
+
+
 async def _startup_sync_clubs():
     """Background task: sync WTB clubs on startup. Swallows all errors."""
     try:
@@ -40,23 +113,7 @@ async def _startup_sync_clubs():
         clubs_data = await scrape_all_clubs()
         async with async_session_maker() as db:
             for club_data in clubs_data:
-                result = await db.execute(select(Club).where(Club.wtb_id == club_data["wtb_id"]))
-                existing = result.scalar_one_or_none()
-                if existing:
-                    existing.name = club_data["name"]
-                    existing.location = club_data.get("location")
-                    existing.district = club_data.get("district")
-                    existing.url = club_data["url"]
-                    existing.last_synced = datetime.utcnow()
-                else:
-                    db.add(Club(
-                        wtb_id=club_data["wtb_id"],
-                        name=club_data["name"],
-                        location=club_data.get("location"),
-                        district=club_data.get("district"),
-                        url=club_data["url"],
-                        last_synced=datetime.utcnow(),
-                    ))
+                await upsert_club(db, club_data)
             await db.commit()
         logger.info(f"Background startup: synced {len(clubs_data)} clubs")
     except Exception as e:
@@ -207,18 +264,12 @@ async def admin_dashboard(request: Request, db: AsyncSession = Depends(get_db)):
 
         singles = [m for m in matches if m.match_type == "singles"]
         doubles = [m for m in matches if m.match_type == "doubles"]
-        team_a_wins = sum(1 for m in matches if m.score_state.get("winner") == 0)
-        team_b_wins = sum(1 for m in matches if m.score_state.get("winner") == 1)
-        total_matches = len(matches)
-        completed_matches = sum(1 for m in matches if m.score_state.get("winner") is not None)
+        stats = compute_matchday_stats(matches)
         singles_completed = sum(1 for m in singles if m.score_state.get("winner") is not None)
 
         match_days_data.append({
             **md.to_dict(),
-            "team_a_wins": team_a_wins,
-            "team_b_wins": team_b_wins,
-            "total_matches": total_matches,
-            "completed_matches": completed_matches,
+            **stats,
             "singles_total": len(singles),
             "singles_completed": singles_completed,
             "has_doubles": len(doubles) > 0,
@@ -393,17 +444,7 @@ async def score(match_id: str, score_data: ScorePoint, request: Request, db: Asy
     await db.commit()
     await db.refresh(match)
 
-    # Broadcast update to all connected clients
-    await manager.broadcast(match_id, {
-        "type": "score_update",
-        "match": match.to_dict(),
-        "summary": get_score_summary(new_state)
-    })
-    if match.match_day_id:
-        await manager.broadcast_matchday(match.match_day_id, {
-            "type": "match_update",
-            "match": match.to_dict()
-        })
+    await broadcast_match_update(match, new_state)
 
     return {"success": True, "match": match.to_dict()}
 
@@ -427,17 +468,7 @@ async def undo(match_id: str, request: Request, db: AsyncSession = Depends(get_d
     await db.commit()
     await db.refresh(match)
 
-    # Broadcast update
-    await manager.broadcast(match_id, {
-        "type": "score_update",
-        "match": match.to_dict(),
-        "summary": get_score_summary(previous_state)
-    })
-    if match.match_day_id:
-        await manager.broadcast_matchday(match.match_day_id, {
-            "type": "match_update",
-            "match": match.to_dict()
-        })
+    await broadcast_match_update(match, previous_state)
 
     return {"success": True, "match": match.to_dict()}
 
@@ -456,17 +487,7 @@ async def reset_match(match_id: str, request: Request, db: AsyncSession = Depend
     await db.commit()
     await db.refresh(match)
 
-    # Broadcast update
-    await manager.broadcast(match_id, {
-        "type": "score_update",
-        "match": match.to_dict(),
-        "summary": get_score_summary(match.score_state)
-    })
-    if match.match_day_id:
-        await manager.broadcast_matchday(match.match_day_id, {
-            "type": "match_update",
-            "match": match.to_dict()
-        })
+    await broadcast_match_update(match, match.score_state)
 
     return {"success": True, "match": match.to_dict()}
 
@@ -491,16 +512,7 @@ async def set_initial_server(match_id: str, data: SetInitialServer, request: Req
     await db.commit()
     await db.refresh(match)
 
-    await manager.broadcast(match_id, {
-        "type": "score_update",
-        "match": match.to_dict(),
-        "summary": get_score_summary(new_state)
-    })
-    if match.match_day_id:
-        await manager.broadcast_matchday(match.match_day_id, {
-            "type": "match_update",
-            "match": match.to_dict()
-        })
+    await broadcast_match_update(match, new_state)
 
     return {"success": True, "match": match.to_dict()}
 
@@ -563,17 +575,7 @@ async def set_match_score(match_id: str, data: MatchScoreSet, request: Request, 
     await db.commit()
     await db.refresh(match)
 
-    # Broadcast update
-    await manager.broadcast(match_id, {
-        "type": "score_update",
-        "match": match.to_dict(),
-        "summary": get_score_summary(new_state)
-    })
-    if match.match_day_id:
-        await manager.broadcast_matchday(match.match_day_id, {
-            "type": "match_update",
-            "match": match.to_dict()
-        })
+    await broadcast_match_update(match, new_state)
 
     return {"success": True, "match": match.to_dict()}
 
@@ -621,28 +623,12 @@ async def score_game_endpoint(match_id: str, score_data: ScoreGame, request: Req
     await db.commit()
     await db.refresh(match)
 
-    # Broadcast update to all connected clients
-    await manager.broadcast(match_id, {
-        "type": "score_update",
-        "match": match.to_dict(),
-        "summary": get_score_summary(new_state)
-    })
-    if match.match_day_id:
-        await manager.broadcast_matchday(match.match_day_id, {
-            "type": "match_update",
-            "match": match.to_dict()
-        })
+    await broadcast_match_update(match, new_state)
 
     return {"success": True, "match": match.to_dict()}
 
 
 # Match Day routes
-@app.get("/matchday/new", response_class=HTMLResponse)
-async def new_match_day_page(request: Request):
-    """Redirect to admin dashboard for match day creation."""
-    return RedirectResponse(url="/admin", status_code=302)
-
-
 @app.get("/archive", response_class=HTMLResponse)
 async def archive_page(request: Request, db: AsyncSession = Depends(get_db)):
     """Display archive of all match days."""
@@ -659,18 +645,7 @@ async def archive_page(request: Request, db: AsyncSession = Depends(get_db)):
         )
         matches = matches_result.scalars().all()
 
-        team_a_wins = sum(1 for m in matches if m.score_state.get("winner") == 0)
-        team_b_wins = sum(1 for m in matches if m.score_state.get("winner") == 1)
-        total_matches = len(matches)
-        completed_matches = sum(1 for m in matches if m.score_state.get("winner") is not None)
-
-        archive.append({
-            **md.to_dict(),
-            "team_a_wins": team_a_wins,
-            "team_b_wins": team_b_wins,
-            "total_matches": total_matches,
-            "completed_matches": completed_matches,
-        })
+        archive.append({**md.to_dict(), **compute_matchday_stats(matches)})
 
     # Check if user is logged in as admin
     admin_session = await get_admin_session(request, db)
@@ -694,18 +669,7 @@ async def match_day_page(request: Request, match_day_id: str, db: AsyncSession =
     if not match_day:
         raise HTTPException(status_code=404, detail="Match day not found")
 
-    # Get all matches for this match day
-    matches_result = await db.execute(
-        select(Match).where(Match.match_day_id == match_day_id).order_by(Match.match_number)
-    )
-    matches = [m.to_dict() for m in matches_result.scalars().all()]
-
-    return templates.TemplateResponse("matchday.html", {
-        "request": request,
-        "match_day": match_day.to_dict(),
-        "matches": matches,
-        "is_scorer": True
-    })
+    return await _render_matchday(request, db, match_day, is_scorer=True)
 
 
 @app.get("/watchday/{share_code}", response_class=HTMLResponse)
@@ -715,18 +679,7 @@ async def spectator_match_day_page(request: Request, share_code: str, db: AsyncS
     if not match_day:
         raise HTTPException(status_code=404, detail="Match day not found")
 
-    # Get all matches for this match day
-    matches_result = await db.execute(
-        select(Match).where(Match.match_day_id == match_day.id).order_by(Match.match_number)
-    )
-    matches = [m.to_dict() for m in matches_result.scalars().all()]
-
-    return templates.TemplateResponse("matchday.html", {
-        "request": request,
-        "match_day": match_day.to_dict(),
-        "matches": matches,
-        "is_scorer": False
-    })
+    return await _render_matchday(request, db, match_day, is_scorer=False)
 
 
 @app.get("/scoreday/{scorer_token}", response_class=HTMLResponse)
@@ -737,18 +690,7 @@ async def scorer_match_day_page(request: Request, scorer_token: str, db: AsyncSe
     if not match_day:
         raise HTTPException(status_code=404, detail="Invalid scorer token")
 
-    # Get all matches for this match day
-    matches_result = await db.execute(
-        select(Match).where(Match.match_day_id == match_day.id).order_by(Match.match_number)
-    )
-    matches = [m.to_dict() for m in matches_result.scalars().all()]
-
-    return templates.TemplateResponse("matchday.html", {
-        "request": request,
-        "match_day": match_day.to_dict(),
-        "matches": matches,
-        "is_scorer": True
-    })
+    return await _render_matchday(request, db, match_day, is_scorer=True)
 
 
 @app.post("/api/matchdays")
@@ -882,18 +824,7 @@ async def list_match_days(db: AsyncSession = Depends(get_db)):
         )
         matches = matches_result.scalars().all()
 
-        team_a_wins = sum(1 for m in matches if m.score_state.get("winner") == 0)
-        team_b_wins = sum(1 for m in matches if m.score_state.get("winner") == 1)
-        total_matches = len(matches)
-        completed_matches = sum(1 for m in matches if m.score_state.get("winner") is not None)
-
-        archive.append({
-            **md.to_dict(),
-            "team_a_wins": team_a_wins,
-            "team_b_wins": team_b_wins,
-            "total_matches": total_matches,
-            "completed_matches": completed_matches,
-        })
+        archive.append({**md.to_dict(), **compute_matchday_stats(matches)})
 
     return {"match_days": archive}
 
@@ -962,34 +893,8 @@ async def sync_wtb_clubs(request: Request, db: AsyncSession = Depends(get_db)):
         # Scrape all clubs from WTB
         clubs_data = await scrape_all_clubs()
 
-        synced_count = 0
         for club_data in clubs_data:
-            # Check if club already exists
-            result = await db.execute(
-                select(Club).where(Club.wtb_id == club_data["wtb_id"])
-            )
-            existing_club = result.scalar_one_or_none()
-
-            if existing_club:
-                # Update existing club
-                existing_club.name = club_data["name"]
-                existing_club.location = club_data.get("location")
-                existing_club.district = club_data.get("district")
-                existing_club.url = club_data["url"]
-                existing_club.last_synced = datetime.utcnow()
-            else:
-                # Create new club
-                new_club = Club(
-                    wtb_id=club_data["wtb_id"],
-                    name=club_data["name"],
-                    location=club_data.get("location"),
-                    district=club_data.get("district"),
-                    url=club_data["url"],
-                    last_synced=datetime.utcnow()
-                )
-                db.add(new_club)
-
-            synced_count += 1
+            await upsert_club(db, club_data)
 
         await db.commit()
 
@@ -998,9 +903,9 @@ async def sync_wtb_clubs(request: Request, db: AsyncSession = Depends(get_db)):
 
         return {
             "success": True,
-            "synced": synced_count,
+            "synced": len(clubs_data),
             "total_in_db": total_in_db,
-            "message": f"Successfully synced {synced_count} clubs from WTB ({total_in_db} total in database)"
+            "message": f"Successfully synced {len(clubs_data)} clubs from WTB ({total_in_db} total in database)"
         }
 
     except Exception as e:
@@ -1049,32 +954,9 @@ async def sync_wtb_clubs_stream(request: Request, db: AsyncSession = Depends(get
                     yield f"data: {saving_payload}\n\n"
 
             # DB upsert
-            synced_count = 0
             async with async_session_maker() as save_db:
                 for club_data in clubs_data:
-                    result = await save_db.execute(
-                        select(Club).where(Club.wtb_id == club_data["wtb_id"])
-                    )
-                    existing_club = result.scalar_one_or_none()
-
-                    if existing_club:
-                        existing_club.name = club_data["name"]
-                        existing_club.location = club_data.get("location")
-                        existing_club.district = club_data.get("district")
-                        existing_club.url = club_data["url"]
-                        existing_club.last_synced = datetime.utcnow()
-                    else:
-                        new_club = Club(
-                            wtb_id=club_data["wtb_id"],
-                            name=club_data["name"],
-                            location=club_data.get("location"),
-                            district=club_data.get("district"),
-                            url=club_data["url"],
-                            last_synced=datetime.utcnow(),
-                        )
-                        save_db.add(new_club)
-
-                    synced_count += 1
+                    await upsert_club(save_db, club_data)
 
                 await save_db.commit()
 
@@ -1087,7 +969,7 @@ async def sync_wtb_clubs_stream(request: Request, db: AsyncSession = Depends(get
 
             done_payload = json.dumps({
                 "type": "done",
-                "synced": synced_count,
+                "synced": len(clubs_data),
                 "total_in_db": total_in_db,
                 "last_synced": last_synced_iso,
             })
@@ -1147,16 +1029,7 @@ async def sync_club_players_endpoint(
 
         # Add new players
         for player_data in players_data:
-            new_player = Player(
-                name=player_data["name"],
-                birth_year=player_data.get("birth_year"),
-                category=player_data.get("category", "Herren"),
-                wtb_id_nummer=player_data.get("wtb_id_nummer"),
-                ranking=player_data.get("ranking"),
-                is_captain=player_data.get("is_captain", False),
-                club_id=club_id
-            )
-            db.add(new_player)
+            db.add(create_player_from_data(player_data, club_id))
 
         # Update club's last_synced timestamp
         club.last_synced = datetime.utcnow()
@@ -1223,15 +1096,7 @@ async def get_club_players(club_id: str, db: AsyncSession = Depends(get_db)):
         try:
             players_data = await scrape_club_players(club.wtb_id)
             for player_data in players_data:
-                db.add(Player(
-                    name=player_data["name"],
-                    birth_year=player_data.get("birth_year"),
-                    category=player_data.get("category", "Herren"),
-                    wtb_id_nummer=player_data.get("wtb_id_nummer"),
-                    ranking=player_data.get("ranking"),
-                    is_captain=player_data.get("is_captain", False),
-                    club_id=club_id,
-                ))
+                db.add(create_player_from_data(player_data, club_id))
             club.last_synced = datetime.utcnow()
             await db.commit()
         except Exception as e:
