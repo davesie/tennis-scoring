@@ -1153,6 +1153,7 @@ async def sync_club_players_endpoint(
                 category=player_data.get("category", "Herren"),
                 wtb_id_nummer=player_data.get("wtb_id_nummer"),
                 ranking=player_data.get("ranking"),
+                is_captain=player_data.get("is_captain", False),
                 club_id=club_id
             )
             db.add(new_player)
@@ -1228,6 +1229,7 @@ async def get_club_players(club_id: str, db: AsyncSession = Depends(get_db)):
                     category=player_data.get("category", "Herren"),
                     wtb_id_nummer=player_data.get("wtb_id_nummer"),
                     ranking=player_data.get("ranking"),
+                    is_captain=player_data.get("is_captain", False),
                     club_id=club_id,
                 ))
             club.last_synced = datetime.utcnow()

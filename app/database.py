@@ -24,8 +24,12 @@ async def get_db():
 async def init_db():
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
-        # Migration: add ranking column if it doesn't exist yet
+        # Migrations: add columns if they don't exist yet
         try:
             await conn.execute(text("ALTER TABLE players ADD COLUMN ranking INTEGER"))
+        except Exception:
+            pass  # Column already exists
+        try:
+            await conn.execute(text("ALTER TABLE players ADD COLUMN is_captain BOOLEAN DEFAULT 0"))
         except Exception:
             pass  # Column already exists

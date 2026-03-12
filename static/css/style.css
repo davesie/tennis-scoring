@@ -905,6 +905,16 @@ a:focus {
     font-weight: 500;
 }
 
+.player-chip-captain {
+    font-size: 0.65rem;
+    font-weight: 700;
+    color: var(--primary-color, #3182ce);
+    background: color-mix(in srgb, var(--primary-color, #3182ce) 12%, transparent);
+    padding: 1px 4px;
+    border-radius: 3px;
+    letter-spacing: 0.04em;
+}
+
 .player-chip-meta {
     font-size: 0.72rem;
     color: var(--text-muted, #888);

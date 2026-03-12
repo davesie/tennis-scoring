@@ -336,8 +336,9 @@
                 chip.className = 'player-chip' + (selectedIds.has(player.id) ? ' selected' : '');
                 chip.dataset.playerId = player.id;
                 const rankLabel = player.ranking != null ? `<span class="player-chip-rank">Rang\u00a0${player.ranking}</span>` : '';
+                const captainBadge = player.is_captain ? `<span class="player-chip-captain">MF</span>` : '';
                 const yearLabel = player.birth_year ? `<span class="player-chip-meta">*${player.birth_year}</span>` : '';
-                chip.innerHTML = `${rankLabel}<span class="player-chip-name">${player.name}</span>${yearLabel}`;
+                chip.innerHTML = `${rankLabel}<span class="player-chip-name">${player.name}</span>${captainBadge}${yearLabel}`;
                 chip.addEventListener('click', () => togglePlayer(team, player, availablePlayers));
                 availPanel.appendChild(chip);
             });

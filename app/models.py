@@ -196,6 +196,7 @@ class Player(Base):
     category = Column(String, default="Herren")  # Only "Herren" for now
     wtb_id_nummer = Column(String, nullable=True)  # ID number from WTB
     ranking = Column(Integer, nullable=True)  # Rang from WTB (lower = higher seed)
+    is_captain = Column(Boolean, default=False)  # MF = Mannschaftsführer (team captain)
     club_id = Column(String, ForeignKey("clubs.id"), nullable=False)
     created_at = Column(DateTime, default=datetime.utcnow)
 
@@ -215,6 +216,7 @@ class Player(Base):
             "category": self.category,
             "wtb_id_nummer": self.wtb_id_nummer,
             "ranking": self.ranking,
+            "is_captain": self.is_captain,
             "club_id": self.club_id,
             "created_at": self.created_at.isoformat() if self.created_at else None,
         }

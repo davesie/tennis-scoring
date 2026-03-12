@@ -243,63 +243,68 @@ async def scrape_club_players(wtb_id: str, category: str = "Herren") -> List[Dic
     url = f"{BASE_URL}/spielbetrieb/vereine/verein/meldung/v/{wtb_id}.html"
     players = []
 
-    async with httpx.AsyncClient(timeout=30.0) as client:
+    async with httpx.AsyncClient(timeout=30.0, headers=HEADERS) as client:
         try:
             response = await client.get(url)
             response.raise_for_status()
-            soup = BeautifulSoup(response.text, 'html.parser')
+            soup = BeautifulSoup(response.text, 'lxml')
 
-            # Map of collapse IDs to categories
-            # We only care about "Herren" for now
-            category_map = {
-                "collapse13": "Herren",
-                "collapse14": "Herren 30",
-                "collapse15": "Herren 40",
-                "collapse16": "Herren 50",
-            }
+            # Find the target category by link text, not by hardcoded collapse ID.
+            # Collapse IDs vary per club (e.g. Herren can be #collapse11, #collapse26).
+            # Pages may have multiple season sections (e.g. "VR-Talentiade Winter 2025/2026"
+            # and "Winter 2025/2026"). Use the LAST matching link — the main season always
+            # follows sub-events like VR-Talentiade, which only have youth categories anyway.
+            collapse_id = None
+            for a_tag in soup.find_all('a', href=re.compile(r'^#collapse\d+')):
+                if a_tag.get_text(strip=True) == category:
+                    collapse_id = a_tag['href'].lstrip('#')
 
-            # Find the Herren section
-            for collapse_id, cat_name in category_map.items():
-                if cat_name != "Herren":
-                    continue  # Only scrape Herren for now
+            if not collapse_id:
+                return players
 
-                section = soup.find(id=collapse_id)
-                if not section:
+            section = soup.find(id=collapse_id)
+            if not section:
+                return players
+
+            table = section.find('table')
+            if not table:
+                return players
+
+            rows = table.find_all('tr')
+
+            # Skip header row
+            for row in rows[1:]:
+                cells = row.find_all('td')
+
+                if len(cells) < 4:
                     continue
 
-                table = section.find('table')
-                if not table:
-                    continue
+                # Cell structure: [Rang, LK, Name (Birth Year), ID-Nummer, Nation]
+                # Rang can be "1", "2 MF", etc. — extract leading number for rank,
+                # detect "MF" flag (Mannschaftsführer / team captain)
+                rang_cell = cells[0].text.strip()
+                rang_match = re.match(r'^(\d+)', rang_cell)
+                ranking = int(rang_match.group(1)) if rang_match else None
+                is_captain = 'MF' in rang_cell
 
-                rows = table.find_all('tr')
+                name_cell = cells[2].text.strip()
+                wtb_id_cell = cells[3].text.strip() if len(cells) > 3 else ""
 
-                # Skip header row
-                for row in rows[1:]:
-                    cells = row.find_all('td')
+                # Parse name and birth year
+                match = re.match(r'^(.+?)\s*\((\d{4})\)$', name_cell)
 
-                    if len(cells) < 4:
-                        continue
+                if match:
+                    player_name = match.group(1).strip()
+                    birth_year = int(match.group(2))
 
-                    # Cell structure: [Rang, LK, Name (Birth Year), ID-Nummer, Nation]
-                    rang_cell = cells[0].text.strip()
-                    ranking = int(rang_cell) if rang_cell.isdigit() else None
-                    name_cell = cells[2].text.strip()
-                    wtb_id_cell = cells[3].text.strip() if len(cells) > 3 else ""
-
-                    # Parse name and birth year
-                    match = re.match(r'^(.+?)\s*\((\d{4})\)$', name_cell)
-
-                    if match:
-                        player_name = match.group(1).strip()
-                        birth_year = int(match.group(2))
-
-                        players.append({
-                            "name": player_name,
-                            "birth_year": birth_year,
-                            "category": cat_name,
-                            "wtb_id_nummer": wtb_id_cell,
-                            "ranking": ranking,
-                        })
+                    players.append({
+                        "name": player_name,
+                        "birth_year": birth_year,
+                        "category": category,
+                        "wtb_id_nummer": wtb_id_cell,
+                        "ranking": ranking,
+                        "is_captain": is_captain,
+                    })
 
         except httpx.HTTPError as e:
             print(f"HTTP error scraping players for club {wtb_id}: {e}")
