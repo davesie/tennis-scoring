@@ -33,9 +33,11 @@ podman run -d -p 8000:8000 -v tennis_data:/app/data tennis-scoring
 
 - `app/main.py` - FastAPI routes, WebSocket connection manager, all API endpoints
 - `app/scoring.py` - Tennis scoring state machine (points, games, sets, tiebreaks, deuce logic)
-- `app/models.py` - SQLAlchemy models: `Match` and `MatchDay`
+- `app/models.py` - SQLAlchemy models: `Match`, `MatchDay`, `Club`, `Player`
 - `app/schemas.py` - Pydantic request/response schemas
-- `app/database.py` - Async database configuration
+- `app/database.py` - Async database configuration + migrations
+- `app/wtb_scraper.py` - WTB website scraper for clubs and players
+- `app/auth.py` - Token auth for scorer access (`verify_scorer_for_match()`)
 - `templates/match.html` - Scoring page with WebSocket client for real-time updates
 - `templates/matchday.html` - Dashboard showing all matches in a match day
 
@@ -78,7 +80,7 @@ podman run -d -p 8000:8000 -v tennis_data:/app/data tennis-scoring
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `DATABASE_URL` | `sqlite+aiosqlite:///./data/tennis.db` | Database connection string |
+| `DATABASE_URL` | `sqlite+aiosqlite:///./tennis.db` | Database connection string |
 
 ---
 
@@ -93,7 +95,7 @@ Three roles exist, all fully implemented:
 | **Watcher** | 8-char share code, no login | `/watchday/{share_code}` |
 
 - Token auth: `app/auth.py` — `verify_scorer_for_match()` checks `X-Scorer-Token` header
-- Share links are shown on the match day page (`/matchday/{id}`) under "Share Match Day"
+- Share links: match day page has an expanded "Share Match Day" section; archive page has per-row "Share" buttons that copy spectator URLs to clipboard
 
 ## Navigation Flow
 
@@ -106,24 +108,32 @@ Three roles exist, all fully implemented:
 ## Git / Branch State
 
 - **`main`** — production-ready branch, tracks `origin/main`
-- **`dev`** — active development branch; contains work from this session
+- **`dev`** — active development branch
 - **`feature/initial-server-selection`** — previous feature branch (merged to main)
 
-Current `dev` branch contains:
-- Archive as default landing page (`GET /` → `/archive`)
-- Admin login/dashboard link added to archive header
-- `is_admin` context variable passed to `archive.html` template
-- Theme system: light default + dark mode toggle (persists to localStorage)
-- Tiebreak serving logic fix (`tiebreak_first_server` field)
-- "Broadcast Court" visual redesign (archive, matchday, match pages)
+## WTB Integration
 
-## Pending / Planned Work
+### Club & Player Sync
+- **Startup sync:** `_startup_sync_clubs()` runs on app boot, scrapes all club listing pages from WTB (~13 pages, 100 clubs each)
+- **Manual sync:** Admin can trigger via "Sync All Clubs from WTB" button → `POST /api/admin/sync-clubs-stream` (SSE endpoint with real-time progress)
+- **Player sync:** Auto-triggered on first request to `/api/clubs/{club_id}/players` — scrapes the club's player page from WTB. Manual per-club sync also available via `POST /api/admin/sync-club-players/{club_id}`
+- **Concurrent sync prevention:** Module-level `_sync_in_progress` flag prevents parallel syncs (returns 409)
 
-### Share Link Discoverability
-Share links exist but could be more visible. Currently:
-- Admin dashboard (`/admin`) has "Copy Scorer Link" / "Copy Spectator Link" buttons per card
-- Match day page has a collapsed "Share Match Day" section at the bottom
-- Archive page has no share links
+### Scraper Details (`app/wtb_scraper.py`)
+- Club listing: paginates `wtb-tennis.de/spielbetrieb/vereine.html` using TYPO3 form POST with offset. Bounded by `_get_total_pages()` + deduplication by `wtb_id`
+- Player scraping: finds the target category (e.g. "Herren") by scanning `<a href="#collapseN">` link text — collapse IDs vary per club. Uses the **last** match to prefer the main season over sub-events like "VR-Talentiade"
+- Ranking parsing: extracts leading number from cells like "2 MF". Detects "MF" flag (Mannschaftsführer / team captain) → stored as `is_captain`
+- 1-second polite delay between page requests
+
+### Models
+- `Club` — `wtb_id`, `name`, `location`, `district`, `url`, `last_synced`
+- `Player` — `name`, `birth_year`, `category`, `wtb_id_nummer`, `ranking`, `is_captain`, `club_id` (FK)
+
+### Admin UI for Sync
+- "Sync All Clubs from WTB" button with SSE-streamed progress ("Fetching page 3/13... 300 clubs")
+- Last sync timestamp displayed below the button
+- Per-club player sync via autocomplete search
+- Player picker: two-panel UI (Available / Selected), sorted by WTB ranking, MF badge shown
 
 ## Theme System
 
@@ -157,10 +167,11 @@ The match scoreboard (`.scoreboard` on `match.html`) is **always dark** regardle
 - This is achieved via `--match-scoreboard-*` variable layer in both `:root` and `[data-theme="dark"]`
 
 ### Archive Page Layout
-- Fixture list (not cards) — CSS grid: `100px 1fr auto auto` columns
-- Classes: `.archive-list` > `.archive-card` > `.fixture-meta`, `.fixture-name`, `.fixture-matchup`, `.fixture-status`
+- Fixture list (not cards) — each row is `.archive-row` (flex) wrapping `.archive-card` (grid: `100px 1fr auto auto`) + `.fixture-share-btn`
+- Classes: `.archive-list` > `.archive-row` > `.archive-card` > `.fixture-meta`, `.fixture-name`, `.fixture-matchup`, `.fixture-status`
 - `.fixture-team-a` blue, `.fixture-team-b` red, `.fixture-score-a/b` in Chakra Petch
 - Status shows `FT` badge when all matches completed
+- `.fixture-share-btn` copies spectator URL to clipboard (hidden on mobile)
 
 ### Match Day Header
 - `.matchday-hero-top` wraps `<h1>` and `.live-indicator`
