@@ -1,8 +1,10 @@
 import asyncio
 import json
 import logging
+import subprocess
 from contextlib import asynccontextmanager
 from datetime import datetime
+from pathlib import Path
 from typing import Dict, Set
 
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect, Depends, HTTPException, Request, Form
@@ -157,6 +159,31 @@ app = FastAPI(title="Tennis Scoring", lifespan=lifespan)
 # Mount static files and templates
 app.mount("/static", StaticFiles(directory="static"), name="static")
 templates = Jinja2Templates(directory="templates")
+
+
+def _get_app_version() -> str:
+    """Read version from pyproject.toml and append short git commit hash."""
+    version = "0.0.0"
+    try:
+        pyproject = Path(__file__).resolve().parent.parent / "pyproject.toml"
+        for line in pyproject.read_text().splitlines():
+            if line.strip().startswith("version"):
+                version = line.split("=")[1].strip().strip('"')
+                break
+    except Exception:
+        pass
+    try:
+        git_hash = subprocess.check_output(
+            ["git", "rev-parse", "--short", "HEAD"],
+            stderr=subprocess.DEVNULL,
+        ).decode().strip()
+        return f"{version}+{git_hash}"
+    except Exception:
+        return version
+
+
+APP_VERSION = _get_app_version()
+templates.env.globals["app_version"] = APP_VERSION
 
 
 # WebSocket connection manager

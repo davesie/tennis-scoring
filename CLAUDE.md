@@ -76,6 +76,19 @@ podman run -d -p 8000:8000 -v tennis_data:/app/data tennis-scoring
 {"type": "score_update", "match": {...}, "summary": {...}}
 ```
 
+## Versioning
+
+**Always maintain version numbers when making changes.** The app uses semantic versioning displayed on every page.
+
+- **Source of truth:** `version` field in `pyproject.toml`
+- **Format:** `major.minor.patch+gitsha` (e.g., `1.1.0+5550783`)
+  - **major** — breaking changes (data model, API incompatibility)
+  - **minor** — new features
+  - **patch** — bug fixes, styling tweaks
+- **Display:** Fixed label in bottom-right corner of every page (`.version-label`), injected via `templates.env.globals["app_version"]`
+- **Git hash** appended automatically at startup for exact build traceability
+- **When to bump:** Bump the version in `pyproject.toml` with each commit — patch for fixes, minor for features, major for breaking changes
+
 ## Environment Variables
 
 | Variable | Default | Description |

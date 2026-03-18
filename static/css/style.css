@@ -365,6 +365,18 @@ footer {
     font-size: 0.9rem;
 }
 
+.version-label {
+    position: fixed;
+    bottom: 4px;
+    right: 8px;
+    font-family: var(--font-score, monospace);
+    font-size: 0.6rem;
+    color: var(--bc-muted, #999);
+    opacity: 0.5;
+    pointer-events: none;
+    z-index: 9999;
+}
+
 /* ==================== Match Page ==================== */
 .match-page {
     background: var(--page-bg, var(--bg-color));
