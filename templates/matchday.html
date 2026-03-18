@@ -235,6 +235,28 @@
         const matchDay = {{ match_day | tojson }};
         const isScorer = {{ is_scorer | tojson }};
 
+        function parseLK(fullName) {
+            if (!fullName) return { name: fullName || '', lk: null };
+            const m = fullName.match(/^(.*?)\s*\(LK\s+([^)]+)\)$/);
+            if (m) return { name: m[1].trim(), lk: m[2] };
+            return { name: fullName, lk: null };
+        }
+
+        function formatNameForTable(fullName, fallback) {
+            const p = parseLK(fullName || fallback);
+            if (p.lk) return `<span class="player-name-text">${p.name}</span><span class="player-lk">LK ${p.lk}</span>`;
+            return p.name;
+        }
+
+        function formatDoublesForTable(p1, p2, fb1, fb2) {
+            const a = parseLK(p1 || fb1);
+            const b = parseLK(p2 || fb2);
+            const name = `${a.name} / ${b.name}`;
+            const lks = [a.lk, b.lk].filter(Boolean);
+            if (lks.length) return `<span class="player-name-text">${name}</span><span class="player-lk">LK ${lks.join(' / ')}</span>`;
+            return name;
+        }
+
         // Store scorer token for API calls when accessed via /scoreday/{token}
         if (isScorer && matchDay.scorer_token) {
             sessionStorage.setItem('scorer_token', matchDay.scorer_token);
@@ -737,6 +759,21 @@
 
         // Add listeners to set inputs for auto-calculation
         document.addEventListener('DOMContentLoaded', function() {
+            // Format server-rendered player names: extract LK into sub-line
+            document.querySelectorAll('.scoreboard-table .player-name').forEach(td => {
+                const raw = td.textContent.trim();
+                if (raw.includes(' / ')) {
+                    const parts = raw.split(' / ').map(p => parseLK(p.trim()));
+                    const lks = parts.map(p => p.lk).filter(Boolean);
+                    let html = `<span class="player-name-text">${parts.map(p => p.name).join(' / ')}</span>`;
+                    if (lks.length) html += `<span class="player-lk">LK ${lks.join(' / ')}</span>`;
+                    td.innerHTML = html;
+                } else {
+                    const p = parseLK(raw);
+                    if (p.lk) td.innerHTML = `<span class="player-name-text">${p.name}</span><span class="player-lk">LK ${p.lk}</span>`;
+                }
+            });
+
             ['set1-a', 'set1-b', 'set2-a', 'set2-b', 'set3-a', 'set3-b'].forEach(id => {
                 const el = document.getElementById(id);
                 if (el) el.addEventListener('input', autoCalculateWinner);
@@ -904,11 +941,11 @@
 
             const isDoubles = matchData.match_type === 'doubles';
             const nameA = isDoubles
-                ? `${matchData.player_a1 || 'Player A1'} / ${matchData.player_a2 || 'A2'}`
-                : (matchData.player_a1 || 'Player A');
+                ? formatDoublesForTable(matchData.player_a1, matchData.player_a2, 'Player A1', 'A2')
+                : formatNameForTable(matchData.player_a1, 'Player A');
             const nameB = isDoubles
-                ? `${matchData.player_b1 || 'Player B1'} / ${matchData.player_b2 || 'B2'}`
-                : (matchData.player_b1 || 'Player B');
+                ? formatDoublesForTable(matchData.player_b1, matchData.player_b2, 'Player B1', 'B2')
+                : formatNameForTable(matchData.player_b1, 'Player B');
 
             return `
                 <tr class="${ss.winner === 0 ? 'winner' : ''}">

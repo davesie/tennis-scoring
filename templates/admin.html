@@ -455,6 +455,17 @@
             buildPlayerInputs('team-a-players', count);
             buildPlayerInputs('team-b-players', count);
 
+            function updateMatchDayName() {
+                const nameInput = document.getElementById('matchday-name');
+                const current = nameInput.value;
+                const isAutoOrDefault = current === 'Match Day' || current === '' || /^.+ vs .+$/.test(current);
+                if (!isAutoOrDefault) return;
+
+                const a = teamAInput.value.trim();
+                const b = teamBInput.value.trim();
+                if (a && b) nameInput.value = `${a} vs ${b}`;
+            }
+
             setupClubAutocomplete(teamAInput, (club) => {
                 if (club) {
                     teamAClubId = club.id;
@@ -464,6 +475,7 @@
                     teamASelectedPlayers = [];
                     buildPlayerInputs('team-a-players', currentFormat === '6_person' ? 6 : 4);
                 }
+                updateMatchDayName();
             });
 
             setupClubAutocomplete(teamBInput, (club) => {
@@ -475,6 +487,7 @@
                     teamBSelectedPlayers = [];
                     buildPlayerInputs('team-b-players', currentFormat === '6_person' ? 6 : 4);
                 }
+                updateMatchDayName();
             });
         }
 

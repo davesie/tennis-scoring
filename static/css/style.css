@@ -1316,6 +1316,34 @@ a:focus {
 
 .team-label { font-size: 0.65rem; color: var(--match-scoreboard-muted); font-weight: 400; letter-spacing: 0.05em; text-transform: uppercase; }
 
+/* LK sub-line below player name */
+.player-lk {
+    font-family: var(--font-score, monospace);
+    font-size: 0.55rem;
+    font-weight: 400;
+    letter-spacing: 0.03em;
+    display: block;
+    line-height: 1.2;
+    opacity: 0.6;
+}
+.player-info .player-lk {
+    color: var(--match-scoreboard-muted);
+}
+.scoreboard-table .player-lk {
+    font-size: 0.6rem;
+    color: var(--bc-muted);
+    padding-left: 12px;
+}
+[data-theme="dark"] .scoreboard-table .player-lk {
+    color: var(--text-muted);
+}
+.scoreboard-table tr.winner .player-lk {
+    color: var(--bc-accent);
+}
+[data-theme="dark"] .scoreboard-table tr.winner .player-lk {
+    color: var(--score-accent);
+}
+
 /* Serve indicator as ball icon */
 .serve-indicator {
     width: 10px;

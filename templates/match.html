@@ -214,6 +214,23 @@
         const maxReconnectAttempts = 10;
         let timerInterval = null;
 
+        function parseLK(fullName) {
+            if (!fullName) return { name: fullName || '', lk: null };
+            const m = fullName.match(/^(.*?)\s*\(LK\s+([^)]+)\)$/);
+            if (m) return { name: m[1].trim(), lk: m[2] };
+            return { name: fullName, lk: null };
+        }
+
+        function stripLK(fullName) {
+            return parseLK(fullName).name;
+        }
+
+        function formatPlayerNameHTML(fullName) {
+            const p = parseLK(fullName);
+            if (p.lk) return `<span class="player-name-text">${p.name}</span><span class="player-lk">LK ${p.lk}</span>`;
+            return p.name;
+        }
+
         function formatElapsed(totalSeconds) {
             const h = Math.floor(totalSeconds / 3600);
             const m = Math.floor((totalSeconds % 3600) / 60);
@@ -269,8 +286,41 @@
             return headers;
         }
 
+        function formatPlayerNames() {
+            ['player-a-name', 'player-b-name'].forEach(id => {
+                const el = document.getElementById(id);
+                if (!el) return;
+                const raw = el.textContent.trim();
+                if (raw.includes(' / ')) {
+                    const parts = raw.split(' / ').map(p => parseLK(p.trim()));
+                    el.innerHTML = parts.map(p => p.name).join(' / ');
+                    const lks = parts.map(p => p.lk).filter(Boolean);
+                    if (lks.length) {
+                        const lkEl = document.createElement('span');
+                        lkEl.className = 'player-lk';
+                        lkEl.textContent = 'LK ' + lks.join(' / ');
+                        el.parentElement.insertBefore(lkEl, el.nextSibling);
+                    }
+                } else {
+                    const parsed = parseLK(raw);
+                    el.textContent = parsed.name;
+                    if (parsed.lk) {
+                        const lkEl = document.createElement('span');
+                        lkEl.className = 'player-lk';
+                        lkEl.textContent = 'LK ' + parsed.lk;
+                        el.parentElement.insertBefore(lkEl, el.nextSibling);
+                    }
+                }
+            });
+            // Strip LK from buttons
+            document.querySelectorAll('.btn-team, .serve-pick-btn').forEach(el => {
+                el.textContent = stripLK(el.textContent.trim());
+            });
+        }
+
         // Initialize
         document.addEventListener('DOMContentLoaded', () => {
+            formatPlayerNames();
             updateScoreboard(matchData.score_state);
             setupShareLink();
             connectWebSocket();
@@ -370,14 +420,14 @@
         function getWinnerDisplayName(winner) {
             if (matchData.match_type === 'doubles') {
                 if (winner === 0) {
-                    return `${matchData.player_a1 || 'A'} / ${matchData.player_a2 || 'A'}`;
+                    return `${stripLK(matchData.player_a1) || 'A'} / ${stripLK(matchData.player_a2) || 'A'}`;
                 } else {
-                    return `${matchData.player_b1 || 'B'} / ${matchData.player_b2 || 'B'}`;
+                    return `${stripLK(matchData.player_b1) || 'B'} / ${stripLK(matchData.player_b2) || 'B'}`;
                 }
             } else {
                 return winner === 0
-                    ? (matchData.player_a1 || matchData.team_a_name)
-                    : (matchData.player_b1 || matchData.team_b_name);
+                    ? (stripLK(matchData.player_a1) || matchData.team_a_name)
+                    : (stripLK(matchData.player_b1) || matchData.team_b_name);
             }
         }
 
