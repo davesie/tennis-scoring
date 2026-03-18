@@ -4,8 +4,8 @@
 /* Light theme (default) */
 :root {
     /* === Primary Colors === */
-    --primary-color: #1a5f2a;
-    --primary-dark: #0d3d18;
+    --primary-color: #1B4FA8;
+    --primary-dark: #15407F;
     --secondary-color: #2c5282;
     --primary: var(--primary-color);
 
@@ -18,7 +18,7 @@
     --team-b-gradient: linear-gradient(135deg, #e8453c 0%, #c93a32 100%);
 
     /* === Background Colors === */
-    --bg-color: #fafafa;
+    --bg-color: #F7F5EE;
     --bg-secondary: #f0f0f0;
     --card-bg: #ffffff;
     --input-bg: #ffffff;
@@ -91,21 +91,22 @@
     --fixture-row-hover:     rgba(198,239,62,0.08);
     --fixture-border:        var(--bc-border);
 
-    /* Match scoreboard — dark in BOTH themes in light mode */
-    --match-scoreboard-bg:          #16161A;
-    --match-scoreboard-row-a:       #1C1C22;
-    --match-scoreboard-row-b:       #202028;
-    --match-scoreboard-border:      rgba(255,255,255,0.07);
-    --match-scoreboard-header-bg:   rgba(255,255,255,0.04);
-    --match-scoreboard-text:        #F0EDE8;
-    --match-scoreboard-muted:       rgba(240,237,232,0.45);
-    --match-scoreboard-header-text: rgba(240,237,232,0.40);
-    --match-scoreboard-accent:      #C6EF3E;
+    /* Match scoreboard — light in light mode, dark in dark mode */
+    --match-scoreboard-bg:          #FFFFFF;
+    --match-scoreboard-row-a:       #F8F8F6;
+    --match-scoreboard-row-b:       #F3F2EE;
+    --match-scoreboard-border:      rgba(0,0,0,0.1);
+    --match-scoreboard-row-border:  rgba(0,0,0,0.06);
+    --match-scoreboard-header-bg:   rgba(0,0,0,0.04);
+    --match-scoreboard-text:        #1A1A1A;
+    --match-scoreboard-muted:       #888;
+    --match-scoreboard-header-text: #888;
+    --match-scoreboard-accent:      #d4a017;
 }
 
 /* Dark theme */
 [data-theme="dark"] {
-    --bg-color: #1c1c1e;
+    --bg-color: #131210;
     --bg-secondary: #2c2c2e;
     --card-bg: #2c2c2e;
     --input-bg: #3a3a3c;
@@ -148,15 +149,16 @@
     --fixture-row-hover:  rgba(198,239,62,0.06);
     --fixture-border:     #2E2C28;
 
-    /* In dark mode, scoreboard uses existing dark theme values */
-    --match-scoreboard-bg:          var(--scoreboard-bg);
-    --match-scoreboard-row-a:       var(--scoreboard-row-a);
-    --match-scoreboard-row-b:       var(--scoreboard-row-b);
-    --match-scoreboard-border:      var(--score-border);
-    --match-scoreboard-header-bg:   var(--score-header-bg);
-    --match-scoreboard-text:        var(--score-text);
-    --match-scoreboard-muted:       var(--score-text-muted);
-    --match-scoreboard-header-text: var(--score-header-text);
+    /* In dark mode, scoreboard uses dark values */
+    --match-scoreboard-bg:          #16161A;
+    --match-scoreboard-row-a:       #1C1C22;
+    --match-scoreboard-row-b:       #202028;
+    --match-scoreboard-border:      rgba(255,255,255,0.08);
+    --match-scoreboard-row-border:  rgba(255,255,255,0.06);
+    --match-scoreboard-header-bg:   rgba(255,255,255,0.04);
+    --match-scoreboard-text:        #F0EDE8;
+    --match-scoreboard-muted:       rgba(240,237,232,0.5);
+    --match-scoreboard-header-text: rgba(240,237,232,0.40);
     --match-scoreboard-accent:      #C6EF3E;
 }
 
@@ -379,7 +381,7 @@ footer {
 
 /* ==================== Match Page ==================== */
 .match-page {
-    background: var(--page-bg, var(--bg-color));
+    background: var(--bc-bg);
     min-height: 100vh;
     padding: 16px;
 }
@@ -395,11 +397,14 @@ footer {
     margin: 0 auto;
 }
 
-/* ==================== Match Scoreboard — Broadcast Court (dark board in both themes) ==================== */
+/* ==================== Match Scoreboard — Broadcast Court (light in light mode, dark in dark mode) ==================== */
 .scoreboard {
     background: var(--match-scoreboard-bg); border-radius: 10px; overflow: hidden;
-    box-shadow: 0 4px 32px rgba(0,0,0,0.28), 0 1px 4px rgba(0,0,0,0.18);
+    box-shadow: 0 4px 24px rgba(0,0,0,0.10), 0 1px 4px rgba(0,0,0,0.06);
     margin-bottom: 20px; border: 1px solid var(--match-scoreboard-border);
+}
+[data-theme="dark"] .scoreboard {
+    box-shadow: 0 4px 32px rgba(0,0,0,0.45), 0 1px 4px rgba(0,0,0,0.25);
 }
 
 .scoreboard-header {
@@ -409,7 +414,7 @@ footer {
 }
 
 .match-status {
-    background: #C0392B; color: white; padding: 4px 10px; border-radius: 4px;
+    background: #2EA568; color: white; padding: 4px 10px; border-radius: 4px;
     font-family: var(--font-score); font-size: 0.72rem; font-weight: 700;
     letter-spacing: 1.5px; animation: pulse 2s infinite;
 }
@@ -1053,14 +1058,14 @@ a:focus {
 
 .team-scores {
     display: flex; justify-content: center; align-items: stretch; gap: 0;
-    background: var(--bc-scoreboard-dark); border-radius: 10px; overflow: hidden;
-    border: 1px solid var(--bc-scoreboard-dark-border); max-width: 480px; margin: 0 auto;
+    background: var(--match-scoreboard-bg); border-radius: 10px; overflow: hidden;
+    border: 1px solid var(--match-scoreboard-border); max-width: 480px; margin: 0 auto;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.08);
 }
-[data-theme="dark"] .team-scores { background: var(--scoreboard-bg); border-color: var(--score-border); }
 
 .team-score { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; flex: 1; padding: 20px 24px; }
-.team-score-a { border-right: 1px solid rgba(255,255,255,0.06); }
-.team-score-b { border-left: 1px solid rgba(255,255,255,0.06); }
+.team-score-a { border-right: 1px solid var(--match-scoreboard-border); }
+.team-score-b { border-left: 1px solid var(--match-scoreboard-border); }
 
 .team-score .team-name {
     font-family: var(--font-display); font-size: 0.8rem; font-weight: 700;
@@ -1069,20 +1074,16 @@ a:focus {
 }
 .team-score-a .team-name { color: var(--bc-team-a); }
 .team-score-b .team-name { color: var(--bc-team-b); }
-[data-theme="dark"] .team-score-a .team-name { color: #3D72D9; }
-[data-theme="dark"] .team-score-b .team-name { color: #E05545; }
 
 .team-score .score {
     font-family: var(--font-score); font-size: 4.5rem; font-weight: 700;
-    color: #F0EDE8; line-height: 1; font-variant-numeric: tabular-nums;
+    color: var(--match-scoreboard-text); line-height: 1; font-variant-numeric: tabular-nums;
 }
-[data-theme="dark"] .team-score .score { color: var(--score-accent); }
 
 .score-separator {
-    color: rgba(240,237,232,0.25); font-family: var(--font-score); font-size: 3rem;
+    color: var(--match-scoreboard-muted); font-family: var(--font-score); font-size: 3rem;
     font-weight: 300; display: flex; align-items: center; padding: 0 4px; align-self: center;
 }
-[data-theme="dark"] .score-separator { color: var(--text-muted); }
 
 .matches-section {
     margin-bottom: 24px;
@@ -1107,6 +1108,7 @@ a:focus {
 .scoreboard-card {
     background: var(--card-bg); border: 1px solid var(--bc-border);
     border-radius: 6px; overflow: hidden; transition: box-shadow 0.2s; position: relative;
+    box-shadow: 0 2px 12px rgba(0,0,0,0.06);
 }
 .scoreboard-card:hover { transform: none; box-shadow: 0 2px 12px rgba(0,0,0,0.10); }
 .scoreboard-card.live { border-left: 3px solid #2EA568; }

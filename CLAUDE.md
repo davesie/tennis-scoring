@@ -158,7 +158,7 @@ All pages use CSS custom properties with `[data-theme]` on `<html>`:
 
 ## Design System — "Broadcast Court"
 
-Applied to all three public pages (`archive.html`, `matchday.html`, `match.html`). No admin page changes.
+Applied to all pages including admin (`admin.html`, `admin_login.html` use `class="matchday-page"` on body).
 
 ### Fonts (Google Fonts, imported in `style.css` line 1)
 | Variable | Font | Use |
@@ -174,10 +174,11 @@ Applied to all three public pages (`archive.html`, `matchday.html`, `match.html`
 - `--bc-muted` / `--bc-border` — secondary text and dividers
 
 ### Match Scoreboard (`--match-scoreboard-*`)
-The match scoreboard (`.scoreboard` on `match.html`) is **always dark** regardless of theme:
-- Light mode: uses hardcoded dark values (`#16161A` bg, `#F0EDE8` text, `#C6EF3E` accent)
-- Dark mode: maps to existing `--scoreboard-bg`, `--score-text` etc. dark vars
+The match scoreboard (`.scoreboard` on `match.html`) is **theme-aware** — light in light mode, dark in dark mode, always elevated:
+- Light mode: white bg (`#FFFFFF`), dark text (`#1A1A1A`), gold accent (`#d4a017`), subtle shadow
+- Dark mode: deep dark bg (`#16161A`), light text (`#F0EDE8`), lime accent (`#C6EF3E`), stronger shadow
 - This is achieved via `--match-scoreboard-*` variable layer in both `:root` and `[data-theme="dark"]`
+- The `.team-scores` pill on matchday page also uses `--match-scoreboard-*` vars for consistency
 
 ### Archive Page Layout
 - Fixture list (not cards) — each row is `.archive-row` (flex) wrapping `.archive-card` (grid: `100px 1fr auto auto`) + `.fixture-share-btn`
