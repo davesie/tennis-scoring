@@ -670,7 +670,7 @@ footer {
 
     .score-header { grid-template-columns: 1fr 40px 40px 40px 56px; font-size: 0.7rem; }
     .score-row { grid-template-columns: 1fr 40px 40px 40px 56px; font-size: 1.05rem; padding: 12px 0; }
-    .player-info .player-name { font-size: 0.95rem; max-width: 110px; }
+    .player-info .player-name { font-size: 0.85rem; max-width: 150px; }
     .points-col { font-size: 1.2rem; }
 
     .score-btn {
@@ -1374,8 +1374,8 @@ a:focus {
     }
 
     .player-info .player-name {
-        font-size: 0.9rem;
-        max-width: 120px;
+        font-size: 0.8rem;
+        max-width: 150px;
     }
 
     .game-btn {

@@ -242,7 +242,9 @@ async def scrape_club_players(wtb_id: str, category: str = "Herren") -> List[Dic
                 ranking = int(rang_match.group(1)) if rang_match else None
                 is_captain = 'MF' in rang_cell
 
-                lk_cell = cells[1].text.strip() if len(cells) > 1 else ""
+                lk_raw = cells[1].text.strip() if len(cells) > 1 else ""
+                # Strip "LK" prefix — store only the numeric value (e.g. "4,0")
+                lk_cell = re.sub(r'^LK\s*', '', lk_raw)
 
                 name_cell = cells[2].text.strip()
                 wtb_id_cell = cells[3].text.strip() if len(cells) > 3 else ""
