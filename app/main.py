@@ -1,20 +1,19 @@
+import asyncio
+import json
+import logging
+from contextlib import asynccontextmanager
+from datetime import datetime
+from typing import Dict, Set
+
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect, Depends, HTTPException, Request, Form
+from fastapi.responses import HTMLResponse, RedirectResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
-from fastapi.responses import HTMLResponse, RedirectResponse, StreamingResponse
-from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func
-from typing import Dict, List, Set
-import json
-import asyncio
-import logging
-from datetime import datetime
-from contextlib import asynccontextmanager
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from .database import get_db, init_db, async_session_maker
 from .models import Match, MatchDay, Club, Player
-
-logger = logging.getLogger(__name__)
 from .schemas import MatchCreate, ScorePoint, MatchResponse, MatchDayCreate, ScoreGame, MatchPlayersUpdate, MatchScoreSet, DoublesCreate, SetInitialServer
 from .scoring import score_point, score_game, create_initial_state, get_score_summary
 from .auth import (
@@ -27,6 +26,8 @@ from .auth import (
     verify_scorer_for_match,
 )
 from .wtb_scraper import scrape_all_clubs, scrape_all_clubs_with_progress, scrape_club_players
+
+logger = logging.getLogger(__name__)
 
 # Flag to prevent concurrent club syncs
 _sync_in_progress = False
@@ -73,9 +74,33 @@ def create_player_from_data(player_data: dict, club_id: str) -> Player:
         category=player_data.get("category", "Herren"),
         wtb_id_nummer=player_data.get("wtb_id_nummer"),
         ranking=player_data.get("ranking"),
+        lk=player_data.get("lk"),
         is_captain=player_data.get("is_captain", False),
         club_id=club_id,
     )
+
+
+def push_history(match) -> list:
+    """Append current state to match history, keeping at most 50 entries."""
+    history = match.history.copy() if match.history else []
+    history.append(match.score_state.copy())
+    if len(history) > 50:
+        history = history[-50:]
+    return history
+
+
+async def apply_new_state(match, new_state, history, db):
+    """Apply a new score state to a match, commit, and broadcast."""
+    match.score_state = new_state
+    match.history = history
+    match.updated_at = datetime.utcnow()
+
+    if new_state.get("winner") is not None:
+        match.finished_at = datetime.utcnow()
+
+    await db.commit()
+    await db.refresh(match)
+    await broadcast_match_update(match, new_state)
 
 
 async def broadcast_match_update(match, state):
@@ -137,57 +162,47 @@ templates = Jinja2Templates(directory="templates")
 # WebSocket connection manager
 class ConnectionManager:
     def __init__(self):
-        # match_id -> set of websocket connections
         self.active_connections: Dict[str, Set[WebSocket]] = {}
-        # match_day_id -> set of websocket connections
         self.matchday_connections: Dict[str, Set[WebSocket]] = {}
 
-    async def connect(self, websocket: WebSocket, match_id: str):
+    async def _connect(self, pool: Dict[str, Set[WebSocket]], websocket: WebSocket, key: str):
         await websocket.accept()
-        if match_id not in self.active_connections:
-            self.active_connections[match_id] = set()
-        self.active_connections[match_id].add(websocket)
+        pool.setdefault(key, set()).add(websocket)
+
+    def _disconnect(self, pool: Dict[str, Set[WebSocket]], websocket: WebSocket, key: str):
+        if key in pool:
+            pool[key].discard(websocket)
+            if not pool[key]:
+                del pool[key]
+
+    async def _broadcast(self, pool: Dict[str, Set[WebSocket]], key: str, message: dict):
+        if key not in pool:
+            return
+        dead = set()
+        for conn in pool[key]:
+            try:
+                await conn.send_json(message)
+            except Exception:
+                dead.add(conn)
+        pool[key] -= dead
+
+    async def connect(self, websocket: WebSocket, match_id: str):
+        await self._connect(self.active_connections, websocket, match_id)
 
     def disconnect(self, websocket: WebSocket, match_id: str):
-        if match_id in self.active_connections:
-            self.active_connections[match_id].discard(websocket)
-            if not self.active_connections[match_id]:
-                del self.active_connections[match_id]
+        self._disconnect(self.active_connections, websocket, match_id)
 
     async def broadcast(self, match_id: str, message: dict):
-        if match_id in self.active_connections:
-            dead_connections = set()
-            for connection in self.active_connections[match_id]:
-                try:
-                    await connection.send_json(message)
-                except Exception:
-                    dead_connections.add(connection)
-            # Clean up dead connections
-            for conn in dead_connections:
-                self.active_connections[match_id].discard(conn)
+        await self._broadcast(self.active_connections, match_id, message)
 
     async def connect_matchday(self, websocket: WebSocket, match_day_id: str):
-        await websocket.accept()
-        if match_day_id not in self.matchday_connections:
-            self.matchday_connections[match_day_id] = set()
-        self.matchday_connections[match_day_id].add(websocket)
+        await self._connect(self.matchday_connections, websocket, match_day_id)
 
     def disconnect_matchday(self, websocket: WebSocket, match_day_id: str):
-        if match_day_id in self.matchday_connections:
-            self.matchday_connections[match_day_id].discard(websocket)
-            if not self.matchday_connections[match_day_id]:
-                del self.matchday_connections[match_day_id]
+        self._disconnect(self.matchday_connections, websocket, match_day_id)
 
     async def broadcast_matchday(self, match_day_id: str, message: dict):
-        if match_day_id in self.matchday_connections:
-            dead_connections = set()
-            for connection in self.matchday_connections[match_day_id]:
-                try:
-                    await connection.send_json(message)
-                except Exception:
-                    dead_connections.add(connection)
-            for conn in dead_connections:
-                self.matchday_connections[match_day_id].discard(conn)
+        await self._broadcast(self.matchday_connections, match_day_id, message)
 
 
 manager = ConnectionManager()
@@ -415,36 +430,12 @@ async def score(match_id: str, score_data: ScorePoint, request: Request, db: Asy
     if not match.score_state.get("initial_server_set", True):
         raise HTTPException(status_code=400, detail="Please select who serves first")
 
-    # Set started_at on first point (when history is empty)
     if not match.started_at and not match.history:
         match.started_at = datetime.utcnow()
 
-    # Save current state to history for undo
-    history = match.history.copy() if match.history else []
-    history.append(match.score_state.copy())
-    # Keep only last 50 states to prevent excessive storage
-    if len(history) > 50:
-        history = history[-50:]
-
-    # Calculate new state
-    new_state = score_point(
-        match.score_state,
-        score_data.team,
-        match.super_tiebreak_final_set
-    )
-
-    # Update match
-    match.score_state = new_state
-    match.history = history
-    match.updated_at = datetime.utcnow()
-
-    if new_state.get("winner") is not None:
-        match.finished_at = datetime.utcnow()
-
-    await db.commit()
-    await db.refresh(match)
-
-    await broadcast_match_update(match, new_state)
+    history = push_history(match)
+    new_state = score_point(match.score_state, score_data.team, match.super_tiebreak_final_set)
+    await apply_new_state(match, new_state, history, db)
 
     return {"success": True, "match": match.to_dict()}
 
@@ -595,35 +586,12 @@ async def score_game_endpoint(match_id: str, score_data: ScoreGame, request: Req
     if not match.score_state.get("initial_server_set", True):
         raise HTTPException(status_code=400, detail="Please select who serves first")
 
-    # Set started_at on first action (when history is empty)
     if not match.started_at and not match.history:
         match.started_at = datetime.utcnow()
 
-    # Save current state to history for undo
-    history = match.history.copy() if match.history else []
-    history.append(match.score_state.copy())
-    if len(history) > 50:
-        history = history[-50:]
-
-    # Calculate new state
-    new_state = score_game(
-        match.score_state,
-        score_data.team,
-        match.super_tiebreak_final_set
-    )
-
-    # Update match
-    match.score_state = new_state
-    match.history = history
-    match.updated_at = datetime.utcnow()
-
-    if new_state.get("winner") is not None:
-        match.finished_at = datetime.utcnow()
-
-    await db.commit()
-    await db.refresh(match)
-
-    await broadcast_match_update(match, new_state)
+    history = push_history(match)
+    new_state = score_game(match.score_state, score_data.team, match.super_tiebreak_final_set)
+    await apply_new_state(match, new_state, history, db)
 
     return {"success": True, "match": match.to_dict()}
 
@@ -940,8 +908,8 @@ async def sync_wtb_clubs_stream(request: Request, db: AsyncSession = Depends(get
                     payload = json.dumps({
                         "type": "progress",
                         "page": event["page"],
+                        "total_pages": event["total_pages"],
                         "clubs_so_far": event["clubs_so_far"],
-                        **({"total_pages": event["total_pages"]} if "total_pages" in event else {}),
                     })
                     yield f"data: {payload}\n\n"
                 elif event["type"] == "complete":
@@ -1017,9 +985,6 @@ async def sync_club_players_endpoint(
         players_data = await scrape_club_players(club.wtb_id)
 
         # Delete existing players for this club (to avoid duplicates)
-        await db.execute(
-            select(Player).where(Player.club_id == club_id)
-        )
         existing_players = (await db.execute(
             select(Player).where(Player.club_id == club_id)
         )).scalars().all()
@@ -1187,11 +1152,9 @@ async def websocket_endpoint(websocket: WebSocket, match_id: str, db: AsyncSessi
             "summary": get_score_summary(match.score_state)
         })
 
-        # Keep connection alive and handle any client messages
         while True:
             try:
-                data = await websocket.receive_text()
-                # Could handle client commands here if needed
+                await websocket.receive_text()
             except WebSocketDisconnect:
                 break
     finally:

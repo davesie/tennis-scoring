@@ -8,7 +8,6 @@ DATABASE_URL = os.getenv("DATABASE_URL", "sqlite+aiosqlite:///./tennis.db")
 engine = create_async_engine(DATABASE_URL, echo=False)
 async_session = async_sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
 
-# Exported session factory for use outside FastAPI dependency injection
 async_session_maker = async_session
 
 
@@ -31,5 +30,9 @@ async def init_db():
             pass  # Column already exists
         try:
             await conn.execute(text("ALTER TABLE players ADD COLUMN is_captain BOOLEAN DEFAULT 0"))
+        except Exception:
+            pass  # Column already exists
+        try:
+            await conn.execute(text("ALTER TABLE players ADD COLUMN lk TEXT"))
         except Exception:
             pass  # Column already exists

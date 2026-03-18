@@ -11,7 +11,7 @@ Rules:
 """
 
 import copy
-from typing import Dict, Any, Optional
+from typing import Dict, Any
 
 POINT_NAMES = ["0", "15", "30", "40"]
 

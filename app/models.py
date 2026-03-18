@@ -4,6 +4,7 @@ from datetime import datetime, timedelta
 import uuid
 
 from .database import Base
+from .scoring import create_initial_state
 
 
 def generate_uuid():
@@ -89,19 +90,8 @@ class Match(Base):
     player_a2 = Column(String, nullable=True)
     player_b2 = Column(String, nullable=True)
 
-    # Current score state
-    score_state = Column(JSON, default=lambda: {
-        "points": [0, 0],  # Current game points (0, 1, 2, 3 = 0, 15, 30, 40)
-        "games": [[0, 0], [0, 0], [0, 0]],  # Games per set
-        "sets": [0, 0],  # Sets won
-        "current_set": 0,  # 0-indexed
-        "serving": 0,  # 0 = Team A, 1 = Team B
-        "is_tiebreak": False,
-        "is_super_tiebreak": False,
-        "tiebreak_points": [0, 0],
-        "winner": None,  # None, 0, or 1
-        "deuce_advantage": None  # None, 0, or 1
-    })
+    # Current score state (uses scoring.create_initial_state as single source of truth)
+    score_state = Column(JSON, default=create_initial_state)
 
     # Match history for undo
     history = Column(JSON, default=list)
@@ -196,6 +186,7 @@ class Player(Base):
     category = Column(String, default="Herren")  # Only "Herren" for now
     wtb_id_nummer = Column(String, nullable=True)  # ID number from WTB
     ranking = Column(Integer, nullable=True)  # Rang from WTB (lower = higher seed)
+    lk = Column(String, nullable=True)  # Leistungsklasse from WTB (e.g., "23", "NT")
     is_captain = Column(Boolean, default=False)  # MF = Mannschaftsführer (team captain)
     club_id = Column(String, ForeignKey("clubs.id"), nullable=False)
     created_at = Column(DateTime, default=datetime.utcnow)
@@ -216,6 +207,7 @@ class Player(Base):
             "category": self.category,
             "wtb_id_nummer": self.wtb_id_nummer,
             "ranking": self.ranking,
+            "lk": self.lk,
             "is_captain": self.is_captain,
             "club_id": self.club_id,
             "created_at": self.created_at.isoformat() if self.created_at else None,

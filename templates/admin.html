@@ -337,8 +337,8 @@
                 chip.dataset.playerId = player.id;
                 const rankLabel = player.ranking != null ? `<span class="player-chip-rank">Rang\u00a0${player.ranking}</span>` : '';
                 const captainBadge = player.is_captain ? `<span class="player-chip-captain">MF</span>` : '';
-                const yearLabel = player.birth_year ? `<span class="player-chip-meta">*${player.birth_year}</span>` : '';
-                chip.innerHTML = `${rankLabel}<span class="player-chip-name">${player.name}</span>${captainBadge}${yearLabel}`;
+                const lkLabel = player.lk ? `<span class="player-chip-meta">LK\u00a0${player.lk}</span>` : '';
+                chip.innerHTML = `${rankLabel}<span class="player-chip-name">${player.name}</span>${captainBadge}${lkLabel}`;
                 chip.addEventListener('click', () => togglePlayer(team, player, availablePlayers));
                 availPanel.appendChild(chip);
             });
@@ -417,10 +417,11 @@
                 const slot = document.createElement('div');
                 slot.className = 'player-slot';
                 const rankLabel = player.ranking != null ? `<span class="slot-rank">Rang\u00a0${player.ranking}</span>` : '';
+                const lkSlot = player.lk ? `<span class="slot-rank">LK\u00a0${player.lk}</span>` : '';
                 slot.innerHTML = `
                     <span class="slot-number">${i + 1}</span>
                     <span class="slot-name">${player.name}</span>
-                    ${rankLabel}
+                    ${rankLabel}${lkSlot}
                     <button class="slot-remove" title="Remove" onclick="deselectPlayer('${team}', '${player.id}')">&times;</button>
                 `;
                 panel.appendChild(slot);
@@ -492,8 +493,12 @@
         async function createMatchDay() {
             let teamAPlayers, teamBPlayers;
 
+            function playerDisplayName(p) {
+                return p.lk ? `${p.name} (LK ${p.lk})` : p.name;
+            }
+
             if (teamAClubId && teamASelectedPlayers.length) {
-                teamAPlayers = teamASelectedPlayers.map(p => p.name);
+                teamAPlayers = teamASelectedPlayers.map(playerDisplayName);
             } else {
                 teamAPlayers = Array.from(document.querySelectorAll('#team-a-players input'))
                     .map(input => input.value.trim())
@@ -501,7 +506,7 @@
             }
 
             if (teamBClubId && teamBSelectedPlayers.length) {
-                teamBPlayers = teamBSelectedPlayers.map(p => p.name);
+                teamBPlayers = teamBSelectedPlayers.map(playerDisplayName);
             } else {
                 teamBPlayers = Array.from(document.querySelectorAll('#team-b-players input'))
                     .map(input => input.value.trim())

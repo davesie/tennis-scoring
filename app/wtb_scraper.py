@@ -1,11 +1,14 @@
 """WTB website scraper for clubs and players."""
 
+import asyncio
+import logging
+import re
+from typing import Dict, List
+
 import httpx
 from bs4 import BeautifulSoup
-import re
-from typing import List, Dict, Optional
-import asyncio
-from datetime import datetime
+
+logger = logging.getLogger(__name__)
 
 BASE_URL = "https://www.wtb-tennis.de"
 CLUBS_URL = "https://www.wtb-tennis.de/spielbetrieb/vereine.html"
@@ -106,7 +109,7 @@ def _parse_clubs_page(soup: BeautifulSoup) -> List[Dict]:
             })
 
         except Exception as e:
-            print(f"Error parsing club row: {e}")
+            logger.warning(f"Error parsing club row: {e}")
             continue
 
     return clubs
@@ -239,6 +242,8 @@ async def scrape_club_players(wtb_id: str, category: str = "Herren") -> List[Dic
                 ranking = int(rang_match.group(1)) if rang_match else None
                 is_captain = 'MF' in rang_cell
 
+                lk_cell = cells[1].text.strip() if len(cells) > 1 else ""
+
                 name_cell = cells[2].text.strip()
                 wtb_id_cell = cells[3].text.strip() if len(cells) > 3 else ""
 
@@ -256,14 +261,14 @@ async def scrape_club_players(wtb_id: str, category: str = "Herren") -> List[Dic
                         "wtb_id_nummer": wtb_id_cell,
                         "ranking": ranking,
                         "is_captain": is_captain,
+                        "lk": lk_cell or None,
                     })
 
         except httpx.HTTPError as e:
-            print(f"HTTP error scraping players for club {wtb_id}: {e}")
-            # Don't raise - some clubs may not have player pages
+            logger.warning(f"HTTP error scraping players for club {wtb_id}: {e}")
             return []
         except Exception as e:
-            print(f"Error scraping players for club {wtb_id}: {e}")
+            logger.warning(f"Error scraping players for club {wtb_id}: {e}")
             return []
 
     return players
