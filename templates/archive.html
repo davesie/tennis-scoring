@@ -5,13 +5,14 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Match Day Archive - Tennis Scoring</title>
     <link rel="stylesheet" href="/static/css/style.css">
+    <link rel="icon" type="image/svg+xml" href="/static/favicon.svg">
 </head>
 <body class="matchday-page">
     <button class="theme-toggle" id="theme-toggle" aria-label="Toggle theme"></button>
     <div class="matchday-container">
         <header class="matchday-header archive-page-header">
             <div class="archive-header-top">
-                <h1>Match Day Archive</h1>
+                <h1><img src="/static/logo.svg" alt="Tennis Scoring" class="header-logo">Match Day Archive</h1>
                 {% if is_admin %}
                 <a href="/admin" class="archive-admin-link">Admin Dashboard</a>
                 {% else %}

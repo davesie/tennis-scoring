@@ -1,0 +1,30 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <defs>
+    <linearGradient id="ball" x1="0.2" y1="0.1" x2="0.8" y2="0.9">
+      <stop offset="0%" stop-color="#D4E34A"/>
+      <stop offset="100%" stop-color="#A8BF00"/>
+    </linearGradient>
+    <linearGradient id="court" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#1B4FA8"/>
+      <stop offset="100%" stop-color="#15407F"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Background circle -->
+  <circle cx="256" cy="256" r="240" fill="url(#court)"/>
+
+  <!-- Tennis ball -->
+  <circle cx="256" cy="220" r="120" fill="url(#ball)" stroke="#8B9A00" stroke-width="3"/>
+
+  <!-- Ball seam curves -->
+  <path d="M 160 160 Q 220 220 160 280" fill="none" stroke="#F7F5EE" stroke-width="6" stroke-linecap="round" opacity="0.85"/>
+  <path d="M 352 160 Q 292 220 352 280" fill="none" stroke="#F7F5EE" stroke-width="6" stroke-linecap="round" opacity="0.85"/>
+
+  <!-- Score display bar -->
+  <rect x="136" y="360" rx="12" ry="12" width="240" height="56" fill="#16161A" opacity="0.9"/>
+
+  <!-- Score numbers -->
+  <text x="206" y="400" font-family="'Chakra Petch', monospace" font-weight="700" font-size="36" fill="#F0EDE8" text-anchor="middle">6</text>
+  <text x="256" y="400" font-family="'Chakra Petch', monospace" font-weight="600" font-size="28" fill="#C6EF3E" text-anchor="middle">:</text>
+  <text x="306" y="400" font-family="'Chakra Petch', monospace" font-weight="700" font-size="36" fill="#F0EDE8" text-anchor="middle">4</text>
+</svg>
