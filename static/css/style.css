@@ -2431,6 +2431,152 @@ a:focus {
     background: var(--primary-dark, #2563eb);
 }
 
+/* Import Fixtures */
+.import-teams-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-3);
+    margin-top: var(--space-4);
+}
+
+.import-team-card {
+    background: var(--bg-color);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-md);
+    padding: var(--space-3) var(--space-4);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+    transition: border-color 0.15s, box-shadow 0.15s;
+}
+
+.import-team-card:hover {
+    border-color: var(--primary-color);
+    box-shadow: var(--shadow-sm);
+}
+
+.import-team-name {
+    font-family: var(--font-display);
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.import-team-league {
+    font-family: var(--font-body);
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+}
+
+.import-team-format {
+    font-family: var(--font-score);
+    font-size: 0.75rem;
+    font-weight: 600;
+    padding: 2px 8px;
+    border-radius: var(--radius-sm);
+    background: var(--bc-accent, #C6EF3E);
+    color: #1a1a1a;
+}
+
+.import-fixtures-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: var(--space-3);
+}
+
+.import-fixtures-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-family: var(--font-body);
+    font-size: 0.9rem;
+}
+
+.import-fixtures-table th {
+    text-align: left;
+    padding: var(--space-2) var(--space-3);
+    border-bottom: 2px solid var(--border-color);
+    font-weight: 600;
+    color: var(--text-secondary);
+    font-size: 0.8rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+.import-fixtures-table td {
+    padding: var(--space-2) var(--space-3);
+    border-bottom: 1px solid var(--border-color);
+    color: var(--text-primary);
+}
+
+.import-fixtures-table tr.fixture-imported {
+    opacity: 0.6;
+}
+
+.fixture-imported-badge {
+    font-family: var(--font-score);
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: #48bb78;
+}
+
+.btn-sm {
+    font-size: 0.8rem;
+    padding: 4px 12px;
+}
+
+.btn-disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.shell-badge {
+    font-family: var(--font-score);
+    font-size: 0.8rem;
+    color: #ed8936;
+    font-weight: 600;
+}
+
+.btn-setup-players {
+    background: #ed8936;
+    color: #fff;
+    font-weight: 600;
+}
+
+.btn-setup-players:hover {
+    background: #dd6b20;
+}
+
+.player-setup-panel {
+    grid-column: 1 / -1;
+}
+
+/* Matchday meta info */
+.matchday-meta-info {
+    display: flex;
+    justify-content: center;
+    gap: var(--space-4);
+    font-family: var(--font-body);
+    font-size: 0.9rem;
+    color: var(--text-secondary);
+    margin-top: var(--space-2);
+}
+
+.matchday-venue::before {
+    content: "\1F4CD ";
+}
+
+#sync-fixtures-result {
+    margin-top: var(--space-3);
+    font-family: var(--font-body);
+    font-size: 0.9rem;
+}
+
+#sync-fixtures-result ul {
+    margin: var(--space-2) 0;
+    padding-left: var(--space-5);
+}
+
 @media (max-width: 768px) {
     .doubles-pairing-row {
         flex-direction: column;

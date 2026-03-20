@@ -60,6 +60,23 @@ class MatchScoreSet(BaseModel):
     winner: int  # 0 or 1
 
 
+class FixtureImport(BaseModel):
+    meeting_id: str
+    scheduled_date: Optional[str] = None  # ISO format
+    home_team: str
+    away_team: str
+    venue: Optional[str] = None
+    format: str = "6_person"
+    wtb_team_id: str
+    wtb_club_id: str
+
+
+class MatchDaySetup(BaseModel):
+    format: str = "6_person"
+    team_a_players: List[str] = []
+    team_b_players: List[str] = []
+
+
 class MatchResponse(BaseModel):
     id: str
     share_code: str

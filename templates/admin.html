@@ -13,6 +13,7 @@
             <h1>Tennis Scoring Admin</h1>
             <div class="header-actions">
                 <button class="btn btn-primary" onclick="toggleCreateSection()">+ New Match Day</button>
+                <button class="btn btn-secondary" onclick="toggleImportSection()">Import Fixtures</button>
                 <a href="/archive" class="btn btn-secondary">View Archive</a>
                 <form action="/admin/logout" method="POST" style="margin: 0;">
                     <button type="submit" class="btn btn-outline-danger">Logout</button>
@@ -41,6 +42,42 @@
                 <label>Sync Players for Club</label>
                 <input type="text" id="wtb-club-search" placeholder="Search for a club..." onkeyup="searchWTBClubs(this.value)">
                 <div class="autocomplete-dropdown" id="wtb-club-dropdown"></div>
+            </div>
+        </section>
+
+        <!-- Import WTB Fixtures Section -->
+        <section class="create-section" id="import-section">
+            <h2>Import WTB Fixtures</h2>
+
+            <div class="form-group">
+                <label>Search Club</label>
+                <input type="text" id="import-club-search" placeholder="Search for a club..." autocomplete="off">
+            </div>
+
+            <div id="import-teams-container" style="display:none;">
+                <h3 id="import-club-name"></h3>
+                <div class="form-group">
+                    <label>Category</label>
+                    <div class="toggle-group">
+                        <button type="button" class="toggle-btn active" onclick="loadTeams('Herren', this)">Herren</button>
+                        <button type="button" class="toggle-btn" onclick="loadTeams('Damen', this)">Damen</button>
+                        <button type="button" class="toggle-btn" onclick="loadTeams('', this)">All</button>
+                    </div>
+                </div>
+                <div id="import-teams-list" class="import-teams-list"></div>
+            </div>
+
+            <div id="import-fixtures-container" style="display:none;">
+                <div class="import-fixtures-header">
+                    <h3 id="import-team-name"></h3>
+                    <button class="btn btn-secondary btn-sm" id="sync-fixtures-btn" onclick="syncFixtureUpdates()" style="display:none;">Check for updates</button>
+                </div>
+                <div id="import-fixtures-list" class="import-fixtures-list"></div>
+                <div id="sync-fixtures-result"></div>
+            </div>
+
+            <div class="header-actions" style="margin-top:1rem;">
+                <button class="btn btn-secondary" onclick="toggleImportSection()">Close</button>
             </div>
         </section>
 
@@ -93,8 +130,13 @@
                     <h3>{{ md.name }}</h3>
                     <div class="match-day-meta">
                         <span>{{ md.format | replace('_', ' ') | title }}</span>
+                        {% if md.total_matches > 0 %}
                         <span>{{ md.completed_matches }}/{{ md.total_matches }} matches</span>
-                        <span>{{ md.created_at[:10] if md.created_at else '' }}</span>
+                        {% else %}
+                        <span class="shell-badge">Imported — needs setup</span>
+                        {% endif %}
+                        <span>{{ md.scheduled_date[:10] if md.scheduled_date else (md.created_at[:10] if md.created_at else '') }}</span>
+                        {% if md.venue %}<span>📍 {{ md.venue }}</span>{% endif %}
                     </div>
                     <div class="match-day-score">
                         <span class="team-a-score">{{ md.team_a_name }}: {{ md.team_a_wins }}</span>
@@ -102,7 +144,11 @@
                         <span class="team-b-score">{{ md.team_b_name }}: {{ md.team_b_wins }}</span>
                     </div>
                     <div class="link-group">
+                        {% if md.total_matches == 0 and md.wtb_meeting_id %}
+                        <button class="link-btn btn-setup-players" onclick="openPlayerSetup('{{ md.id }}', '{{ md.format }}', '{{ md.team_a_name }}', '{{ md.team_b_name }}')">Set up Players</button>
+                        {% else %}
                         <a href="/matchday/{{ md.id }}" class="link-btn">Open</a>
+                        {% endif %}
                         <button class="link-btn" onclick="copyToClipboard('{{ request.url_for('scorer_match_day_page', scorer_token=md.scorer_token) }}', this)">Copy Scorer Link</button>
                         <button class="link-btn" onclick="copyToClipboard('{{ request.url_for('spectator_match_day_page', share_code=md.share_code) }}', this)">Copy Spectator Link</button>
                         {% if not md.has_doubles %}
@@ -116,6 +162,7 @@
                     </div>
                 </div>
                 <div class="doubles-setup-panel" id="doubles-panel-{{ md.id }}" style="display:none;"></div>
+                <div class="player-setup-panel" id="setup-panel-{{ md.id }}" style="display:none;"></div>
             </div>
             {% endfor %}
             {% else %}
@@ -552,10 +599,6 @@
                 ).join('');
             }
 
-            function escHtml(s) {
-                return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
-            }
-
             let pairingsHtml = '';
             for (let i = 0; i < doublesCount; i++) {
                 pairingsHtml += `
@@ -673,6 +716,472 @@
                 alert('Failed to delete match day');
                 btn.disabled = false;
                 btn.textContent = 'Delete';
+            }
+        }
+
+        // ==================== Import Fixtures ====================
+
+        let importClubId = null;
+        let importClubWtbId = null;
+        let importTeamId = null;
+        let importTeamName = null;
+
+        function toggleImportSection() {
+            const section = document.getElementById('import-section');
+            const isActive = section.classList.toggle('active');
+            if (isActive) {
+                document.getElementById('import-teams-container').style.display = 'none';
+                document.getElementById('import-fixtures-container').style.display = 'none';
+                const input = document.getElementById('import-club-search');
+                input.value = '';
+                setupClubAutocomplete(input, (club) => {
+                    if (club) {
+                        importClubId = club.id;
+                        importClubWtbId = club.wtb_id;
+                        document.getElementById('import-club-name').textContent = club.name;
+                        document.getElementById('import-teams-container').style.display = 'block';
+                        document.getElementById('import-fixtures-container').style.display = 'none';
+                        loadTeams('Herren');
+                    }
+                });
+            }
+        }
+
+        async function loadTeams(category, btn) {
+            if (btn) {
+                btn.closest('.toggle-group').querySelectorAll('.toggle-btn').forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+            }
+            if (!importClubId) return;
+            const list = document.getElementById('import-teams-list');
+            list.innerHTML = '<div class="picker-loading">Loading teams\u2026</div>';
+
+            try {
+                const res = await fetch(`/api/clubs/${importClubId}/teams?category=${encodeURIComponent(category)}`);
+                const data = await res.json();
+
+                if (!data.teams || !data.teams.length) {
+                    list.innerHTML = '<p class="picker-empty">No teams found.</p>';
+                    return;
+                }
+
+                list.innerHTML = data.teams.map(team => `
+                    <div class="import-team-card" onclick="loadFixtures('${team.team_id}', '${escHtml(team.team_name)}')">
+                        <span class="import-team-name">${escHtml(team.team_name)}</span>
+                        <span class="import-team-league">${escHtml(team.league)}</span>
+                        <span class="import-team-format badge-${team.format}">${team.format === '4_person' ? '4er' : '6er'}</span>
+                    </div>
+                `).join('');
+            } catch (err) {
+                list.innerHTML = `<p class="picker-empty">Error loading teams: ${err.message}</p>`;
+            }
+        }
+
+        function escHtml(s) {
+            return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+        }
+
+        async function loadFixtures(teamId, teamName) {
+            importTeamId = teamId;
+            importTeamName = teamName;
+            const container = document.getElementById('import-fixtures-container');
+            const list = document.getElementById('import-fixtures-list');
+            const header = document.getElementById('import-team-name');
+            const syncBtn = document.getElementById('sync-fixtures-btn');
+
+            container.style.display = 'block';
+            header.textContent = teamName;
+            list.innerHTML = '<div class="picker-loading">Loading fixtures\u2026</div>';
+            syncBtn.style.display = 'none';
+            document.getElementById('sync-fixtures-result').textContent = '';
+
+            try {
+                const res = await fetch(`/api/clubs/${importClubId}/teams/${teamId}/fixtures`);
+                const data = await res.json();
+
+                if (!data.fixtures || !data.fixtures.length) {
+                    list.innerHTML = '<p class="picker-empty">No fixtures found.</p>';
+                    return;
+                }
+
+                // Show sync button if any fixtures are imported
+                if (data.fixtures.some(f => f.imported)) {
+                    syncBtn.style.display = 'inline-block';
+                }
+
+                list.innerHTML = `<table class="import-fixtures-table">
+                    <thead><tr>
+                        <th>Date</th><th>Home</th><th>Away</th><th>Venue</th><th>Result</th><th></th>
+                    </tr></thead>
+                    <tbody>
+                    ${data.fixtures.map(f => `
+                        <tr class="${f.imported ? 'fixture-imported' : ''}">
+                            <td>${f.scheduled_date ? new Date(f.scheduled_date).toLocaleDateString('de-DE', {day:'2-digit',month:'2-digit',year:'numeric'}) : '—'}</td>
+                            <td>${escHtml(f.home_team)}</td>
+                            <td>${escHtml(f.away_team)}</td>
+                            <td>${escHtml(f.venue || '')}</td>
+                            <td>${f.is_played ? escHtml(f.score_matches) : '—'}</td>
+                            <td>
+                                ${f.imported
+                                    ? '<span class="fixture-imported-badge">Imported</span>'
+                                    : `<button class="btn btn-primary btn-sm" onclick="importFixture(this, '${f.meeting_id}', '${f.scheduled_date || ''}', '${escHtml(f.home_team)}', '${escHtml(f.away_team)}', '${escHtml(f.venue || '')}')">Import</button>`
+                                }
+                            </td>
+                        </tr>
+                    `).join('')}
+                    </tbody>
+                </table>`;
+            } catch (err) {
+                list.innerHTML = `<p class="picker-empty">Error loading fixtures: ${err.message}</p>`;
+            }
+        }
+
+        async function importFixture(btn, meetingId, scheduledDate, homeTeam, awayTeam, venue) {
+            btn.disabled = true;
+            btn.textContent = 'Importing...';
+
+            try {
+                const res = await fetch('/api/admin/import-fixture', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        meeting_id: meetingId,
+                        scheduled_date: scheduledDate || null,
+                        home_team: homeTeam,
+                        away_team: awayTeam,
+                        venue: venue || null,
+                        format: '6_person',
+                        wtb_team_id: importTeamId,
+                        wtb_club_id: importClubWtbId,
+                    })
+                });
+
+                if (res.status === 409) {
+                    btn.textContent = 'Already imported';
+                    btn.classList.add('btn-disabled');
+                    return;
+                }
+
+                if (res.ok) {
+                    btn.outerHTML = '<span class="fixture-imported-badge">Imported</span>';
+                    // Show sync button
+                    document.getElementById('sync-fixtures-btn').style.display = 'inline-block';
+                } else {
+                    const data = await res.json();
+                    alert(data.detail || 'Import failed');
+                    btn.disabled = false;
+                    btn.textContent = 'Import';
+                }
+            } catch (err) {
+                alert('Import failed: ' + err.message);
+                btn.disabled = false;
+                btn.textContent = 'Import';
+            }
+        }
+
+        async function syncFixtureUpdates() {
+            if (!importClubWtbId || !importTeamId) return;
+            const resultDiv = document.getElementById('sync-fixtures-result');
+            const btn = document.getElementById('sync-fixtures-btn');
+            btn.disabled = true;
+            btn.textContent = 'Checking...';
+            resultDiv.textContent = '';
+
+            try {
+                const res = await fetch(`/api/admin/sync-fixtures?wtb_club_id=${importClubWtbId}&wtb_team_id=${importTeamId}`, {
+                    method: 'POST'
+                });
+                const data = await res.json();
+
+                if (data.changes && data.changes.length > 0) {
+                    resultDiv.innerHTML = '<strong>Updates applied:</strong><ul>' +
+                        data.changes.map(c => `<li>${escHtml(c.name)}: ${c.field} changed from "${escHtml(c.old)}" to "${escHtml(c.new)}"</li>`).join('') +
+                        '</ul>';
+                    resultDiv.style.color = '#ed8936';
+                } else {
+                    resultDiv.textContent = 'All fixtures are up to date.';
+                    resultDiv.style.color = '#48bb78';
+                }
+            } catch (err) {
+                resultDiv.textContent = 'Error: ' + err.message;
+                resultDiv.style.color = '#f56565';
+            } finally {
+                btn.disabled = false;
+                btn.textContent = 'Check for updates';
+            }
+        }
+
+        // ==================== Player Setup for Imported MatchDays ====================
+
+        function openPlayerSetup(matchDayId, format, teamAName, teamBName) {
+            const panel = document.getElementById(`setup-panel-${matchDayId}`);
+            if (panel.style.display !== 'none') {
+                panel.style.display = 'none';
+                return;
+            }
+
+            panel.innerHTML = `
+                <div class="doubles-setup-content">
+                    <h4>Set up Players for ${escHtml(teamAName)} vs ${escHtml(teamBName)}</h4>
+                    <div class="form-group">
+                        <label>Format</label>
+                        <div class="toggle-group">
+                            <button type="button" class="toggle-btn ${format === '6_person' ? 'active' : ''}" onclick="setSetupFormat('${matchDayId}', '6_person', this)">6 per Team</button>
+                            <button type="button" class="toggle-btn ${format === '4_person' ? 'active' : ''}" onclick="setSetupFormat('${matchDayId}', '4_person', this)">4 per Team</button>
+                        </div>
+                    </div>
+                    <div class="teams-container">
+                        <div class="team-input">
+                            <h3>${escHtml(teamAName)}</h3>
+                            <input type="text" id="setup-team-a-${matchDayId}" placeholder="Search club..." autocomplete="off">
+                            <span class="club-search-hint">Type to search WTB clubs</span>
+                            <div id="setup-players-a-${matchDayId}"></div>
+                        </div>
+                        <div class="vs">VS</div>
+                        <div class="team-input">
+                            <h3>${escHtml(teamBName)}</h3>
+                            <input type="text" id="setup-team-b-${matchDayId}" placeholder="Search club..." autocomplete="off">
+                            <span class="club-search-hint">Type to search WTB clubs</span>
+                            <div id="setup-players-b-${matchDayId}"></div>
+                        </div>
+                    </div>
+                    <div class="header-actions">
+                        <button class="btn btn-primary" onclick="submitPlayerSetup('${matchDayId}')">Create Matches</button>
+                        <button class="btn btn-secondary" onclick="document.getElementById('setup-panel-${matchDayId}').style.display='none'">Cancel</button>
+                    </div>
+                </div>`;
+            panel.style.display = 'block';
+
+            // Store setup state on the panel
+            panel._format = format;
+            panel._teamAClubId = null;
+            panel._teamBClubId = null;
+            panel._teamAPlayers = [];
+            panel._teamBPlayers = [];
+
+            const count = format === '6_person' ? 6 : 4;
+            buildPlayerInputs(`setup-players-a-${matchDayId}`, count);
+            buildPlayerInputs(`setup-players-b-${matchDayId}`, count);
+
+            const inputA = document.getElementById(`setup-team-a-${matchDayId}`);
+            const inputB = document.getElementById(`setup-team-b-${matchDayId}`);
+
+            setupClubAutocomplete(inputA, (club) => {
+                if (club) {
+                    panel._teamAClubId = club.id;
+                    loadSetupPicker(matchDayId, 'A', club.id);
+                } else {
+                    panel._teamAClubId = null;
+                    panel._teamAPlayers = [];
+                    buildPlayerInputs(`setup-players-a-${matchDayId}`, panel._format === '6_person' ? 6 : 4);
+                }
+            });
+
+            setupClubAutocomplete(inputB, (club) => {
+                if (club) {
+                    panel._teamBClubId = club.id;
+                    loadSetupPicker(matchDayId, 'B', club.id);
+                } else {
+                    panel._teamBClubId = null;
+                    panel._teamBPlayers = [];
+                    buildPlayerInputs(`setup-players-b-${matchDayId}`, panel._format === '6_person' ? 6 : 4);
+                }
+            });
+        }
+
+        function setSetupFormat(matchDayId, format, btn) {
+            btn.closest('.toggle-group').querySelectorAll('.toggle-btn').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            const panel = document.getElementById(`setup-panel-${matchDayId}`);
+            panel._format = format;
+            const count = format === '6_person' ? 6 : 4;
+            if (panel._teamAClubId) loadSetupPicker(matchDayId, 'A', panel._teamAClubId);
+            else buildPlayerInputs(`setup-players-a-${matchDayId}`, count);
+            if (panel._teamBClubId) loadSetupPicker(matchDayId, 'B', panel._teamBClubId);
+            else buildPlayerInputs(`setup-players-b-${matchDayId}`, count);
+        }
+
+        async function loadSetupPicker(matchDayId, team, clubId) {
+            const containerId = `setup-players-${team.toLowerCase()}-${matchDayId}`;
+            const container = document.getElementById(containerId);
+            const panel = document.getElementById(`setup-panel-${matchDayId}`);
+            if (team === 'A') panel._teamAPlayers = [];
+            else panel._teamBPlayers = [];
+
+            container.innerHTML = '<div class="picker-loading">Loading players\u2026</div>';
+            const players = await fetchAllClubPlayers(clubId);
+            if (!players.length) {
+                container.innerHTML = '<p class="picker-empty">No players found.</p>';
+                return;
+            }
+
+            // Use a unique team key to avoid conflicts with main create form
+            const teamKey = `setup_${matchDayId}_${team}`;
+            renderSetupPlayerPicker(matchDayId, team, players);
+        }
+
+        function renderSetupPlayerPicker(matchDayId, team, availablePlayers) {
+            const containerId = `setup-players-${team.toLowerCase()}-${matchDayId}`;
+            const container = document.getElementById(containerId);
+            const panel = document.getElementById(`setup-panel-${matchDayId}`);
+            const selected = team === 'A' ? panel._teamAPlayers : panel._teamBPlayers;
+            const selectedIds = new Set(selected.map(p => p.id));
+
+            container.innerHTML = '';
+            const picker = document.createElement('div');
+            picker.className = 'player-picker';
+
+            const availPanel = document.createElement('div');
+            availPanel.className = 'player-picker-available';
+            availPanel.innerHTML = '<div class="picker-panel-label">Available Players</div>';
+
+            availablePlayers.forEach(player => {
+                const chip = document.createElement('div');
+                chip.className = 'player-chip' + (selectedIds.has(player.id) ? ' selected' : '');
+                chip.dataset.playerId = player.id;
+                const rankLabel = player.ranking != null ? `<span class="player-chip-rank">Rang\u00a0${player.ranking}</span>` : '';
+                const captainBadge = player.is_captain ? `<span class="player-chip-captain">MF</span>` : '';
+                const lkLabel = player.lk ? `<span class="player-chip-meta">LK\u00a0${player.lk}</span>` : '';
+                chip.innerHTML = `${rankLabel}<span class="player-chip-name">${player.name}</span>${captainBadge}${lkLabel}`;
+                chip.addEventListener('click', () => toggleSetupPlayer(matchDayId, team, player, availablePlayers));
+                availPanel.appendChild(chip);
+            });
+
+            const selPanel = document.createElement('div');
+            selPanel.className = 'player-picker-selected';
+            selPanel.innerHTML = '<div class="picker-panel-label">Selected (by Rang)</div>';
+            selPanel.id = `setup-selected-${matchDayId}-${team}`;
+
+            picker.appendChild(availPanel);
+            picker.appendChild(selPanel);
+            container.appendChild(picker);
+
+            renderSetupSelectedSlots(matchDayId, team);
+        }
+
+        function toggleSetupPlayer(matchDayId, team, player, availablePlayers) {
+            const panel = document.getElementById(`setup-panel-${matchDayId}`);
+            const arr = team === 'A' ? panel._teamAPlayers : panel._teamBPlayers;
+            const idx = arr.findIndex(p => p.id === player.id);
+            if (idx >= 0) {
+                arr.splice(idx, 1);
+            } else {
+                arr.push(player);
+                arr.sort((a, b) => {
+                    if (a.ranking == null && b.ranking == null) return 0;
+                    if (a.ranking == null) return 1;
+                    if (b.ranking == null) return -1;
+                    return a.ranking - b.ranking;
+                });
+            }
+            renderSetupSelectedSlots(matchDayId, team);
+
+            const containerId = `setup-players-${team.toLowerCase()}-${matchDayId}`;
+            const container = document.getElementById(containerId);
+            const selectedIds = new Set(arr.map(p => p.id));
+            container.querySelectorAll('.player-chip').forEach(chip => {
+                chip.classList.toggle('selected', selectedIds.has(chip.dataset.playerId));
+            });
+        }
+
+        function renderSetupSelectedSlots(matchDayId, team) {
+            const panelId = `setup-selected-${matchDayId}-${team}`;
+            const selPanel = document.getElementById(panelId);
+            if (!selPanel) return;
+
+            const panel = document.getElementById(`setup-panel-${matchDayId}`);
+            const arr = team === 'A' ? panel._teamAPlayers : panel._teamBPlayers;
+            const label = selPanel.querySelector('.picker-panel-label');
+            selPanel.innerHTML = '';
+            selPanel.appendChild(label);
+
+            if (!arr.length) {
+                const empty = document.createElement('p');
+                empty.className = 'picker-slots-empty';
+                empty.textContent = 'Click players to add them';
+                selPanel.appendChild(empty);
+                return;
+            }
+
+            arr.forEach((player, i) => {
+                const slot = document.createElement('div');
+                slot.className = 'player-slot';
+                const rankLabel = player.ranking != null ? `<span class="slot-rank">Rang\u00a0${player.ranking}</span>` : '';
+                const lkSlot = player.lk ? `<span class="slot-rank">LK\u00a0${player.lk}</span>` : '';
+                slot.innerHTML = `
+                    <span class="slot-number">${i + 1}</span>
+                    <span class="slot-name">${player.name}</span>
+                    ${rankLabel}${lkSlot}
+                    <button class="slot-remove" title="Remove" onclick="removeSetupPlayer('${matchDayId}', '${team}', '${player.id}')">&times;</button>
+                `;
+                selPanel.appendChild(slot);
+            });
+        }
+
+        function removeSetupPlayer(matchDayId, team, playerId) {
+            const panel = document.getElementById(`setup-panel-${matchDayId}`);
+            if (team === 'A') {
+                panel._teamAPlayers = panel._teamAPlayers.filter(p => p.id !== playerId);
+            } else {
+                panel._teamBPlayers = panel._teamBPlayers.filter(p => p.id !== playerId);
+            }
+            renderSetupSelectedSlots(matchDayId, team);
+
+            const containerId = `setup-players-${team.toLowerCase()}-${matchDayId}`;
+            const container = document.getElementById(containerId);
+            const arr = team === 'A' ? panel._teamAPlayers : panel._teamBPlayers;
+            const selectedIds = new Set(arr.map(p => p.id));
+            container.querySelectorAll('.player-chip').forEach(chip => {
+                chip.classList.toggle('selected', selectedIds.has(chip.dataset.playerId));
+            });
+        }
+
+        async function submitPlayerSetup(matchDayId) {
+            const panel = document.getElementById(`setup-panel-${matchDayId}`);
+            const format = panel._format;
+
+            function playerDisplayName(p) {
+                return p.lk ? `${p.name} (LK ${p.lk})` : p.name;
+            }
+
+            let teamAPlayers, teamBPlayers;
+
+            if (panel._teamAClubId && panel._teamAPlayers.length) {
+                teamAPlayers = panel._teamAPlayers.map(playerDisplayName);
+            } else {
+                teamAPlayers = Array.from(document.querySelectorAll(`#setup-players-a-${matchDayId} input`))
+                    .map(input => input.value.trim())
+                    .filter(v => v);
+            }
+
+            if (panel._teamBClubId && panel._teamBPlayers.length) {
+                teamBPlayers = panel._teamBPlayers.map(playerDisplayName);
+            } else {
+                teamBPlayers = Array.from(document.querySelectorAll(`#setup-players-b-${matchDayId} input`))
+                    .map(input => input.value.trim())
+                    .filter(v => v);
+            }
+
+            try {
+                const res = await fetch(`/api/matchdays/${matchDayId}/setup`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        format: format,
+                        team_a_players: teamAPlayers,
+                        team_b_players: teamBPlayers,
+                    })
+                });
+
+                if (res.ok) {
+                    const data = await res.json();
+                    window.location.href = `/matchday/${data.match_day.id}`;
+                } else {
+                    const data = await res.json();
+                    alert(data.detail || 'Setup failed');
+                }
+            } catch (err) {
+                alert('Setup failed: ' + err.message);
             }
         }
 

@@ -52,6 +52,13 @@ class MatchDay(Base):
 
     created_at = Column(DateTime, default=datetime.utcnow)
 
+    # WTB fixture import fields
+    scheduled_date = Column(DateTime, nullable=True)  # Fixture date/time from WTB
+    venue = Column(String, nullable=True)  # Spielort
+    wtb_meeting_id = Column(String, nullable=True, unique=True, index=True)  # From Spielbericht links
+    wtb_team_id = Column(String, nullable=True)  # Team ID from URL (e.g. "3496556")
+    wtb_club_id = Column(String, nullable=True)  # Club wtb_id (e.g. "20099")
+
     def to_dict(self):
         return {
             "id": self.id,
@@ -65,6 +72,11 @@ class MatchDay(Base):
             "team_a_players": self.team_a_players,
             "team_b_players": self.team_b_players,
             "created_at": self.created_at.isoformat() if self.created_at else None,
+            "scheduled_date": self.scheduled_date.isoformat() if self.scheduled_date else None,
+            "venue": self.venue,
+            "wtb_meeting_id": self.wtb_meeting_id,
+            "wtb_team_id": self.wtb_team_id,
+            "wtb_club_id": self.wtb_club_id,
         }
 
 

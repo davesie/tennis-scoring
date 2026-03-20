@@ -27,7 +27,7 @@
             <div class="archive-row">
                 <a href="/watchday/{{ md.share_code }}" class="archive-card">
                     <div class="fixture-meta">
-                        <span class="fixture-date">{{ md.created_at[:10] if md.created_at else '' }}</span>
+                        <span class="fixture-date">{{ (md.scheduled_date[:10] if md.scheduled_date else md.created_at[:10]) if (md.scheduled_date or md.created_at) else '' }}</span>
                         <span class="fixture-format">{{ '6-person' if md.format == '6_person' else '4-person' }}</span>
                     </div>
                     <div class="fixture-name">{{ md.name }}</div>

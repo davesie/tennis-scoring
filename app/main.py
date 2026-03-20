@@ -16,7 +16,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from .database import get_db, init_db, async_session_maker
 from .models import Match, MatchDay, Club, Player
-from .schemas import MatchCreate, ScorePoint, MatchResponse, MatchDayCreate, ScoreGame, MatchPlayersUpdate, MatchScoreSet, DoublesCreate, SetInitialServer
+from .schemas import MatchCreate, ScorePoint, MatchResponse, MatchDayCreate, ScoreGame, MatchPlayersUpdate, MatchScoreSet, DoublesCreate, SetInitialServer, FixtureImport, MatchDaySetup
 from .scoring import score_point, score_game, create_initial_state, get_score_summary
 from .auth import (
     ADMIN_SESSION_COOKIE,
@@ -27,7 +27,7 @@ from .auth import (
     get_scorer_token,
     verify_scorer_for_match,
 )
-from .wtb_scraper import scrape_all_clubs, scrape_all_clubs_with_progress, scrape_club_players
+from .wtb_scraper import scrape_all_clubs, scrape_all_clubs_with_progress, scrape_club_players, scrape_club_teams, scrape_team_fixtures
 
 logger = logging.getLogger(__name__)
 
@@ -290,9 +290,11 @@ async def admin_dashboard(request: Request, db: AsyncSession = Depends(get_db)):
     if not admin_session:
         return RedirectResponse(url="/admin/login", status_code=302)
 
-    # Get all match days
+    # Get all match days, preferring scheduled_date for ordering
     result = await db.execute(
-        select(MatchDay).order_by(MatchDay.created_at.desc())
+        select(MatchDay).order_by(
+            func.coalesce(MatchDay.scheduled_date, MatchDay.created_at).desc()
+        )
     )
     match_days = result.scalars().all()
 
@@ -309,8 +311,9 @@ async def admin_dashboard(request: Request, db: AsyncSession = Depends(get_db)):
         stats = compute_matchday_stats(matches)
         singles_completed = sum(1 for m in singles if m.score_state.get("winner") is not None)
 
+        md_dict = md.to_dict()
         match_days_data.append({
-            **md.to_dict(),
+            **md_dict,
             **stats,
             "singles_total": len(singles),
             "singles_completed": singles_completed,
@@ -1134,6 +1137,232 @@ async def search_club_players(
     players = result.scalars().all()
 
     return [player.to_dict() for player in players]
+
+
+# ==================== WTB Fixture Import ====================
+
+@app.get("/api/clubs/{club_id}/teams")
+async def get_club_teams(
+    club_id: str,
+    category: str = "Herren",
+    db: AsyncSession = Depends(get_db)
+):
+    """Get teams for a club from WTB. Requires the club to exist in DB."""
+    result = await db.execute(select(Club).where(Club.id == club_id))
+    club = result.scalar_one_or_none()
+    if not club:
+        raise HTTPException(status_code=404, detail="Club not found")
+
+    category_filter = category if category else None
+    teams = await scrape_club_teams(club.wtb_id, category_filter=category_filter)
+    return {"club_id": club_id, "wtb_id": club.wtb_id, "club_name": club.name, "teams": teams}
+
+
+@app.get("/api/clubs/{club_id}/teams/{team_id}/fixtures")
+async def get_team_fixtures(
+    club_id: str,
+    team_id: str,
+    db: AsyncSession = Depends(get_db)
+):
+    """Get fixtures for a team, with imported status for each."""
+    result = await db.execute(select(Club).where(Club.id == club_id))
+    club = result.scalar_one_or_none()
+    if not club:
+        raise HTTPException(status_code=404, detail="Club not found")
+
+    fixtures = await scrape_team_fixtures(club.wtb_id, team_id)
+
+    # Check which fixtures are already imported
+    meeting_ids = [f["meeting_id"] for f in fixtures if f["meeting_id"]]
+    imported_ids = set()
+    if meeting_ids:
+        imported_result = await db.execute(
+            select(MatchDay.wtb_meeting_id).where(MatchDay.wtb_meeting_id.in_(meeting_ids))
+        )
+        imported_ids = {row[0] for row in imported_result.all()}
+
+    for f in fixtures:
+        f["imported"] = f["meeting_id"] in imported_ids
+
+    return {"club_id": club_id, "team_id": team_id, "fixtures": fixtures}
+
+
+@app.post("/api/admin/import-fixture")
+async def import_fixture(
+    data: FixtureImport,
+    request: Request,
+    db: AsyncSession = Depends(get_db)
+):
+    """Import a WTB fixture as a shell MatchDay (no players/matches yet)."""
+    admin_session = await get_admin_session(request, db)
+    if not admin_session:
+        raise HTTPException(status_code=401, detail="Admin authentication required")
+
+    # Check if already imported
+    existing = await db.execute(
+        select(MatchDay).where(MatchDay.wtb_meeting_id == data.meeting_id)
+    )
+    if existing.scalar_one_or_none():
+        raise HTTPException(status_code=409, detail="Fixture already imported")
+
+    # Parse scheduled_date
+    scheduled_date = None
+    if data.scheduled_date:
+        try:
+            scheduled_date = datetime.fromisoformat(data.scheduled_date)
+        except ValueError:
+            pass
+
+    name = f"{data.home_team} vs {data.away_team}"
+
+    match_day = MatchDay(
+        name=name,
+        format=data.format,
+        team_a_name=data.home_team,
+        team_b_name=data.away_team,
+        scheduled_date=scheduled_date,
+        venue=data.venue,
+        wtb_meeting_id=data.meeting_id,
+        wtb_team_id=data.wtb_team_id,
+        wtb_club_id=data.wtb_club_id,
+    )
+    db.add(match_day)
+    await db.commit()
+    await db.refresh(match_day)
+
+    return {"success": True, "match_day": match_day.to_dict()}
+
+
+@app.post("/api/matchdays/{match_day_id}/setup")
+async def setup_match_day(
+    match_day_id: str,
+    data: MatchDaySetup,
+    request: Request,
+    db: AsyncSession = Depends(get_db)
+):
+    """Set up players and create matches for an imported shell MatchDay."""
+    admin_session = await get_admin_session(request, db)
+    if not admin_session:
+        raise HTTPException(status_code=401, detail="Admin authentication required")
+
+    result = await db.execute(select(MatchDay).where(MatchDay.id == match_day_id))
+    match_day = result.scalar_one_or_none()
+    if not match_day:
+        raise HTTPException(status_code=404, detail="Match day not found")
+
+    # Check no matches exist yet
+    existing_matches = await db.execute(
+        select(Match).where(Match.match_day_id == match_day_id)
+    )
+    if existing_matches.scalars().first():
+        raise HTTPException(status_code=400, detail="Match day already has matches")
+
+    # Update match day with player info
+    match_day.format = data.format
+    match_day.team_a_players = data.team_a_players
+    match_day.team_b_players = data.team_b_players
+    match_day.players = data.team_a_players + data.team_b_players
+
+    # Create singles matches
+    player_count = 6 if data.format == "6_person" else 4
+    team_a = data.team_a_players[:player_count]
+    team_b = data.team_b_players[:player_count]
+
+    matches = []
+    for i in range(player_count):
+        match = Match(
+            match_day_id=match_day.id,
+            match_number=i + 1,
+            match_type="singles",
+            team_a_name=match_day.team_a_name,
+            team_b_name=match_day.team_b_name,
+            player_a1=team_a[i] if i < len(team_a) else f"Player A{i+1}",
+            player_b1=team_b[i] if i < len(team_b) else f"Player B{i+1}",
+            score_state=create_initial_state(),
+            history=[]
+        )
+        db.add(match)
+        matches.append(match)
+
+    await db.commit()
+    await db.refresh(match_day)
+
+    return {
+        "success": True,
+        "match_day": match_day.to_dict(),
+        "matches": [m.to_dict() for m in matches]
+    }
+
+
+@app.post("/api/admin/sync-fixtures")
+async def sync_fixtures(
+    request: Request,
+    db: AsyncSession = Depends(get_db)
+):
+    """Re-scrape fixtures for a team and update imported MatchDays with date/venue changes."""
+    admin_session = await get_admin_session(request, db)
+    if not admin_session:
+        raise HTTPException(status_code=401, detail="Admin authentication required")
+
+    # Get wtb_club_id and wtb_team_id from query params
+    wtb_club_id = request.query_params.get("wtb_club_id")
+    wtb_team_id = request.query_params.get("wtb_team_id")
+
+    if not wtb_club_id or not wtb_team_id:
+        raise HTTPException(status_code=400, detail="wtb_club_id and wtb_team_id required")
+
+    # Scrape current fixtures
+    fixtures = await scrape_team_fixtures(wtb_club_id, wtb_team_id)
+
+    # Find imported MatchDays for this team
+    result = await db.execute(
+        select(MatchDay).where(
+            MatchDay.wtb_team_id == wtb_team_id,
+            MatchDay.wtb_club_id == wtb_club_id,
+        )
+    )
+    imported = {md.wtb_meeting_id: md for md in result.scalars().all()}
+
+    changes = []
+    for fixture in fixtures:
+        mid = fixture["meeting_id"]
+        if mid not in imported:
+            continue
+
+        md = imported[mid]
+        fixture_date = None
+        if fixture["scheduled_date"]:
+            try:
+                fixture_date = datetime.fromisoformat(fixture["scheduled_date"])
+            except ValueError:
+                pass
+
+        # Check for date changes
+        if fixture_date and md.scheduled_date and fixture_date != md.scheduled_date:
+            changes.append({
+                "meeting_id": mid,
+                "field": "scheduled_date",
+                "old": md.scheduled_date.isoformat(),
+                "new": fixture_date.isoformat(),
+                "name": md.name,
+            })
+            md.scheduled_date = fixture_date
+
+        # Check for venue changes
+        if fixture["venue"] and fixture["venue"] != (md.venue or ""):
+            changes.append({
+                "meeting_id": mid,
+                "field": "venue",
+                "old": md.venue or "",
+                "new": fixture["venue"],
+                "name": md.name,
+            })
+            md.venue = fixture["venue"]
+
+    if changes:
+        await db.commit()
+
+    return {"success": True, "changes": changes}
 
 
 # WebSocket endpoint for matchday-level real-time updates

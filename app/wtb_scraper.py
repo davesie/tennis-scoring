@@ -3,7 +3,8 @@
 import asyncio
 import logging
 import re
-from typing import Dict, List
+from datetime import datetime
+from typing import Dict, List, Optional
 
 import httpx
 from bs4 import BeautifulSoup
@@ -274,3 +275,194 @@ async def scrape_club_players(wtb_id: str, category: str = "Herren") -> List[Dic
             return []
 
     return players
+
+
+async def scrape_club_teams(wtb_id: str, category_filter: Optional[str] = "Herren") -> List[Dict]:
+    """
+    Scrape all teams for a club from the WTB Mannschaften page.
+
+    Args:
+        wtb_id: Club WTB ID (e.g., "20099")
+        category_filter: Filter by category prefix (e.g., "Herren"). None = all teams.
+
+    Returns:
+        List of team dicts: team_id, team_name, league, format, captain_name
+    """
+    url = f"{BASE_URL}/spielbetrieb/vereine/verein/mannschaften/v/{wtb_id}.html"
+    teams = []
+
+    async with httpx.AsyncClient(timeout=30.0, headers=HEADERS) as client:
+        try:
+            response = await client.get(url)
+            response.raise_for_status()
+            soup = BeautifulSoup(response.text, "lxml")
+
+            # Find the teams table — it has columns like Mannschaft, Liga, MF
+            table = soup.find("table")
+            if not table:
+                return teams
+
+            rows = table.find_all("tr")
+            for row in rows[1:]:  # Skip header
+                cells = row.find_all("td")
+                if len(cells) < 2:
+                    continue
+
+                try:
+                    # First cell: team name with link
+                    name_cell = cells[0]
+                    link = name_cell.find("a")
+                    if not link:
+                        continue
+
+                    team_name = link.get_text(strip=True)
+                    href = link.get("href", "")
+
+                    # Extract team_id from href like /m/3496556.html
+                    id_match = re.search(r"/m/(\d+)\.html", href)
+                    if not id_match:
+                        continue
+                    team_id = id_match.group(1)
+
+                    # Apply category filter
+                    if category_filter and not team_name.startswith(category_filter):
+                        continue
+
+                    # Second cell: league
+                    league = cells[1].get_text(strip=True) if len(cells) > 1 else ""
+
+                    # Captain name (MF column, usually last)
+                    captain_name = cells[-1].get_text(strip=True) if len(cells) > 2 else ""
+
+                    # Detect format from team name: "(4er)" or "(6er)"
+                    fmt = "6_person"  # default
+                    if "(4er)" in team_name:
+                        fmt = "4_person"
+                    elif "(6er)" in team_name:
+                        fmt = "6_person"
+
+                    teams.append({
+                        "team_id": team_id,
+                        "team_name": team_name,
+                        "league": league,
+                        "format": fmt,
+                        "captain_name": captain_name,
+                    })
+
+                except Exception as e:
+                    logger.warning(f"Error parsing team row for club {wtb_id}: {e}")
+                    continue
+
+        except httpx.HTTPError as e:
+            logger.warning(f"HTTP error scraping teams for club {wtb_id}: {e}")
+        except Exception as e:
+            logger.warning(f"Error scraping teams for club {wtb_id}: {e}")
+
+    return teams
+
+
+async def scrape_team_fixtures(wtb_id: str, team_id: str) -> List[Dict]:
+    """
+    Scrape the fixture schedule for a specific team.
+
+    Args:
+        wtb_id: Club WTB ID (e.g., "20099")
+        team_id: Team ID from URL (e.g., "3496556")
+
+    Returns:
+        List of fixture dicts with meeting_id, scheduled_date, home_team, away_team,
+        venue, score_matches, is_played
+    """
+    url = f"{BASE_URL}/spielbetrieb/vereine/verein/mannschaften/mannschaft/v/{wtb_id}/m/{team_id}.html"
+    fixtures = []
+
+    async with httpx.AsyncClient(timeout=30.0, headers=HEADERS) as client:
+        try:
+            response = await client.get(url)
+            response.raise_for_status()
+            soup = BeautifulSoup(response.text, "lxml")
+
+            # Find the schedule table — has "Datum" in header, not "Rang"
+            schedule_table = None
+            for table in soup.find_all("table"):
+                headers = [th.get_text(strip=True) for th in table.find_all("th")]
+                if "Datum" in headers and "Rang" not in headers:
+                    schedule_table = table
+                    break
+
+            if not schedule_table:
+                return fixtures
+
+            rows = schedule_table.find_all("tr")
+            for row in rows[1:]:  # Skip header
+                cells = row.find_all("td")
+                if len(cells) < 4:
+                    continue
+
+                try:
+                    # Parse date — strip weekday prefix like "Sa, "
+                    date_text = cells[0].get_text(strip=True)
+                    # Remove weekday prefix (e.g. "Sa, ", "So, ", "Fr, ")
+                    date_text = re.sub(r"^[A-Za-z]{2},?\s*", "", date_text)
+                    scheduled_date = None
+                    try:
+                        scheduled_date = datetime.strptime(date_text, "%d.%m.%Y %H:%M")
+                    except ValueError:
+                        try:
+                            scheduled_date = datetime.strptime(date_text, "%d.%m.%Y")
+                        except ValueError:
+                            pass
+
+                    home_team = cells[1].get_text(strip=True) if len(cells) > 1 else ""
+                    away_team = cells[2].get_text(strip=True) if len(cells) > 2 else ""
+
+                    # Venue — sometimes in a separate column
+                    venue = ""
+                    # Score/result
+                    score_matches = ""
+                    is_played = False
+
+                    # Check remaining cells for venue and score info
+                    for cell in cells[3:]:
+                        cell_text = cell.get_text(strip=True)
+                        # Check for score pattern like "5:4" or "3:6"
+                        if re.match(r"^\d+:\d+$", cell_text):
+                            score_matches = cell_text
+                            is_played = True
+                        elif cell_text and not cell_text.startswith("Spielbericht") and ":" not in cell_text:
+                            if not venue:
+                                venue = cell_text
+
+                    # Extract meeting_id from Spielbericht links
+                    meeting_id = None
+                    for a_tag in row.find_all("a", href=True):
+                        href = a_tag.get("href", "")
+                        m = re.search(r"meeting(?:Id|%5BId%5D)[=%5D]*(\d+)", href)
+                        if m:
+                            meeting_id = m.group(1)
+                            break
+
+                    # Only include fixtures that have a meeting_id (our unique key)
+                    if not meeting_id:
+                        continue
+
+                    fixtures.append({
+                        "meeting_id": meeting_id,
+                        "scheduled_date": scheduled_date.isoformat() if scheduled_date else None,
+                        "home_team": home_team,
+                        "away_team": away_team,
+                        "venue": venue,
+                        "score_matches": score_matches,
+                        "is_played": is_played,
+                    })
+
+                except Exception as e:
+                    logger.warning(f"Error parsing fixture row for team {team_id}: {e}")
+                    continue
+
+        except httpx.HTTPError as e:
+            logger.warning(f"HTTP error scraping fixtures for team {team_id}: {e}")
+        except Exception as e:
+            logger.warning(f"Error scraping fixtures for team {team_id}: {e}")
+
+    return fixtures

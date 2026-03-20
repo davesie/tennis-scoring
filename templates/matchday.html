@@ -31,6 +31,12 @@
                     <span class="score" id="team-b-wins">0</span>
                 </div>
             </div>
+            {% if match_day.venue or match_day.scheduled_date %}
+            <div class="matchday-meta-info">
+                {% if match_day.scheduled_date %}<span class="matchday-date">{{ match_day.scheduled_date[:10] }}</span>{% endif %}
+                {% if match_day.venue %}<span class="matchday-venue">{{ match_day.venue }}</span>{% endif %}
+            </div>
+            {% endif %}
             <div id="matchday-timer" class="matchday-timer"></div>
         </header>
 
