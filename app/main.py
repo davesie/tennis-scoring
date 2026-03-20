@@ -696,8 +696,11 @@ async def create_match_day(data: MatchDayCreate, request: Request, db: AsyncSess
     if not admin_session:
         raise HTTPException(status_code=401, detail="Admin authentication required")
 
+    # Auto-generate match day name from team names
+    name = f"{data.team_a_name} vs {data.team_b_name}"
+
     match_day = MatchDay(
-        name=data.name,
+        name=name,
         format=data.format,
         players=data.players,
         team_a_name=data.team_a_name,

@@ -49,11 +49,6 @@
             <h2>Create New Match Day</h2>
 
             <div class="form-group">
-                <label>Match Day Name</label>
-                <input type="text" id="matchday-name" placeholder="e.g., Sunday League Match" value="Match Day">
-            </div>
-
-            <div class="form-group">
                 <label>Format</label>
                 <div class="toggle-group">
                     <button type="button" class="toggle-btn active" data-format="6_person" onclick="selectFormat('6_person')">
@@ -447,24 +442,12 @@
             const teamBInput = document.getElementById('team-b-name');
             teamAInput.value = '';
             teamBInput.value = '';
-            document.getElementById('matchday-name').value = 'Match Day';
             if (teamAInput._acInstance) teamAInput._acInstance.selectedItem = null;
             if (teamBInput._acInstance) teamBInput._acInstance.selectedItem = null;
 
             const count = currentFormat === '6_person' ? 6 : 4;
             buildPlayerInputs('team-a-players', count);
             buildPlayerInputs('team-b-players', count);
-
-            function updateMatchDayName() {
-                const nameInput = document.getElementById('matchday-name');
-                const current = nameInput.value;
-                const isAutoOrDefault = current === 'Match Day' || current === '' || /^.+ vs .+$/.test(current);
-                if (!isAutoOrDefault) return;
-
-                const a = teamAInput.value.trim();
-                const b = teamBInput.value.trim();
-                if (a && b) nameInput.value = `${a} vs ${b}`;
-            }
 
             setupClubAutocomplete(teamAInput, (club) => {
                 if (club) {
@@ -475,7 +458,6 @@
                     teamASelectedPlayers = [];
                     buildPlayerInputs('team-a-players', currentFormat === '6_person' ? 6 : 4);
                 }
-                updateMatchDayName();
             });
 
             setupClubAutocomplete(teamBInput, (club) => {
@@ -487,7 +469,6 @@
                     teamBSelectedPlayers = [];
                     buildPlayerInputs('team-b-players', currentFormat === '6_person' ? 6 : 4);
                 }
-                updateMatchDayName();
             });
         }
 
@@ -527,7 +508,6 @@
             }
 
             const data = {
-                name: document.getElementById('matchday-name').value || 'Match Day',
                 format: currentFormat,
                 team_a_name: document.getElementById('team-a-name').value || 'Team A',
                 team_b_name: document.getElementById('team-b-name').value || 'Team B',

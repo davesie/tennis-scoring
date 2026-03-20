@@ -14,3 +14,6 @@ When both clubs are selected in the admin form, the match day name auto-fills as
 
 ## ~~Consistent design across all pages~~ ✓ Done
 Scoreboard is now theme-aware (light in light mode, dark in dark mode) with elevation shadows. Admin pages adopt Broadcast Court design system. Primary color unified to BC blue, backgrounds consistent across all pages.
+
+## ~~Remove the Match day field~~ ✓ Done
+Match day name is now auto-generated as "Team A vs Team B" from the selected team names. The manual name input field has been removed from the admin form.

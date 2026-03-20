@@ -28,7 +28,6 @@ class SetInitialServer(BaseModel):
 
 
 class MatchDayCreate(BaseModel):
-    name: str = "Match Day"
     format: str = "6_person"  # "6_person" or "4_person"
     players: List[str] = []
     team_a_name: str = "Team A"
