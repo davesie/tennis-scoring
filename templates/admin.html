@@ -765,11 +765,26 @@
                     return;
                 }
 
-                list.innerHTML = data.teams.map(team => `
-                    <div class="import-team-card" onclick="loadFixtures('${team.team_id}', '${escHtml(team.team_name)}')">
-                        <span class="import-team-name">${escHtml(team.team_name)}</span>
-                        <span class="import-team-league">${escHtml(team.league)}</span>
-                        <span class="import-team-format badge-${team.format}">${team.format === '4_person' ? '4er' : '6er'}</span>
+                // Group teams by level
+                const byLevel = {};
+                data.teams.forEach(team => {
+                    const lvl = team.level || 'Other';
+                    if (!byLevel[lvl]) byLevel[lvl] = [];
+                    byLevel[lvl].push(team);
+                });
+
+                list.innerHTML = Object.entries(byLevel).map(([level, teams]) => `
+                    <div class="import-level-group">
+                        <div class="import-level-label">${escHtml(level)}</div>
+                        <div class="import-level-teams">
+                        ${teams.map(team => `
+                            <div class="import-team-card" onclick="loadFixtures('${team.team_id}', '${escHtml(team.team_name)}')">
+                                <span class="import-team-name">${escHtml(team.team_name)}</span>
+                                <span class="import-team-league">${escHtml(team.league)}</span>
+                                <span class="import-team-format badge-${team.format}">${team.format === '4_person' ? '4er' : '6er'}</span>
+                            </div>
+                        `).join('')}
+                        </div>
                     </div>
                 `).join('');
             } catch (err) {

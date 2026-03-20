@@ -30,15 +30,27 @@ class TestScrapeClubTeams:
             assert team["team_id"].isdigit(), f"team_id should be numeric, got {team['team_id']}"
             assert team["format"] in ("4_person", "6_person"), f"Unexpected format: {team['format']}"
 
-    def test_all_teams(self, event_loop):
+    def test_all_teams_includes_damen(self, event_loop):
         all_teams = event_loop.run_until_complete(scrape_club_teams(WTB_ID, category_filter=None))
         herren_teams = event_loop.run_until_complete(scrape_club_teams(WTB_ID, category_filter="Herren"))
-        assert len(all_teams) >= len(herren_teams), "All teams should include Herren teams"
+        assert len(all_teams) > len(herren_teams), "All teams should include non-Herren teams (e.g. Damen)"
+
+        categories = set(t["team_name"].split()[0] for t in all_teams)
+        assert "Damen" in categories or "Herren" in categories
+
+    def test_multiple_levels(self, event_loop):
+        teams = event_loop.run_until_complete(scrape_club_teams(WTB_ID, category_filter=None))
+        levels = set(t["level"] for t in teams)
+        assert len(levels) >= 2, f"Expected teams from multiple levels (Verband + Bezirk), got: {levels}"
+        # TC Hirschlanden has teams at Verband and Bezirk A level
+        assert any("Verband" in l for l in levels), f"Expected Verband level, got: {levels}"
+        assert any("Bezirk" in l for l in levels), f"Expected Bezirk level, got: {levels}"
 
     def test_format_detection(self, event_loop):
         teams = event_loop.run_until_complete(scrape_club_teams(WTB_ID, category_filter=None))
         for team in teams:
             assert team["format"] in ("4_person", "6_person")
+            assert team["level"], "level must be set"
 
 
 class TestScrapeTeamFixtures:

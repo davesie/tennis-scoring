@@ -280,13 +280,15 @@ async def scrape_club_players(wtb_id: str, category: str = "Herren") -> List[Dic
 async def scrape_club_teams(wtb_id: str, category_filter: Optional[str] = "Herren") -> List[Dict]:
     """
     Scrape all teams for a club from the WTB Mannschaften page.
+    Teams are organized under level sections (e.g. "Verband", "Bezirk A/B/C/...").
+    This function iterates all sections to collect every team.
 
     Args:
         wtb_id: Club WTB ID (e.g., "20099")
         category_filter: Filter by category prefix (e.g., "Herren"). None = all teams.
 
     Returns:
-        List of team dicts: team_id, team_name, league, format, captain_name
+        List of team dicts: team_id, team_name, league, format, captain_name, level
     """
     url = f"{BASE_URL}/spielbetrieb/vereine/verein/mannschaften/v/{wtb_id}.html"
     teams = []
@@ -297,61 +299,68 @@ async def scrape_club_teams(wtb_id: str, category_filter: Optional[str] = "Herre
             response.raise_for_status()
             soup = BeautifulSoup(response.text, "lxml")
 
-            # Find the teams table — it has columns like Mannschaft, Liga, MF
-            table = soup.find("table")
-            if not table:
-                return teams
-
-            rows = table.find_all("tr")
-            for row in rows[1:]:  # Skip header
-                cells = row.find_all("td")
-                if len(cells) < 2:
+            # The page has H3 section headers like "Verband 2025/26 / Winter"
+            # or "Bezirk A 2025/26 / Winter", each followed by a table of teams.
+            # Iterate all H3 headers and find their associated tables.
+            for h3 in soup.find_all("h3"):
+                section_text = h3.get_text(strip=True)
+                # Only process sections that look like competition levels
+                # (contain "Verband", "Bezirk", "Sommer", "Winter", etc.)
+                if not any(kw in section_text for kw in ("Verband", "Bezirk", "Sommer", "Winter")):
                     continue
 
-                try:
-                    # First cell: team name with link
-                    name_cell = cells[0]
-                    link = name_cell.find("a")
-                    if not link:
-                        continue
+                # Extract the level name (e.g. "Verband", "Bezirk A")
+                level = section_text.split("/")[0].strip() if "/" in section_text else section_text
+                # Remove year info like "2025/26"
+                level = re.sub(r"\s*\d{4}(?:/\d{2,4})?\s*", " ", level).strip()
 
-                    team_name = link.get_text(strip=True)
-                    href = link.get("href", "")
-
-                    # Extract team_id from href like /m/3496556.html
-                    id_match = re.search(r"/m/(\d+)\.html", href)
-                    if not id_match:
-                        continue
-                    team_id = id_match.group(1)
-
-                    # Apply category filter
-                    if category_filter and not team_name.startswith(category_filter):
-                        continue
-
-                    # Second cell: league
-                    league = cells[1].get_text(strip=True) if len(cells) > 1 else ""
-
-                    # Captain name (MF column, usually last)
-                    captain_name = cells[-1].get_text(strip=True) if len(cells) > 2 else ""
-
-                    # Detect format from team name: "(4er)" or "(6er)"
-                    fmt = "6_person"  # default
-                    if "(4er)" in team_name:
-                        fmt = "4_person"
-                    elif "(6er)" in team_name:
-                        fmt = "6_person"
-
-                    teams.append({
-                        "team_id": team_id,
-                        "team_name": team_name,
-                        "league": league,
-                        "format": fmt,
-                        "captain_name": captain_name,
-                    })
-
-                except Exception as e:
-                    logger.warning(f"Error parsing team row for club {wtb_id}: {e}")
+                # Find the next table after this H3
+                table = h3.find_next("table")
+                if not table:
                     continue
+
+                for row in table.find_all("tr")[1:]:  # Skip header
+                    cells = row.find_all("td")
+                    if len(cells) < 2:
+                        continue
+
+                    try:
+                        name_cell = cells[0]
+                        link = name_cell.find("a")
+                        if not link:
+                            continue
+
+                        team_name = link.get_text(strip=True)
+                        href = link.get("href", "")
+
+                        id_match = re.search(r"/m/(\d+)\.html", href)
+                        if not id_match:
+                            continue
+                        team_id = id_match.group(1)
+
+                        # Apply category filter
+                        if category_filter and not team_name.startswith(category_filter):
+                            continue
+
+                        # Columns: Mannschaft, Mannschaftsführer, Gruppe, Tab.-Rang, Punkte
+                        captain_name = cells[1].get_text(strip=True) if len(cells) > 1 else ""
+                        league = cells[2].get_text(strip=True) if len(cells) > 2 else ""
+
+                        # Detect format: "(4er)" = 4 players, no suffix or "(6er)" = 6 players
+                        fmt = "4_person" if "(4er)" in team_name else "6_person"
+
+                        teams.append({
+                            "team_id": team_id,
+                            "team_name": team_name,
+                            "league": league,
+                            "format": fmt,
+                            "captain_name": captain_name,
+                            "level": level,
+                        })
+
+                    except Exception as e:
+                        logger.warning(f"Error parsing team row for club {wtb_id}: {e}")
+                        continue
 
         except httpx.HTTPError as e:
             logger.warning(f"HTTP error scraping teams for club {wtb_id}: {e}")

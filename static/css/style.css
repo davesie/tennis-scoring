@@ -2434,10 +2434,29 @@ a:focus {
 
 /* Import Fixtures */
 .import-teams-list {
+    margin-top: var(--space-4);
+}
+
+.import-level-group {
+    margin-bottom: var(--space-4);
+}
+
+.import-level-label {
+    font-family: var(--font-display);
+    font-weight: 700;
+    font-size: 0.85rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--text-secondary);
+    margin-bottom: var(--space-2);
+    padding-bottom: var(--space-1);
+    border-bottom: 1px solid var(--border-color);
+}
+
+.import-level-teams {
     display: flex;
     flex-wrap: wrap;
     gap: var(--space-3);
-    margin-top: var(--space-4);
 }
 
 .import-team-card {
