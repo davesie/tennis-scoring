@@ -2520,6 +2520,13 @@ a:focus {
     color: #48bb78;
 }
 
+.fixture-upcoming {
+    font-family: var(--font-score);
+    font-size: 0.8rem;
+    color: var(--bc-accent, #C6EF3E);
+    font-weight: 600;
+}
+
 .btn-sm {
     font-size: 0.8rem;
     padding: 4px 12px;

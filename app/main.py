@@ -27,7 +27,7 @@ from .auth import (
     get_scorer_token,
     verify_scorer_for_match,
 )
-from .wtb_scraper import scrape_all_clubs, scrape_all_clubs_with_progress, scrape_club_players, scrape_club_teams, scrape_team_fixtures
+from .wtb_scraper import scrape_all_clubs, scrape_all_clubs_with_progress, scrape_club_players, scrape_club_teams, scrape_team_fixtures, scrape_spielbericht
 
 logger = logging.getLogger(__name__)
 
@@ -1193,7 +1193,11 @@ async def import_fixture(
     request: Request,
     db: AsyncSession = Depends(get_db)
 ):
-    """Import a WTB fixture as a shell MatchDay (no players/matches yet)."""
+    """
+    Import a WTB fixture as a MatchDay.
+    - Played fixtures: scrapes Spielbericht for full match data (players, scores)
+    - Future fixtures: creates shell MatchDay (no players/matches yet)
+    """
     admin_session = await get_admin_session(request, db)
     if not admin_session:
         raise HTTPException(status_code=401, detail="Admin authentication required")
@@ -1227,10 +1231,108 @@ async def import_fixture(
         wtb_club_id=data.wtb_club_id,
     )
     db.add(match_day)
+    await db.flush()  # Get the match_day.id before creating matches
+
+    matches_created = []
+
+    # For played fixtures, scrape the Spielbericht for full match data
+    if data.is_played and data.spielbericht_url:
+        report = await scrape_spielbericht(data.spielbericht_url)
+        if report:
+            match_number = 1
+
+            def player_display(p):
+                return f"{p['name']} (LK {p['lk']})" if p.get("lk") else p["name"]
+
+            # Create singles matches with scores
+            for sm in report["singles"]:
+                home_p = sm["home_players"]
+                away_p = sm["away_players"]
+
+                # Build score state from set scores
+                state = create_initial_state()
+                games = [[0, 0], [0, 0], [0, 0]]
+                for i, s in enumerate(sm["sets"][:3]):
+                    games[i] = s
+                sets_a = sum(1 for s in sm["sets"] if s[0] > s[1])
+                sets_b = sum(1 for s in sm["sets"] if s[1] > s[0])
+                state["games"] = games
+                state["sets"] = [sets_a, sets_b]
+                state["current_set"] = len(sm["sets"]) - 1
+                state["winner"] = sm["winner"]
+                state["points"] = [0, 0]
+
+                match = Match(
+                    match_day_id=match_day.id,
+                    match_number=match_number,
+                    match_type="singles",
+                    team_a_name=data.home_team,
+                    team_b_name=data.away_team,
+                    player_a1=player_display(home_p[0]) if home_p else None,
+                    player_b1=player_display(away_p[0]) if away_p else None,
+                    score_state=state,
+                    history=[],
+                    finished_at=datetime.utcnow() if sm["winner"] is not None else None,
+                )
+                db.add(match)
+                matches_created.append(match)
+                match_number += 1
+
+            # Create doubles matches with scores
+            for dm in report["doubles"]:
+                home_p = dm["home_players"]
+                away_p = dm["away_players"]
+
+                state = create_initial_state()
+                games = [[0, 0], [0, 0], [0, 0]]
+                for i, s in enumerate(dm["sets"][:3]):
+                    games[i] = s
+                sets_a = sum(1 for s in dm["sets"] if s[0] > s[1])
+                sets_b = sum(1 for s in dm["sets"] if s[1] > s[0])
+                state["games"] = games
+                state["sets"] = [sets_a, sets_b]
+                state["current_set"] = len(dm["sets"]) - 1
+                state["winner"] = dm["winner"]
+                state["points"] = [0, 0]
+
+                match = Match(
+                    match_day_id=match_day.id,
+                    match_number=match_number,
+                    match_type="doubles",
+                    team_a_name=data.home_team,
+                    team_b_name=data.away_team,
+                    player_a1=player_display(home_p[0]) if len(home_p) > 0 else None,
+                    player_a2=player_display(home_p[1]) if len(home_p) > 1 else None,
+                    player_b1=player_display(away_p[0]) if len(away_p) > 0 else None,
+                    player_b2=player_display(away_p[1]) if len(away_p) > 1 else None,
+                    score_state=state,
+                    history=[],
+                    finished_at=datetime.utcnow() if dm["winner"] is not None else None,
+                )
+                db.add(match)
+                matches_created.append(match)
+                match_number += 1
+
+            # Store player lists on the match day
+            all_home = []
+            all_away = []
+            for sm in report["singles"]:
+                for p in sm["home_players"]:
+                    all_home.append(player_display(p))
+                for p in sm["away_players"]:
+                    all_away.append(player_display(p))
+            match_day.team_a_players = all_home
+            match_day.team_b_players = all_away
+            match_day.players = all_home + all_away
+
     await db.commit()
     await db.refresh(match_day)
 
-    return {"success": True, "match_day": match_day.to_dict()}
+    return {
+        "success": True,
+        "match_day": match_day.to_dict(),
+        "matches_imported": len(matches_created),
+    }
 
 
 @app.post("/api/matchdays/{match_day_id}/setup")

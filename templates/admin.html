@@ -820,11 +820,11 @@
                             <td>${escHtml(f.home_team)}</td>
                             <td>${escHtml(f.away_team)}</td>
                             <td>${escHtml(f.venue || '')}</td>
-                            <td>${f.is_played ? escHtml(f.score_matches) : '—'}</td>
+                            <td>${f.is_played ? escHtml(f.score_matches) : '<span class="fixture-upcoming">Upcoming</span>'}</td>
                             <td>
                                 ${f.imported
                                     ? '<span class="fixture-imported-badge">Imported</span>'
-                                    : `<button class="btn btn-primary btn-sm" onclick="importFixture(this, '${f.meeting_id}', '${f.scheduled_date || ''}', '${escHtml(f.home_team)}', '${escHtml(f.away_team)}', '${escHtml(f.venue || '')}')">Import</button>`
+                                    : `<button class="btn btn-primary btn-sm" onclick="importFixture(this, '${f.meeting_id}', '${f.scheduled_date || ''}', '${escHtml(f.home_team)}', '${escHtml(f.away_team)}', '${escHtml(f.venue || '')}', ${f.is_played}, '${escHtml(f.spielbericht_url || '')}')">${f.is_played ? 'Import with scores' : 'Import'}</button>`
                                 }
                             </td>
                         </tr>
@@ -836,9 +836,9 @@
             }
         }
 
-        async function importFixture(btn, meetingId, scheduledDate, homeTeam, awayTeam, venue) {
+        async function importFixture(btn, meetingId, scheduledDate, homeTeam, awayTeam, venue, isPlayed, spielberichtUrl) {
             btn.disabled = true;
-            btn.textContent = 'Importing...';
+            btn.textContent = isPlayed ? 'Importing scores...' : 'Importing...';
 
             try {
                 const res = await fetch('/api/admin/import-fixture', {
@@ -853,6 +853,8 @@
                         format: '6_person',
                         wtb_team_id: importTeamId,
                         wtb_club_id: importClubWtbId,
+                        is_played: isPlayed,
+                        spielbericht_url: spielberichtUrl || null,
                     })
                 });
 
@@ -863,14 +865,17 @@
                 }
 
                 if (res.ok) {
-                    btn.outerHTML = '<span class="fixture-imported-badge">Imported</span>';
+                    const result = await res.json();
+                    const count = result.matches_imported || 0;
+                    const label = count > 0 ? `Imported (${count} matches)` : 'Imported';
+                    btn.outerHTML = `<span class="fixture-imported-badge">${label}</span>`;
                     // Show sync button
                     document.getElementById('sync-fixtures-btn').style.display = 'inline-block';
                 } else {
                     const data = await res.json();
                     alert(data.detail || 'Import failed');
                     btn.disabled = false;
-                    btn.textContent = 'Import';
+                    btn.textContent = isPlayed ? 'Import with scores' : 'Import';
                 }
             } catch (err) {
                 alert('Import failed: ' + err.message);

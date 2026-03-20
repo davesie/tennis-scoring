@@ -69,6 +69,8 @@ class FixtureImport(BaseModel):
     format: str = "6_person"
     wtb_team_id: str
     wtb_club_id: str
+    is_played: bool = False  # If true, scrape Spielbericht for full match data
+    spielbericht_url: Optional[str] = None  # Full URL to Spielbericht page
 
 
 class MatchDaySetup(BaseModel):
