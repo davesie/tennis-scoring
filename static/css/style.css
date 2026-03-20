@@ -2338,6 +2338,7 @@ a:focus {
    ======================================== */
 
 .doubles-setup-panel {
+    grid-column: 1 / -1;
     border-top: 1px solid var(--border-color);
     padding: var(--space-4);
     background: var(--bg-secondary);
@@ -2556,6 +2557,10 @@ a:focus {
 
 .player-setup-panel {
     grid-column: 1 / -1;
+    border-top: 1px solid var(--border-color);
+    padding: var(--space-4);
+    background: var(--bg-secondary);
+    border-radius: 0 0 var(--radius-lg) var(--radius-lg);
 }
 
 /* Matchday meta info */

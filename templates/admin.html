@@ -145,7 +145,7 @@
                     </div>
                     <div class="link-group">
                         {% if md.total_matches == 0 and md.wtb_meeting_id %}
-                        <button class="link-btn btn-setup-players" onclick="openPlayerSetup('{{ md.id }}', '{{ md.format }}', '{{ md.team_a_name }}', '{{ md.team_b_name }}')">Set up Players</button>
+                        <button class="link-btn btn-setup-players" onclick="openPlayerSetup('{{ md.id }}', '{{ md.format }}', '{{ md.team_a_name | replace("'", "\\'") }}', '{{ md.team_b_name | replace("'", "\\'") }}')">Set up Players</button>
                         {% else %}
                         <a href="/matchday/{{ md.id }}" class="link-btn">Open</a>
                         {% endif %}
@@ -867,6 +867,11 @@
                 if (res.ok) {
                     const result = await res.json();
                     const count = result.matches_imported || 0;
+                    if (!isPlayed) {
+                        // Shell import — reload page so the new match day appears with "Set up Players"
+                        window.location.reload();
+                        return;
+                    }
                     const label = count > 0 ? `Imported (${count} matches)` : 'Imported';
                     btn.outerHTML = `<span class="fixture-imported-badge">${label}</span>`;
                     // Show sync button
