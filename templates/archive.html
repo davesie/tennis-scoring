@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Match Day Archive - Tennis Scoring</title>
     <link rel="stylesheet" href="/static/css/style.css">
+    <script src="/static/js/common.js"></script>
 </head>
 <body class="matchday-page">
     <button class="theme-toggle" id="theme-toggle" aria-label="Toggle theme"></button>
@@ -60,28 +61,14 @@
         {% endif %}
     </div>
     <script>
-        function copyArchiveLink(btn, url) {
-            navigator.clipboard.writeText(url).then(() => {
-                const orig = btn.textContent;
-                btn.textContent = 'Copied!';
-                btn.classList.add('copied');
-                setTimeout(() => { btn.textContent = orig; btn.classList.remove('copied'); }, 2000);
-            });
+        async function copyArchiveLink(btn, url) {
+            const ok = await copyToClipboard(url);
+            if (!ok) { showToast('Could not copy link', 'error'); return; }
+            const orig = btn.textContent;
+            btn.textContent = 'Copied!';
+            btn.classList.add('copied');
+            setTimeout(() => { btn.textContent = orig; btn.classList.remove('copied'); }, 2000);
         }
-
-        (function() {
-            const toggle = document.getElementById('theme-toggle');
-            const html = document.documentElement;
-            const theme = localStorage.getItem('theme') || 'light';
-            html.dataset.theme = theme;
-            toggle.textContent = theme === 'dark' ? '\u2600' : '\u263E';
-            toggle.addEventListener('click', () => {
-                const next = html.dataset.theme === 'dark' ? 'light' : 'dark';
-                html.dataset.theme = next;
-                localStorage.setItem('theme', next);
-                toggle.textContent = next === 'dark' ? '\u2600' : '\u263E';
-            });
-        })();
     </script>
 <div class="version-label">v{{ app_version }}</div>
 </body>

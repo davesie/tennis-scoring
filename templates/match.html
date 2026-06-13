@@ -8,6 +8,7 @@
     <meta name="theme-color" content="#1a1a2e">
     <title>{{ match.player_a1 or match.team_a_name }} vs {{ match.player_b1 or match.team_b_name }} - Tennis Scoring</title>
     <link rel="stylesheet" href="/static/css/style.css">
+    <script src="/static/js/common.js"></script>
 </head>
 <body class="match-page">
     <button class="theme-toggle" id="theme-toggle" aria-label="Toggle theme"></button>
@@ -185,7 +186,7 @@
             <div class="share-content" id="share-content">
                 <div class="share-link">
                     <input type="text" id="share-url" readonly>
-                    <button class="btn btn-secondary" onclick="copyShareLink()">Copy Link</button>
+                    <button class="btn btn-secondary" onclick="copyShareLink(event)">Copy Link</button>
                 </div>
                 <p class="share-code">Share Code: <strong>{{ match.share_code }}</strong></p>
             </div>
@@ -213,31 +214,9 @@
         let reconnectAttempts = 0;
         const maxReconnectAttempts = 10;
         let timerInterval = null;
+        window.SCORER_TOKEN = "{{ scorer_token or '' }}";
 
-        function parseLK(fullName) {
-            if (!fullName) return { name: fullName || '', lk: null };
-            const m = fullName.match(/^(.*?)\s*\(LK\s+([^)]+)\)$/);
-            if (m) return { name: m[1].trim(), lk: m[2] };
-            return { name: fullName, lk: null };
-        }
-
-        function stripLK(fullName) {
-            return parseLK(fullName).name;
-        }
-
-        function formatPlayerNameHTML(fullName) {
-            const p = parseLK(fullName);
-            if (p.lk) return `<span class="player-name-text">${p.name}</span><span class="player-lk">LK ${p.lk}</span>`;
-            return p.name;
-        }
-
-        function formatElapsed(totalSeconds) {
-            const h = Math.floor(totalSeconds / 3600);
-            const m = Math.floor((totalSeconds % 3600) / 60);
-            const s = totalSeconds % 60;
-            if (h > 0) return `${h}h ${String(m).padStart(2,'0')}m`;
-            return `${m}m ${String(s).padStart(2,'0')}s`;
-        }
+        // parseLK / stripLK / formatPlayerNameHTML / formatElapsed live in common.js
 
         function updateMatchTimer() {
             const el = document.getElementById('match-timer');
@@ -255,9 +234,8 @@
                 return;
             }
 
-            const raw = matchData.started_at;
-            const utcStr = raw.endsWith('Z') || raw.includes('+') ? raw : raw + 'Z';
-            const startMs = new Date(utcStr).getTime();
+            const startMs = parseUtc(matchData.started_at);
+            if (!startMs) { el.textContent = ''; return; }
             const elapsed = Math.max(0, Math.floor((Date.now() - startMs) / 1000));
             el.textContent = formatElapsed(elapsed);
         }
@@ -270,21 +248,7 @@
             }
         }
 
-        // Scorer token for API authorization
-        // Priority: 1. sessionStorage (set by matchday page), 2. template variable (for admins)
-        function getScorerToken() {
-            return sessionStorage.getItem('scorer_token') || '{{ scorer_token or "" }}';
-        }
-
-        // Helper to add auth headers to fetch calls
-        function getAuthHeaders() {
-            const headers = { 'Content-Type': 'application/json' };
-            const token = getScorerToken();
-            if (token) {
-                headers['X-Scorer-Token'] = token;
-            }
-            return headers;
-        }
+        // getScorerToken / getAuthHeaders live in common.js (read window.SCORER_TOKEN)
 
         function formatPlayerNames() {
             ['player-a-name', 'player-b-name'].forEach(id => {
@@ -345,16 +309,17 @@
             icon.textContent = section.classList.contains('collapsed') ? '+' : '−';
         }
 
-        function copyShareLink() {
-            const shareUrl = document.getElementById('share-url');
-            shareUrl.select();
-            document.execCommand('copy');
-
-            // Visual feedback
-            const btn = event.target;
-            const originalText = btn.textContent;
-            btn.textContent = '✓ Copied!';
-            setTimeout(() => btn.textContent = originalText, 2000);
+        async function copyShareLink(event) {
+            const shareUrl = document.getElementById('share-url').value;
+            const ok = await copyToClipboard(shareUrl);
+            const btn = event && event.currentTarget;
+            if (btn) {
+                const originalText = btn.textContent;
+                btn.textContent = ok ? '✓ Copied!' : 'Copy failed';
+                setTimeout(() => btn.textContent = originalText, 2000);
+            } else {
+                showToast(ok ? 'Link copied' : 'Could not copy link', ok ? 'success' : 'error');
+            }
         }
 
         function connectWebSocket() {
@@ -432,66 +397,19 @@
         }
 
         function updateScoreboard(state) {
-            // Update sets
-            const tbScores = state.tiebreak_scores || [[0,0],[0,0],[0,0]];
-            const stb = state.super_tiebreak_score || [0,0];
-
+            // Update sets (score_cells / point_display computed server-side — single
+            // source of truth shared with the match day view and the server)
+            const cells = matchData.score_cells || [];
             for (let i = 0; i < 3; i++) {
-                const cellA = document.getElementById(`set${i + 1}-a`);
-                const cellB = document.getElementById(`set${i + 1}-b`);
-
-                if (i === 2 && (stb[0] > 0 || stb[1] > 0)) {
-                    // Super tiebreak finished: show final super tiebreak scores
-                    cellA.innerHTML = stb[0];
-                    cellB.innerHTML = stb[1];
-                } else {
-                    const gA = state.games[i][0];
-                    const gB = state.games[i][1];
-                    const tbA = tbScores[i][0];
-                    const tbB = tbScores[i][1];
-                    const hasTb = tbA > 0 || tbB > 0;
-
-                    if (hasTb) {
-                        // Loser of tiebreak gets superscript with their tiebreak score
-                        const loserIsA = tbA < tbB;
-                        cellA.innerHTML = loserIsA ? `${gA}<sup>${tbA}</sup>` : String(gA);
-                        cellB.innerHTML = loserIsA ? String(gB) : `${gB}<sup>${tbB}</sup>`;
-                    } else {
-                        cellA.innerHTML = gA;
-                        cellB.innerHTML = gB;
-                    }
-                }
+                const cell = cells[i] || { a: state.games[i][0], b: state.games[i][1], a_sup: null, b_sup: null };
+                document.getElementById(`set${i + 1}-a`).innerHTML = `${cell.a}${cell.a_sup ? `<sup>${cell.a_sup}</sup>` : ''}`;
+                document.getElementById(`set${i + 1}-b`).innerHTML = `${cell.b}${cell.b_sup ? `<sup>${cell.b_sup}</sup>` : ''}`;
             }
 
             // Update points
-            let pointsA, pointsB;
-            if (state.is_tiebreak || state.is_super_tiebreak) {
-                pointsA = state.tiebreak_points[0];
-                pointsB = state.tiebreak_points[1];
-            } else {
-                const pointNames = ['0', '15', '30', '40'];
-                const p1 = state.points[0];
-                const p2 = state.points[1];
-
-                if (p1 >= 3 && p2 >= 3) {
-                    if (state.deuce_advantage === 0) {
-                        pointsA = 'AD';
-                        pointsB = '-';
-                    } else if (state.deuce_advantage === 1) {
-                        pointsA = '-';
-                        pointsB = 'AD';
-                    } else {
-                        pointsA = '40';
-                        pointsB = '40';
-                    }
-                } else {
-                    pointsA = pointNames[Math.min(p1, 3)];
-                    pointsB = pointNames[Math.min(p2, 3)];
-                }
-            }
-
-            document.getElementById('points-a').textContent = pointsA;
-            document.getElementById('points-b').textContent = pointsB;
+            const pd = matchData.point_display || { a: '0', b: '0' };
+            document.getElementById('points-a').textContent = pd.a;
+            document.getElementById('points-b').textContent = pd.b;
 
             // Update serve indicator
             document.getElementById('serve-a').classList.toggle('active', state.serving === 0);
@@ -617,18 +535,14 @@
                 }
             } catch (error) {
                 console.error('Error setting server:', error);
-                alert(error.message || 'Failed to set server. Please try again.');
+                showToast(error.message || 'Failed to set server. Please try again.', 'error');
             }
         }
 
         async function scorePoint(team) {
             const btn = team === 0 ? document.getElementById('score-a') : document.getElementById('score-b');
             btn.classList.add('scoring');
-
-            // Haptic feedback - light tap
-            if ('vibrate' in navigator) {
-                navigator.vibrate(30);
-            }
+            vibrate(30);  // light tap
 
             try {
                 const response = await fetch(`/api/matches/${matchId}/score`, {
@@ -643,11 +557,8 @@
                 }
             } catch (error) {
                 console.error('Error scoring point:', error);
-                alert(error.message || 'Failed to score point. Please try again.');
-                // Error haptic - three short bursts
-                if ('vibrate' in navigator) {
-                    navigator.vibrate([50, 50, 50]);
-                }
+                showToast(error.message || 'Failed to score point. Please try again.', 'error');
+                vibrate([50, 50, 50]);  // error
             } finally {
                 btn.classList.remove('scoring');
             }
@@ -656,11 +567,7 @@
         async function scoreGame(team) {
             const btn = team === 0 ? document.getElementById('game-a') : document.getElementById('game-b');
             btn.classList.add('scoring');
-
-            // Haptic feedback - stronger for full game
-            if ('vibrate' in navigator) {
-                navigator.vibrate([50, 30, 50]);
-            }
+            vibrate([50, 30, 50]);  // stronger for full game
 
             try {
                 const response = await fetch(`/api/matches/${matchId}/game`, {
@@ -671,17 +578,13 @@
 
                 if (!response.ok) {
                     const data = await response.json().catch(() => ({}));
-                    alert(data.detail || 'Failed to score game');
-                    if ('vibrate' in navigator) {
-                        navigator.vibrate([50, 50, 50]);
-                    }
+                    showToast(data.detail || 'Failed to score game', 'error');
+                    vibrate([50, 50, 50]);
                 }
             } catch (error) {
                 console.error('Error scoring game:', error);
-                alert(error.message || 'Failed to score game. Please try again.');
-                if ('vibrate' in navigator) {
-                    navigator.vibrate([50, 50, 50]);
-                }
+                showToast(error.message || 'Failed to score game. Please try again.', 'error');
+                vibrate([50, 50, 50]);
             } finally {
                 btn.classList.remove('scoring');
             }
@@ -689,11 +592,7 @@
 
         async function undoPoint() {
             if (!confirm('Undo the last action?')) return;
-
-            // Haptic feedback - double pulse for undo
-            if ('vibrate' in navigator) {
-                navigator.vibrate([40, 30, 40]);
-            }
+            vibrate([40, 30, 40]);  // double pulse for undo
 
             try {
                 const response = await fetch(`/api/matches/${matchId}/undo`, {
@@ -703,27 +602,19 @@
 
                 if (!response.ok) {
                     const data = await response.json().catch(() => ({}));
-                    alert(data.detail || 'Failed to undo');
-                    if ('vibrate' in navigator) {
-                        navigator.vibrate([50, 50, 50]);
-                    }
+                    showToast(data.detail || 'Failed to undo', 'error');
+                    vibrate([50, 50, 50]);
                 }
             } catch (error) {
                 console.error('Error undoing:', error);
-                alert(error.message || 'Failed to undo. Please try again.');
-                if ('vibrate' in navigator) {
-                    navigator.vibrate([50, 50, 50]);
-                }
+                showToast(error.message || 'Failed to undo. Please try again.', 'error');
+                vibrate([50, 50, 50]);
             }
         }
 
         async function resetMatch() {
             if (!confirm('Are you sure you want to reset the entire match? This cannot be undone.')) return;
-
-            // Haptic feedback - strong warning pattern
-            if ('vibrate' in navigator) {
-                navigator.vibrate([100, 50, 100, 50, 100]);
-            }
+            vibrate([100, 50, 100, 50, 100]);  // strong warning pattern
 
             try {
                 const response = await fetch(`/api/matches/${matchId}/reset`, {
@@ -737,27 +628,10 @@
                 }
             } catch (error) {
                 console.error('Error resetting:', error);
-                alert(error.message || 'Failed to reset match. Please try again.');
-                if ('vibrate' in navigator) {
-                    navigator.vibrate([50, 50, 50]);
-                }
+                showToast(error.message || 'Failed to reset match. Please try again.', 'error');
+                vibrate([50, 50, 50]);
             }
         }
-    </script>
-    <script>
-        (function() {
-            const toggle = document.getElementById('theme-toggle');
-            const html = document.documentElement;
-            const theme = localStorage.getItem('theme') || 'light';
-            html.dataset.theme = theme;
-            toggle.textContent = theme === 'dark' ? '\u2600' : '\u263E';
-            toggle.addEventListener('click', () => {
-                const next = html.dataset.theme === 'dark' ? 'light' : 'dark';
-                html.dataset.theme = next;
-                localStorage.setItem('theme', next);
-                toggle.textContent = next === 'dark' ? '\u2600' : '\u263E';
-            });
-        })();
     </script>
 <div class="version-label">v{{ app_version }}</div>
 </body>

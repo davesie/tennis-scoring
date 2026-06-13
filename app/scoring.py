@@ -38,21 +38,67 @@ def create_initial_state() -> Dict[str, Any]:
 
 def get_point_display(state: Dict[str, Any]) -> tuple[str, str]:
     """Get display strings for current points."""
-    if state["is_tiebreak"] or state["is_super_tiebreak"]:
-        return str(state["tiebreak_points"][0]), str(state["tiebreak_points"][1])
+    if state.get("is_tiebreak") or state.get("is_super_tiebreak"):
+        tp = state.get("tiebreak_points", [0, 0])
+        return str(tp[0]), str(tp[1])
 
-    p1, p2 = state["points"]
+    p1, p2 = state.get("points", [0, 0])
 
     # Deuce situations
     if p1 >= 3 and p2 >= 3:
-        if state["deuce_advantage"] == 0:
+        if state.get("deuce_advantage") == 0:
             return "AD", "-"
-        elif state["deuce_advantage"] == 1:
+        elif state.get("deuce_advantage") == 1:
             return "-", "AD"
         else:
             return "40", "40"
 
     return POINT_NAMES[min(p1, 3)], POINT_NAMES[min(p2, 3)]
+
+
+def format_set_cells(state: Dict[str, Any]) -> list:
+    """Single source of truth for how each set column is displayed.
+
+    Returns three cells (one per set), each:
+        {"a", "b": games as strings,
+         "a_sup", "b_sup": tiebreak score of the set's loser (or None),
+         "show": whether this set is far enough along to display}
+
+    The super tiebreak (3rd set) shows its point total in place of games.
+    Used by every view so the games/tiebreak rendering lives in one place.
+    """
+    games = state.get("games", [[0, 0], [0, 0], [0, 0]])
+    tb = state.get("tiebreak_scores", [[0, 0], [0, 0], [0, 0]])
+    stb = state.get("super_tiebreak_score", [0, 0])
+    sets = state.get("sets", [0, 0])
+    current_set = state.get("current_set", 0)
+    winner = state.get("winner")
+
+    def show(i: int) -> bool:
+        if i == 0:
+            return True
+        if i == 1:
+            return current_set >= 1 or winner is not None
+        return current_set >= 2 or (winner is not None and sets[0] == 1 and sets[1] == 1)
+
+    cells = []
+    for i in range(3):
+        if i == 2 and (stb[0] or stb[1]):
+            cells.append({
+                "a": str(stb[0]), "b": str(stb[1]),
+                "a_sup": None, "b_sup": None, "show": show(i),
+            })
+            continue
+        ga, gb = games[i][0], games[i][1]
+        ta, tbb = tb[i][0], tb[i][1]
+        has_tb = bool(ta or tbb)
+        cells.append({
+            "a": str(ga), "b": str(gb),
+            "a_sup": str(ta) if has_tb and ta < tbb else None,
+            "b_sup": str(tbb) if has_tb and tbb < ta else None,
+            "show": show(i),
+        })
+    return cells
 
 
 def score_point(state: Dict[str, Any], team: int, super_tiebreak_final: bool = True) -> Dict[str, Any]:
@@ -233,6 +279,7 @@ def get_score_summary(state: Dict[str, Any]) -> Dict[str, Any]:
         "is_super_tiebreak": state["is_super_tiebreak"],
         "tiebreak_scores": state.get("tiebreak_scores", [[0, 0], [0, 0], [0, 0]]),
         "super_tiebreak_score": state.get("super_tiebreak_score", [0, 0]),
+        "set_cells": format_set_cells(state),
         "current_set": state["current_set"],
         "winner": state["winner"],
     }

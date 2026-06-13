@@ -4,7 +4,7 @@ from datetime import datetime, timedelta
 import uuid
 
 from .database import Base
-from .scoring import create_initial_state
+from .scoring import create_initial_state, format_set_cells, get_point_display
 
 
 def generate_uuid():
@@ -137,6 +137,8 @@ class Match(Base):
             "player_a2": self.player_a2,
             "player_b2": self.player_b2,
             "score_state": self.score_state,
+            "score_cells": format_set_cells(self.score_state or {}),
+            "point_display": dict(zip(("a", "b"), get_point_display(self.score_state or {}))),
             "best_of": self.best_of,
             "super_tiebreak_final_set": self.super_tiebreak_final_set,
             "created_at": self.created_at.isoformat() if self.created_at else None,
