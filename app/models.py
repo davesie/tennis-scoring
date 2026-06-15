@@ -50,6 +50,10 @@ class MatchDay(Base):
     team_a_players = Column(JSON, default=list)  # Player names on Team A
     team_b_players = Column(JSON, default=list)  # Player names on Team B
 
+    # Club references (for loading full roster in doubles pairing)
+    club_a_id = Column(String, ForeignKey("clubs.id"), nullable=True)
+    club_b_id = Column(String, ForeignKey("clubs.id"), nullable=True)
+
     created_at = Column(DateTime, default=datetime.utcnow)
 
     def to_dict(self):
@@ -64,6 +68,8 @@ class MatchDay(Base):
             "team_b_name": self.team_b_name,
             "team_a_players": self.team_a_players,
             "team_b_players": self.team_b_players,
+            "club_a_id": self.club_a_id,
+            "club_b_id": self.club_b_id,
             "created_at": self.created_at.isoformat() if self.created_at else None,
         }
 

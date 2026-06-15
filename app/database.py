@@ -36,3 +36,11 @@ async def init_db():
             await conn.execute(text("ALTER TABLE players ADD COLUMN lk TEXT"))
         except Exception:
             pass  # Column already exists
+        try:
+            await conn.execute(text("ALTER TABLE match_days ADD COLUMN club_a_id TEXT REFERENCES clubs(id)"))
+        except Exception:
+            pass
+        try:
+            await conn.execute(text("ALTER TABLE match_days ADD COLUMN club_b_id TEXT REFERENCES clubs(id)"))
+        except Exception:
+            pass

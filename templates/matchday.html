@@ -247,9 +247,40 @@
         }
 
         const singlesPlayers = getPlayersFromSingles();
-        const teamAPlayers = singlesPlayers.teamA.length > 0 ? singlesPlayers.teamA : (matchDay.team_a_players || []);
-        const teamBPlayers = singlesPlayers.teamB.length > 0 ? singlesPlayers.teamB : (matchDay.team_b_players || []);
+        let teamAPlayers = singlesPlayers.teamA.length > 0 ? singlesPlayers.teamA : (matchDay.team_a_players || []);
+        let teamBPlayers = singlesPlayers.teamB.length > 0 ? singlesPlayers.teamB : (matchDay.team_b_players || []);
+        let clubRosterA = [];
+        let clubRosterB = [];
         let editMode = false;
+
+        async function loadClubRoster(clubId) {
+            if (!clubId) return [];
+            try {
+                const res = await fetch(`/api/clubs/${clubId}/players`);
+                if (!res.ok) return [];
+                const players = await res.json();
+                return players.map(p => p.lk ? `${p.name} (LK ${p.lk})` : p.name);
+            } catch { return []; }
+        }
+
+        async function loadClubRosters() {
+            const [rosterA, rosterB] = await Promise.all([
+                loadClubRoster(matchDay.club_a_id),
+                loadClubRoster(matchDay.club_b_id)
+            ]);
+            clubRosterA = rosterA;
+            clubRosterB = rosterB;
+            if (rosterA.length) {
+                const merged = [...teamAPlayers];
+                rosterA.forEach(p => { if (!merged.includes(p)) merged.push(p); });
+                teamAPlayers = merged;
+            }
+            if (rosterB.length) {
+                const merged = [...teamBPlayers];
+                rosterB.forEach(p => { if (!merged.includes(p)) merged.push(p); });
+                teamBPlayers = merged;
+            }
+        }
 
         function updateTeamWins() {
             let teamAWins = 0;
@@ -518,8 +549,8 @@
         }
 
         // Initialize doubles pairing section
-        function initDoublesPairing() {
-            if (!isScorer) return; // Spectators don't see pairing controls
+        async function initDoublesPairing() {
+            if (!isScorer) return;
 
             if (!allSinglesFinished()) return;
 
@@ -527,16 +558,18 @@
             if (!section) return;
             section.style.display = 'block';
 
+            if (matchDay.club_a_id || matchDay.club_b_id) {
+                await loadClubRosters();
+            }
+
             const hasDoubles = getDoublesMatches().length > 0;
             if (hasDoubles) {
-                // Edit existing doubles pairings
                 document.querySelector('.pairing-header h3').textContent = 'Edit Doubles Pairings';
                 document.getElementById('edit-mode-btn').style.display = '';
                 document.getElementById('save-pairings-btn').textContent = 'Save Pairings';
                 document.getElementById('save-pairings-btn').onclick = savePairings;
                 renderPairingForm();
             } else {
-                // Create doubles — no matches exist yet
                 document.querySelector('.pairing-header h3').textContent = 'Set up Doubles Pairings';
                 document.getElementById('edit-mode-btn').style.display = 'none';
                 document.getElementById('save-pairings-btn').textContent = 'Create Doubles';
