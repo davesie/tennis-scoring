@@ -132,6 +132,11 @@
                 </div>
             </div>
 
+            <div class="matchday-name-preview" id="matchday-name-preview">
+                <span class="name-preview-label">Match Day Name:</span>
+                <span class="name-preview-value" id="name-preview-value">—</span>
+            </div>
+
             <div class="header-actions">
                 <button class="btn btn-primary" onclick="createMatchDay()">Create Match Day</button>
                 <button class="btn btn-secondary" onclick="toggleCreateSection()">Cancel</button>
@@ -521,7 +526,12 @@
             buildPlayerInputs('team-a-players', count);
             buildPlayerInputs('team-b-players', count);
 
+            updateNamePreview();
+            teamAInput.oninput = updateNamePreview;
+            teamBInput.oninput = updateNamePreview;
+
             setupClubAutocomplete(teamAInput, (club) => {
+                updateNamePreview();
                 if (club) {
                     teamAClubId = club.id;
                     loadPlayerPicker('A', club.id);
@@ -533,6 +543,7 @@
             });
 
             setupClubAutocomplete(teamBInput, (club) => {
+                updateNamePreview();
                 if (club) {
                     teamBClubId = club.id;
                     loadPlayerPicker('B', club.id);
@@ -542,6 +553,20 @@
                     buildPlayerInputs('team-b-players', currentFormat === '6_person' ? 6 : 4);
                 }
             });
+        }
+
+        function updateNamePreview() {
+            const a = document.getElementById('team-a-name').value.trim();
+            const b = document.getElementById('team-b-name').value.trim();
+            const preview = document.getElementById('name-preview-value');
+            if (!preview) return;
+            if (a || b) {
+                preview.textContent = `${a || '…'} vs ${b || '…'}`;
+                preview.classList.add('has-value');
+            } else {
+                preview.textContent = '—';
+                preview.classList.remove('has-value');
+            }
         }
 
         function selectFormat(format) {
