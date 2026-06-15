@@ -1109,6 +1109,7 @@ a:focus {
 .team-score .score {
     font-family: var(--font-score); font-size: 4.5rem; font-weight: 700;
     color: var(--match-scoreboard-text); line-height: 1; font-variant-numeric: tabular-nums;
+    transition: color 0.3s;
 }
 
 .score-separator {
@@ -1143,7 +1144,7 @@ a:focus {
 }
 .scoreboard-card:hover { transform: none; box-shadow: 0 2px 12px rgba(0,0,0,0.10); }
 .scoreboard-card.live { border-left: 3px solid #2EA568; }
-.scoreboard-card.finished { opacity: 0.55; }
+.scoreboard-card.finished { opacity: 0.72; }
 
 .scoreboard-card.upcoming {
     opacity: 0.9;
@@ -2579,4 +2580,57 @@ a:focus {
 .theme-toggle:hover {
     box-shadow: var(--shadow-md);
     color: var(--text-color);
+}
+
+/* ==================== UI Enhancements ==================== */
+
+/* Score cell flash on value change */
+@keyframes cell-flash {
+    0% { color: var(--match-scoreboard-accent); transform: scale(1.2); }
+    50% { color: var(--match-scoreboard-accent); }
+    100% { color: inherit; transform: scale(1); }
+}
+
+.set-col.cell-changed,
+.points-col.cell-changed {
+    animation: cell-flash 0.45s ease-out;
+}
+
+/* Match page top navigation */
+.match-nav {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 12px;
+    padding: 4px 0;
+}
+
+.match-nav-back {
+    font-family: var(--font-body);
+    font-size: 0.85rem;
+    color: var(--bc-muted);
+    text-decoration: none;
+    padding: 6px 0;
+    transition: color 0.15s;
+}
+
+.match-nav-back:hover {
+    color: var(--match-scoreboard-accent);
+}
+
+.match-nav-badge {
+    font-family: var(--font-score);
+    font-size: 0.7rem;
+    font-weight: 700;
+    color: var(--bc-muted);
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    padding: 4px 10px;
+    border: 1px solid var(--bc-border);
+    border-radius: 4px;
+}
+
+/* Leading team highlight in matchday header */
+.team-score.leading .score {
+    color: var(--match-scoreboard-accent);
 }
