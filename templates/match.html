@@ -13,6 +13,22 @@
 <body class="match-page">
     <button class="theme-toggle" id="theme-toggle" aria-label="Toggle theme"></button>
     <div class="match-container">
+        <!-- Match Navigation -->
+        <div class="match-nav">
+            {% if match.match_day_id %}
+                {% if is_scorer %}
+                <a href="/matchday/{{ match.match_day_id }}" class="match-nav-back">← Match Day</a>
+                {% else %}
+                <a href="/watchday/{{ match_day_share_code }}" class="match-nav-back">← Match Day</a>
+                {% endif %}
+                {% if match.match_number %}
+                <span class="match-nav-badge">Match {{ match.match_number }}</span>
+                {% endif %}
+            {% else %}
+            <a href="/archive" class="match-nav-back">← Archive</a>
+            {% endif %}
+        </div>
+
         <!-- TV-Style Scoreboard -->
         <div class="scoreboard">
             <div class="scoreboard-header">
@@ -396,20 +412,34 @@
             }
         }
 
+        function flashIfChanged(el, newText) {
+            if (!el) return;
+            if (el.textContent.trim() !== String(newText).trim()) {
+                el.classList.remove('cell-changed');
+                void el.offsetWidth;
+                el.classList.add('cell-changed');
+            }
+        }
+
         function updateScoreboard(state) {
-            // Update sets (score_cells / point_display computed server-side — single
-            // source of truth shared with the match day view and the server)
             const cells = matchData.score_cells || [];
             for (let i = 0; i < 3; i++) {
                 const cell = cells[i] || { a: state.games[i][0], b: state.games[i][1], a_sup: null, b_sup: null };
-                document.getElementById(`set${i + 1}-a`).innerHTML = `${cell.a}${cell.a_sup ? `<sup>${cell.a_sup}</sup>` : ''}`;
-                document.getElementById(`set${i + 1}-b`).innerHTML = `${cell.b}${cell.b_sup ? `<sup>${cell.b_sup}</sup>` : ''}`;
+                const setA = document.getElementById(`set${i + 1}-a`);
+                const setB = document.getElementById(`set${i + 1}-b`);
+                flashIfChanged(setA, `${cell.a}${cell.a_sup || ''}`);
+                flashIfChanged(setB, `${cell.b}${cell.b_sup || ''}`);
+                setA.innerHTML = `${cell.a}${cell.a_sup ? `<sup>${cell.a_sup}</sup>` : ''}`;
+                setB.innerHTML = `${cell.b}${cell.b_sup ? `<sup>${cell.b_sup}</sup>` : ''}`;
             }
 
-            // Update points
             const pd = matchData.point_display || { a: '0', b: '0' };
-            document.getElementById('points-a').textContent = pd.a;
-            document.getElementById('points-b').textContent = pd.b;
+            const ptsA = document.getElementById('points-a');
+            const ptsB = document.getElementById('points-b');
+            flashIfChanged(ptsA, pd.a);
+            flashIfChanged(ptsB, pd.b);
+            ptsA.textContent = pd.a;
+            ptsB.textContent = pd.b;
 
             // Update serve indicator
             document.getElementById('serve-a').classList.toggle('active', state.serving === 0);

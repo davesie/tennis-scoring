@@ -262,6 +262,11 @@
 
             document.getElementById('team-a-wins').textContent = teamAWins;
             document.getElementById('team-b-wins').textContent = teamBWins;
+
+            const scoreA = document.querySelector('.team-score-a');
+            const scoreB = document.querySelector('.team-score-b');
+            if (scoreA) scoreA.classList.toggle('leading', teamAWins > teamBWins);
+            if (scoreB) scoreB.classList.toggle('leading', teamBWins > teamAWins);
         }
 
         function copyShareLink() {
