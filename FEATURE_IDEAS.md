@@ -18,6 +18,9 @@ Scoreboard is now theme-aware (light in light mode, dark in dark mode) with elev
 ## ~~Substitute players for doubles~~ ✓ Done
 Club IDs are now stored on match days. When setting up doubles pairings, the full club roster is fetched from the WTB player database and merged with the singles player list. Scorers can pick any player from the club, not just those who played singles. The "Edit Player Names" fallback still works for manual entry.
 
+## ~~Remove the Match day field~~ ✓ Done
+Match day name is now auto-generated as "Team A vs Team B" from the selected team names. The manual name input field has been removed from the admin form.
+
 ## Team category selection for match days
 Add the ability to choose which team category is playing when creating a match day. Categories reflect the WTB league structure:
 - Herren (men)
