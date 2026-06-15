@@ -712,6 +712,7 @@ async def create_match_day(data: MatchDayCreate, request: Request, db: AsyncSess
         team_b_players=data.team_b_players,
         club_a_id=data.club_a_id,
         club_b_id=data.club_b_id,
+        category=data.category,
     )
     db.add(match_day)
     await db.flush()
@@ -1071,42 +1072,38 @@ async def search_clubs(q: str = "", limit: int = 10, db: AsyncSession = Depends(
 
 
 @app.get("/api/clubs/{club_id}/players")
-async def get_club_players(club_id: str, db: AsyncSession = Depends(get_db)):
+async def get_club_players(club_id: str, category: str = "Herren", db: AsyncSession = Depends(get_db)):
     """
-    Return all Herren players for a club, sorted by ranking ASC (nulls last).
-    If the club has no players yet, auto-triggers a scrape first.
+    Return players for a club filtered by category, sorted by ranking ASC (nulls last).
+    If the club has no players for the given category yet, auto-triggers a scrape first.
     Public endpoint - no authentication required.
     """
-    # Look up club
     club_result = await db.execute(select(Club).where(Club.id == club_id))
     club = club_result.scalar_one_or_none()
     if not club:
         raise HTTPException(status_code=404, detail="Club not found")
 
-    # Count existing Herren players
     count_result = await db.execute(
         select(func.count()).select_from(Player).where(
-            Player.club_id == club_id, Player.category == "Herren"
+            Player.club_id == club_id, Player.category == category
         )
     )
     player_count = count_result.scalar()
 
     if player_count == 0:
-        # Auto-sync: scrape and store players for this club
         try:
-            players_data = await scrape_club_players(club.wtb_id)
+            players_data = await scrape_club_players(club.wtb_id, category=category)
             for player_data in players_data:
                 db.add(create_player_from_data(player_data, club_id))
             club.last_synced = datetime.utcnow()
             await db.commit()
         except Exception as e:
-            logger.warning(f"Auto-sync players for club {club_id} failed: {e}")
+            logger.warning(f"Auto-sync players (category={category}) for club {club_id} failed: {e}")
             await db.rollback()
 
-    # Query ordered by ranking ASC, NULLs last
     result = await db.execute(
         select(Player)
-        .where(Player.club_id == club_id, Player.category == "Herren")
+        .where(Player.club_id == club_id, Player.category == category)
         .order_by(Player.ranking.is_(None), Player.ranking.asc())
     )
     players = result.scalars().all()

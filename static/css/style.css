@@ -275,6 +275,30 @@ header h1 {
     border-color: var(--primary-color);
 }
 
+.category-select {
+    width: 100%;
+    padding: 10px 12px;
+    border: 2px solid var(--border-color);
+    border-radius: 8px;
+    font-family: var(--font-body);
+    font-size: 1rem;
+    background: var(--white);
+    color: var(--text-color);
+    cursor: pointer;
+    transition: border-color 0.2s;
+}
+
+.category-select:focus {
+    outline: none;
+    border-color: var(--primary-color);
+}
+
+[data-theme="dark"] .category-select {
+    background: var(--bc-bg);
+    color: var(--bc-text);
+    border-color: var(--bc-border);
+}
+
 .teams-container {
     display: flex;
     flex-direction: column;
@@ -1847,6 +1871,7 @@ a:focus {
 .fixture-meta { display: flex; flex-direction: column; gap: 2px; flex-shrink: 0; }
 .fixture-date { font-family: var(--font-score); font-size: 0.72rem; color: var(--bc-muted); letter-spacing: 0.5px; }
 .fixture-format { font-family: var(--font-body); font-size: 0.7rem; color: var(--bc-muted); text-transform: uppercase; letter-spacing: 0.05em; }
+.fixture-category { font-family: var(--font-score); font-size: 0.68rem; font-weight: 600; color: var(--bc-team-a); text-transform: uppercase; letter-spacing: 0.05em; }
 
 .fixture-name { font-family: var(--font-display); font-size: 1.15rem; font-weight: 700; color: var(--bc-text); letter-spacing: 0.01em; line-height: 1.2; text-transform: uppercase; }
 
@@ -2597,6 +2622,15 @@ a:focus {
     font-weight: 600;
 }
 
+.category-badge {
+    font-family: var(--font-score);
+    font-size: 0.75rem;
+    font-weight: 700;
+    color: var(--bc-team-a);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
 .btn-setup-players {
     background: #ed8936;
     color: #fff;
@@ -2628,6 +2662,18 @@ a:focus {
 
 .matchday-venue::before {
     content: "\1F4CD ";
+}
+
+.matchday-category {
+    font-family: var(--font-score);
+    font-size: 0.75rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--bc-accent);
+    background: rgba(198, 239, 62, 0.12);
+    padding: 2px 8px;
+    border-radius: 4px;
 }
 
 #sync-fixtures-result {

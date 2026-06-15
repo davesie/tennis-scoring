@@ -54,6 +54,9 @@ class MatchDay(Base):
     club_a_id = Column(String, ForeignKey("clubs.id"), nullable=True)
     club_b_id = Column(String, ForeignKey("clubs.id"), nullable=True)
 
+    # Team category (WTB league category, e.g. "Herren", "Damen", "Herren 30")
+    category = Column(String, nullable=True)
+
     created_at = Column(DateTime, default=datetime.utcnow)
 
     # WTB fixture import fields
@@ -77,6 +80,7 @@ class MatchDay(Base):
             "team_b_players": self.team_b_players,
             "club_a_id": self.club_a_id,
             "club_b_id": self.club_b_id,
+            "category": self.category,
             "created_at": self.created_at.isoformat() if self.created_at else None,
             "scheduled_date": self.scheduled_date.isoformat() if self.scheduled_date else None,
             "venue": self.venue,

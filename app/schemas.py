@@ -36,6 +36,7 @@ class MatchDayCreate(BaseModel):
     team_b_players: List[str] = []
     club_a_id: Optional[str] = None
     club_b_id: Optional[str] = None
+    category: Optional[str] = None
 
 
 class DoublesPairingCreate(BaseModel):
