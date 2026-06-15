@@ -275,6 +275,30 @@ header h1 {
     border-color: var(--primary-color);
 }
 
+.category-select {
+    width: 100%;
+    padding: 10px 12px;
+    border: 2px solid var(--border-color);
+    border-radius: 8px;
+    font-family: var(--font-body);
+    font-size: 1rem;
+    background: var(--white);
+    color: var(--text-color);
+    cursor: pointer;
+    transition: border-color 0.2s;
+}
+
+.category-select:focus {
+    outline: none;
+    border-color: var(--primary-color);
+}
+
+[data-theme="dark"] .category-select {
+    background: var(--bc-bg);
+    color: var(--bc-text);
+    border-color: var(--bc-border);
+}
+
 .teams-container {
     display: flex;
     flex-direction: column;
@@ -1820,7 +1844,8 @@ a:focus {
 
 /* ==================== Archive Page — Broadcast Court ==================== */
 .archive-page-header { padding: 40px 0 28px; margin-bottom: 0; text-align: left; }
-.archive-header-top { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 6px; }
+.archive-header-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; }
+.header-logo { width: 48px; height: 48px; vertical-align: middle; margin-right: 12px; }
 .archive-page-header h1 {
     font-family: var(--font-display); font-size: 2.8rem; font-weight: 800;
     letter-spacing: -0.5px; color: var(--bc-text); line-height: 1; text-transform: uppercase;
@@ -1846,6 +1871,7 @@ a:focus {
 .fixture-meta { display: flex; flex-direction: column; gap: 2px; flex-shrink: 0; }
 .fixture-date { font-family: var(--font-score); font-size: 0.72rem; color: var(--bc-muted); letter-spacing: 0.5px; }
 .fixture-format { font-family: var(--font-body); font-size: 0.7rem; color: var(--bc-muted); text-transform: uppercase; letter-spacing: 0.05em; }
+.fixture-category { font-family: var(--font-score); font-size: 0.68rem; font-weight: 600; color: var(--bc-team-a); text-transform: uppercase; letter-spacing: 0.05em; }
 
 .fixture-name { font-family: var(--font-display); font-size: 1.15rem; font-weight: 700; color: var(--bc-text); letter-spacing: 0.01em; line-height: 1.2; text-transform: uppercase; }
 
@@ -2370,6 +2396,7 @@ a:focus {
    ======================================== */
 
 .doubles-setup-panel {
+    grid-column: 1 / -1;
     border-top: 1px solid var(--border-color);
     padding: var(--space-4);
     background: var(--bg-secondary);
@@ -2461,6 +2488,203 @@ a:focus {
 
 .btn-setup-doubles:hover {
     background: var(--primary-dark, #2563eb);
+}
+
+/* Import Fixtures */
+.import-teams-list {
+    margin-top: var(--space-4);
+}
+
+.import-level-group {
+    margin-bottom: var(--space-4);
+}
+
+.import-level-label {
+    font-family: var(--font-display);
+    font-weight: 700;
+    font-size: 0.85rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--text-secondary);
+    margin-bottom: var(--space-2);
+    padding-bottom: var(--space-1);
+    border-bottom: 1px solid var(--border-color);
+}
+
+.import-level-teams {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-3);
+}
+
+.import-team-card {
+    background: var(--bg-color);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-md);
+    padding: var(--space-3) var(--space-4);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+    transition: border-color 0.15s, box-shadow 0.15s;
+}
+
+.import-team-card:hover {
+    border-color: var(--primary-color);
+    box-shadow: var(--shadow-sm);
+}
+
+.import-team-name {
+    font-family: var(--font-display);
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.import-team-league {
+    font-family: var(--font-body);
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+}
+
+.import-team-format {
+    font-family: var(--font-score);
+    font-size: 0.75rem;
+    font-weight: 600;
+    padding: 2px 8px;
+    border-radius: var(--radius-sm);
+    background: var(--bc-accent, #C6EF3E);
+    color: #1a1a1a;
+}
+
+.import-fixtures-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: var(--space-3);
+}
+
+.import-fixtures-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-family: var(--font-body);
+    font-size: 0.9rem;
+}
+
+.import-fixtures-table th {
+    text-align: left;
+    padding: var(--space-2) var(--space-3);
+    border-bottom: 2px solid var(--border-color);
+    font-weight: 600;
+    color: var(--text-secondary);
+    font-size: 0.8rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+.import-fixtures-table td {
+    padding: var(--space-2) var(--space-3);
+    border-bottom: 1px solid var(--border-color);
+    color: var(--text-primary);
+}
+
+.import-fixtures-table tr.fixture-imported {
+    opacity: 0.6;
+}
+
+.fixture-imported-badge {
+    font-family: var(--font-score);
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: #48bb78;
+}
+
+.fixture-upcoming {
+    font-family: var(--font-score);
+    font-size: 0.8rem;
+    color: var(--bc-accent, #C6EF3E);
+    font-weight: 600;
+}
+
+.btn-sm {
+    font-size: 0.8rem;
+    padding: 4px 12px;
+}
+
+.btn-disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.shell-badge {
+    font-family: var(--font-score);
+    font-size: 0.8rem;
+    color: #ed8936;
+    font-weight: 600;
+}
+
+.category-badge {
+    font-family: var(--font-score);
+    font-size: 0.75rem;
+    font-weight: 700;
+    color: var(--bc-team-a);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+.btn-setup-players {
+    background: #ed8936;
+    color: #fff;
+    font-weight: 600;
+}
+
+.btn-setup-players:hover {
+    background: #dd6b20;
+}
+
+.player-setup-panel {
+    grid-column: 1 / -1;
+    border-top: 1px solid var(--border-color);
+    padding: var(--space-4);
+    background: var(--bg-secondary);
+    border-radius: 0 0 var(--radius-lg) var(--radius-lg);
+}
+
+/* Matchday meta info */
+.matchday-meta-info {
+    display: flex;
+    justify-content: center;
+    gap: var(--space-4);
+    font-family: var(--font-body);
+    font-size: 0.9rem;
+    color: var(--text-secondary);
+    margin-top: var(--space-2);
+}
+
+.matchday-venue::before {
+    content: "\1F4CD ";
+}
+
+.matchday-category {
+    font-family: var(--font-score);
+    font-size: 0.75rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--bc-accent);
+    background: rgba(198, 239, 62, 0.12);
+    padding: 2px 8px;
+    border-radius: 4px;
+}
+
+#sync-fixtures-result {
+    margin-top: var(--space-3);
+    font-family: var(--font-body);
+    font-size: 0.9rem;
+}
+
+#sync-fixtures-result ul {
+    margin: var(--space-2) 0;
+    padding-left: var(--space-5);
 }
 
 @media (max-width: 768px) {

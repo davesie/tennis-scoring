@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Match Day Archive - Tennis Scoring</title>
     <link rel="stylesheet" href="/static/css/style.css">
+    <link rel="icon" type="image/svg+xml" href="/static/favicon.svg">
     <script src="/static/js/common.js"></script>
 </head>
 <body class="matchday-page">
@@ -12,7 +13,7 @@
     <div class="matchday-container">
         <header class="matchday-header archive-page-header">
             <div class="archive-header-top">
-                <h1>Match Day Archive</h1>
+                <h1><img src="/static/logo.svg" alt="Tennis Scoring" class="header-logo">Match Day Archive</h1>
                 {% if is_admin %}
                 <a href="/admin" class="archive-admin-link">Admin Dashboard</a>
                 {% else %}
@@ -28,8 +29,9 @@
             <div class="archive-row">
                 <a href="/watchday/{{ md.share_code }}" class="archive-card">
                     <div class="fixture-meta">
-                        <span class="fixture-date">{{ md.created_at[:10] if md.created_at else '' }}</span>
+                        <span class="fixture-date">{{ (md.scheduled_date[:10] if md.scheduled_date else md.created_at[:10]) if (md.scheduled_date or md.created_at) else '' }}</span>
                         <span class="fixture-format">{{ '6-person' if md.format == '6_person' else '4-person' }}</span>
+                        {% if md.category %}<span class="fixture-category">{{ md.category }}</span>{% endif %}
                     </div>
                     <div class="fixture-name">{{ md.name }}</div>
                     <div class="fixture-matchup">

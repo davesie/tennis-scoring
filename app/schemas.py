@@ -28,13 +28,15 @@ class SetInitialServer(BaseModel):
 
 
 class MatchDayCreate(BaseModel):
-    name: str = "Match Day"
     format: str = "6_person"  # "6_person" or "4_person"
     players: List[str] = []
     team_a_name: str = "Team A"
     team_b_name: str = "Team B"
     team_a_players: List[str] = []
     team_b_players: List[str] = []
+    club_a_id: Optional[str] = None
+    club_b_id: Optional[str] = None
+    category: Optional[str] = None
 
 
 class DoublesPairingCreate(BaseModel):
@@ -59,6 +61,25 @@ class MatchScoreSet(BaseModel):
     """Set final score directly for matches not watched live."""
     sets: List[List[int]]  # e.g., [[6, 4], [3, 6], [6, 2]] for a 2-1 win
     winner: int  # 0 or 1
+
+
+class FixtureImport(BaseModel):
+    meeting_id: str
+    scheduled_date: Optional[str] = None  # ISO format
+    home_team: str
+    away_team: str
+    venue: Optional[str] = None
+    format: str = "6_person"
+    wtb_team_id: str
+    wtb_club_id: str
+    is_played: bool = False  # If true, scrape Spielbericht for full match data
+    spielbericht_url: Optional[str] = None  # Full URL to Spielbericht page
+
+
+class MatchDaySetup(BaseModel):
+    format: str = "6_person"
+    team_a_players: List[str] = []
+    team_b_players: List[str] = []
 
 
 class MatchResponse(BaseModel):

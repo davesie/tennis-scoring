@@ -36,3 +36,31 @@ async def init_db():
             await conn.execute(text("ALTER TABLE players ADD COLUMN lk TEXT"))
         except Exception:
             pass  # Column already exists
+        try:
+            await conn.execute(text("ALTER TABLE match_days ADD COLUMN club_a_id TEXT REFERENCES clubs(id)"))
+        except Exception:
+            pass
+        try:
+            await conn.execute(text("ALTER TABLE match_days ADD COLUMN club_b_id TEXT REFERENCES clubs(id)"))
+        except Exception:
+            pass
+        # MatchDay WTB fixture import fields
+        for col_def in [
+            "ALTER TABLE match_days ADD COLUMN scheduled_date DATETIME",
+            "ALTER TABLE match_days ADD COLUMN venue TEXT",
+            "ALTER TABLE match_days ADD COLUMN wtb_meeting_id TEXT",
+            "ALTER TABLE match_days ADD COLUMN wtb_team_id TEXT",
+            "ALTER TABLE match_days ADD COLUMN wtb_club_id TEXT",
+            "ALTER TABLE match_days ADD COLUMN category TEXT",
+        ]:
+            try:
+                await conn.execute(text(col_def))
+            except Exception:
+                pass
+        # Unique index on wtb_meeting_id (ALTER TABLE can't add UNIQUE in SQLite)
+        try:
+            await conn.execute(text(
+                "CREATE UNIQUE INDEX IF NOT EXISTS ix_match_days_wtb_meeting_id ON match_days (wtb_meeting_id)"
+            ))
+        except Exception:
+            pass
