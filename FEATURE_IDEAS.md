@@ -14,3 +14,22 @@ When both clubs are selected in the admin form, the match day name auto-fills as
 
 ## ~~Consistent design across all pages~~ ✓ Done
 Scoreboard is now theme-aware (light in light mode, dark in dark mode) with elevation shadows. Admin pages adopt Broadcast Court design system. Primary color unified to BC blue, backgrounds consistent across all pages.
+
+## Substitute players for doubles
+Allow bringing in new players for doubles who did not play singles. Currently doubles pairings can only pick from the singles player list. The substitute must still come from the club's WTB player list — the doubles pairing UI should show the full club roster (not just the singles players) so a scorer can swap in a fresh player. This matters because clubs sometimes have reserve players who only play doubles.
+
+## Team category selection for match days
+Add the ability to choose which team category is playing when creating a match day. Categories reflect the WTB league structure:
+- Herren (men)
+- Damen (women)
+- Herren 30 (men over 30)
+- Herren 40 (men over 40)
+- Herren 50 (men over 50)
+- Herren 60 (men over 60)
+- Herren 65 (men over 65)
+- Herren 70 (men over 70)
+- Damen 30 (women over 30)
+- Damen 40 (women over 40)
+- Damen 50 (women over 50)
+
+The selected category should filter the WTB player picker to only show players from that category (the `category` field already exists on the Player model). It should also be stored on the match day and displayed in the archive and matchday header.
