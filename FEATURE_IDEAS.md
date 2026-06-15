@@ -21,18 +21,5 @@ Club IDs are now stored on match days. When setting up doubles pairings, the ful
 ## ~~Remove the Match day field~~ ✓ Done
 Match day name is now auto-generated as "Team A vs Team B" from the selected team names. The manual name input field has been removed from the admin form.
 
-## Team category selection for match days
-Add the ability to choose which team category is playing when creating a match day. Categories reflect the WTB league structure:
-- Herren (men)
-- Damen (women)
-- Herren 30 (men over 30)
-- Herren 40 (men over 40)
-- Herren 50 (men over 50)
-- Herren 60 (men over 60)
-- Herren 65 (men over 65)
-- Herren 70 (men over 70)
-- Damen 30 (women over 30)
-- Damen 40 (women over 40)
-- Damen 50 (women over 50)
-
-The selected category should filter the WTB player picker to only show players from that category (the `category` field already exists on the Player model). It should also be stored on the match day and displayed in the archive and matchday header.
+## ~~Team category selection for match days~~ ✓ Done
+Category dropdown added to the Create Match Day form (Herren, Damen, Herren 30–70, Damen 30–50). The selected category filters the WTB player picker to only show players from that category (auto-scraping for non-Herren categories on first load). Category is stored on the match day and displayed as a badge in the admin list, archive, and matchday header.

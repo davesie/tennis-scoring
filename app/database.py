@@ -48,11 +48,19 @@ async def init_db():
         for col_def in [
             "ALTER TABLE match_days ADD COLUMN scheduled_date DATETIME",
             "ALTER TABLE match_days ADD COLUMN venue TEXT",
-            "ALTER TABLE match_days ADD COLUMN wtb_meeting_id TEXT UNIQUE",
+            "ALTER TABLE match_days ADD COLUMN wtb_meeting_id TEXT",
             "ALTER TABLE match_days ADD COLUMN wtb_team_id TEXT",
             "ALTER TABLE match_days ADD COLUMN wtb_club_id TEXT",
+            "ALTER TABLE match_days ADD COLUMN category TEXT",
         ]:
             try:
                 await conn.execute(text(col_def))
             except Exception:
                 pass
+        # Unique index on wtb_meeting_id (ALTER TABLE can't add UNIQUE in SQLite)
+        try:
+            await conn.execute(text(
+                "CREATE UNIQUE INDEX IF NOT EXISTS ix_match_days_wtb_meeting_id ON match_days (wtb_meeting_id)"
+            ))
+        except Exception:
+            pass

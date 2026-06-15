@@ -99,6 +99,23 @@
                 </div>
             </div>
 
+            <div class="form-group">
+                <label for="category-select">Team Category</label>
+                <select id="category-select" class="category-select" onchange="selectCategory(this.value)">
+                    <option value="Herren">Herren (Men)</option>
+                    <option value="Damen">Damen (Women)</option>
+                    <option value="Herren 30">Herren 30 (Men 30+)</option>
+                    <option value="Herren 40">Herren 40 (Men 40+)</option>
+                    <option value="Herren 50">Herren 50 (Men 50+)</option>
+                    <option value="Herren 60">Herren 60 (Men 60+)</option>
+                    <option value="Herren 65">Herren 65 (Men 65+)</option>
+                    <option value="Herren 70">Herren 70 (Men 70+)</option>
+                    <option value="Damen 30">Damen 30 (Women 30+)</option>
+                    <option value="Damen 40">Damen 40 (Women 40+)</option>
+                    <option value="Damen 50">Damen 50 (Women 50+)</option>
+                </select>
+            </div>
+
             <div class="teams-container">
                 <div class="team-input">
                     <h3>Team A</h3>
@@ -132,6 +149,7 @@
                     <h3>{{ md.name }}</h3>
                     <div class="match-day-meta">
                         <span>{{ md.format | replace('_', ' ') | title }}</span>
+                        {% if md.category %}<span class="category-badge">{{ md.category }}</span>{% endif %}
                         {% if md.total_matches > 0 %}
                         <span>{{ md.completed_matches }}/{{ md.total_matches }} matches</span>
                         {% else %}
@@ -179,6 +197,7 @@
 
     <script>
         let currentFormat = '6_person';
+        let currentCategory = 'Herren';
         let teamAClubId = null;
         let teamBClubId = null;
         let teamASelectedPlayers = [];  // [{id, name, ranking, birth_year}, ...]
@@ -296,9 +315,10 @@
             } catch { return []; }
         }
 
-        async function fetchAllClubPlayers(clubId) {
+        async function fetchAllClubPlayers(clubId, category) {
             try {
-                const res = await fetch(`/api/clubs/${clubId}/players`);
+                const cat = encodeURIComponent(category || currentCategory);
+                const res = await fetch(`/api/clubs/${clubId}/players?category=${cat}`);
                 if (!res.ok) return [];
                 return await res.json();
             } catch { return []; }
@@ -351,7 +371,7 @@
 
             container.innerHTML = '<div class="picker-loading">Loading players\u2026</div>';
 
-            const players = await fetchAllClubPlayers(clubId);
+            const players = await fetchAllClubPlayers(clubId, currentCategory);
 
             if (!players.length) {
                 container.innerHTML = '<p class="picker-empty">No players found for this club.</p>';
@@ -483,6 +503,8 @@
 
         function initMatchDay() {
             // Reset all state for a fresh form
+            currentCategory = 'Herren';
+            document.getElementById('category-select').value = 'Herren';
             teamAClubId = null;
             teamBClubId = null;
             teamASelectedPlayers = [];
@@ -534,6 +556,12 @@
             else buildPlayerInputs('team-b-players', count);
         }
 
+        function selectCategory(category) {
+            currentCategory = category;
+            if (teamAClubId) loadPlayerPicker('A', teamAClubId);
+            if (teamBClubId) loadPlayerPicker('B', teamBClubId);
+        }
+
         async function createMatchDay() {
             let teamAPlayers, teamBPlayers;
 
@@ -565,7 +593,8 @@
                 team_b_players: teamBPlayers,
                 players: [...teamAPlayers, ...teamBPlayers],
                 club_a_id: teamAClubId || null,
-                club_b_id: teamBClubId || null
+                club_b_id: teamBClubId || null,
+                category: currentCategory
             };
 
             try {
