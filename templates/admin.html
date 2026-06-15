@@ -534,7 +534,9 @@
                 team_b_name: document.getElementById('team-b-name').value || 'Team B',
                 team_a_players: teamAPlayers,
                 team_b_players: teamBPlayers,
-                players: [...teamAPlayers, ...teamBPlayers]
+                players: [...teamAPlayers, ...teamBPlayers],
+                club_a_id: teamAClubId || null,
+                club_b_id: teamBClubId || null
             };
 
             try {

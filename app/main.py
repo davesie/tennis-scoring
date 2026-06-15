@@ -704,6 +704,8 @@ async def create_match_day(data: MatchDayCreate, request: Request, db: AsyncSess
         team_b_name=data.team_b_name,
         team_a_players=data.team_a_players,
         team_b_players=data.team_b_players,
+        club_a_id=data.club_a_id,
+        club_b_id=data.club_b_id,
     )
     db.add(match_day)
     await db.flush()

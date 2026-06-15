@@ -15,8 +15,8 @@ When both clubs are selected in the admin form, the match day name auto-fills as
 ## ~~Consistent design across all pages~~ ✓ Done
 Scoreboard is now theme-aware (light in light mode, dark in dark mode) with elevation shadows. Admin pages adopt Broadcast Court design system. Primary color unified to BC blue, backgrounds consistent across all pages.
 
-## Substitute players for doubles
-Allow bringing in new players for doubles who did not play singles. Currently doubles pairings can only pick from the singles player list. The substitute must still come from the club's WTB player list — the doubles pairing UI should show the full club roster (not just the singles players) so a scorer can swap in a fresh player. This matters because clubs sometimes have reserve players who only play doubles.
+## ~~Substitute players for doubles~~ ✓ Done
+Club IDs are now stored on match days. When setting up doubles pairings, the full club roster is fetched from the WTB player database and merged with the singles player list. Scorers can pick any player from the club, not just those who played singles. The "Edit Player Names" fallback still works for manual entry.
 
 ## Team category selection for match days
 Add the ability to choose which team category is playing when creating a match day. Categories reflect the WTB league structure:
