@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Admin Dashboard - Tennis Scoring</title>
     <link rel="stylesheet" href="/static/css/style.css">
+    <script src="/static/js/common.js"></script>
 </head>
 <body class="matchday-page">
     <button class="theme-toggle" id="theme-toggle" aria-label="Toggle theme"></button>
@@ -108,8 +109,8 @@
                     </div>
                     <div class="link-group">
                         <a href="/matchday/{{ md.id }}" class="link-btn">Open</a>
-                        <button class="link-btn" onclick="copyToClipboard('{{ request.url_for('scorer_match_day_page', scorer_token=md.scorer_token) }}', this)">Copy Scorer Link</button>
-                        <button class="link-btn" onclick="copyToClipboard('{{ request.url_for('spectator_match_day_page', share_code=md.share_code) }}', this)">Copy Spectator Link</button>
+                        <button class="link-btn" onclick="copyMatchdayLink('{{ request.url_for('scorer_match_day_page', scorer_token=md.scorer_token) }}', this)">Copy Scorer Link</button>
+                        <button class="link-btn" onclick="copyMatchdayLink('{{ request.url_for('spectator_match_day_page', share_code=md.share_code) }}', this)">Copy Spectator Link</button>
                         {% if not md.has_doubles %}
                         {% if md.singles_completed == md.singles_total and md.singles_total > 0 %}
                         <button class="link-btn btn-setup-doubles" onclick="openDoublesSetup('{{ md.id }}', '{{ md.format }}', {{ md.team_a_players | tojson }}, {{ md.team_b_players | tojson }}, '{{ md.team_a_name }}', '{{ md.team_b_name }}')">Set up Doubles</button>
@@ -546,11 +547,11 @@
                     const result = await response.json();
                     window.location.href = `/matchday/${result.match_day.id}`;
                 } else {
-                    alert('Failed to create match day');
+                    showToast('Failed to create match day', 'error');
                 }
             } catch (error) {
                 console.error('Error:', error);
-                alert('Failed to create match day');
+                showToast('Failed to create match day', 'error');
             }
         }
 
@@ -625,7 +626,7 @@
                 const b1 = document.getElementById(`d${matchDayId}-b1-${i}`)?.value;
                 const b2 = document.getElementById(`d${matchDayId}-b2-${i}`)?.value;
                 if (!a1 || !a2 || !b1 || !b2) {
-                    alert(`Please fill in all players for Double ${i + 1}`);
+                    showToast(`Please fill in all players for Double ${i + 1}`, 'error');
                     return;
                 }
                 pairings.push({ player_a1: a1, player_a2: a2, player_b1: b1, player_b2: b2 });
@@ -641,30 +642,20 @@
                     window.location.reload();
                 } else {
                     const data = await response.json();
-                    alert(data.detail || 'Failed to create doubles');
+                    showToast(data.detail || 'Failed to create doubles', 'error');
                 }
             } catch (error) {
                 console.error('Error:', error);
-                alert('Failed to create doubles');
+                showToast('Failed to create doubles', 'error');
             }
         }
 
-        function copyToClipboard(text, btn) {
-            navigator.clipboard.writeText(text).then(() => {
-                const originalText = btn.textContent;
-                btn.textContent = 'Copied!';
-                setTimeout(() => btn.textContent = originalText, 2000);
-            }).catch(() => {
-                const textarea = document.createElement('textarea');
-                textarea.value = text;
-                document.body.appendChild(textarea);
-                textarea.select();
-                document.execCommand('copy');
-                document.body.removeChild(textarea);
-                const originalText = btn.textContent;
-                btn.textContent = 'Copied!';
-                setTimeout(() => btn.textContent = originalText, 2000);
-            });
+        async function copyMatchdayLink(text, btn) {
+            const ok = await copyToClipboard(text);
+            if (!ok) { showToast('Could not copy link', 'error'); return; }
+            const originalText = btn.textContent;
+            btn.textContent = 'Copied!';
+            setTimeout(() => btn.textContent = originalText, 2000);
         }
 
         async function deleteMatchDay(matchDayId, matchDayName, btn) {
@@ -684,13 +675,13 @@
                     setTimeout(() => card.remove(), 300);
                 } else {
                     const data = await response.json();
-                    alert(data.detail || 'Failed to delete match day');
+                    showToast(data.detail || 'Failed to delete match day', 'error');
                     btn.disabled = false;
                     btn.textContent = 'Delete';
                 }
             } catch (error) {
                 console.error('Error:', error);
-                alert('Failed to delete match day');
+                showToast('Failed to delete match day', 'error');
                 btn.disabled = false;
                 btn.textContent = 'Delete';
             }
@@ -843,21 +834,6 @@
                 const d = new Date(lastSyncEl.textContent.trim());
                 if (!isNaN(d)) lastSyncEl.textContent = d.toLocaleString();
             }
-        })();
-    </script>
-    <script>
-        (function() {
-            const toggle = document.getElementById('theme-toggle');
-            const html = document.documentElement;
-            const theme = localStorage.getItem('theme') || 'light';
-            html.dataset.theme = theme;
-            toggle.textContent = theme === 'dark' ? '\u2600' : '\u263E';
-            toggle.addEventListener('click', () => {
-                const next = html.dataset.theme === 'dark' ? 'light' : 'dark';
-                html.dataset.theme = next;
-                localStorage.setItem('theme', next);
-                toggle.textContent = next === 'dark' ? '\u2600' : '\u263E';
-            });
         })();
     </script>
 <div class="version-label">v{{ app_version }}</div>

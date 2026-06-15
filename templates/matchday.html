@@ -8,9 +8,11 @@
     <meta name="theme-color" content="#1a1a2e">
     <title>{{ match_day.name }} - Tennis Scoring</title>
     <link rel="stylesheet" href="/static/css/style.css">
+    <script src="/static/js/common.js"></script>
 </head>
 <body class="matchday-page">
     <button class="theme-toggle" id="theme-toggle" aria-label="Toggle theme"></button>
+{% macro setcell(cell, team) %}{% set val = cell.a if team == 0 else cell.b %}{% set sup = cell.a_sup if team == 0 else cell.b_sup %}<td class="set-score">{% if cell.show %}{{ val }}{% if sup %}<sup>{{ sup }}</sup>{% endif %}{% endif %}</td>{% endmacro %}
     <div class="matchday-container">
         <header class="matchday-header">
             <div class="matchday-hero-top">
@@ -45,25 +47,18 @@
                     {% elif match.started_at %}
                         <span class="status-badge live">🟢 LIVE</span>
                     {% endif %}
-                    {%- set tb = match.score_state.get('tiebreak_scores', [[0,0],[0,0],[0,0]]) -%}
-                    {%- set stb = match.score_state.get('super_tiebreak_score', [0,0]) -%}
-                    {%- set show_s2 = match.score_state.current_set >= 1 or match.score_state.winner is not none -%}
-                    {%- set show_s3 = match.score_state.current_set >= 2 or (match.score_state.winner is not none and match.score_state.sets[0] == 1 and match.score_state.sets[1] == 1) -%}
+                    {%- set cells = match.score_cells -%}
                     <a href="{% if is_scorer %}/match/{{ match.id }}{% else %}/watch/{{ match.share_code }}{% endif %}" class="scoreboard-link">
                         <table class="scoreboard-table">
                             <tr class="{% if match.score_state.winner == 0 %}winner{% endif %}">
                                 <td class="team-color team-a"></td>
                                 <td class="player-name">{{ match.player_a1 or 'Player A' }}</td>
-                                <td class="set-score">{{ match.score_state.games[0][0] }}{% if tb[0][0] or tb[0][1] %}{% if tb[0][0] < tb[0][1] %}<sup>{{ tb[0][0] }}</sup>{% endif %}{% endif %}</td>
-                                <td class="set-score">{% if show_s2 %}{{ match.score_state.games[1][0] }}{% if tb[1][0] or tb[1][1] %}{% if tb[1][0] < tb[1][1] %}<sup>{{ tb[1][0] }}</sup>{% endif %}{% endif %}{% endif %}</td>
-                                <td class="set-score">{% if show_s3 %}{% if stb[0] or stb[1] %}{{ stb[0] }}{% else %}{{ match.score_state.games[2][0] }}{% endif %}{% endif %}</td>
+                                {{ setcell(cells[0], 0) }}{{ setcell(cells[1], 0) }}{{ setcell(cells[2], 0) }}
                             </tr>
                             <tr class="{% if match.score_state.winner == 1 %}winner{% endif %}">
                                 <td class="team-color team-b"></td>
                                 <td class="player-name">{{ match.player_b1 or 'Player B' }}</td>
-                                <td class="set-score">{{ match.score_state.games[0][1] }}{% if tb[0][0] or tb[0][1] %}{% if tb[0][1] < tb[0][0] %}<sup>{{ tb[0][1] }}</sup>{% endif %}{% endif %}</td>
-                                <td class="set-score">{% if show_s2 %}{{ match.score_state.games[1][1] }}{% if tb[1][0] or tb[1][1] %}{% if tb[1][1] < tb[1][0] %}<sup>{{ tb[1][1] }}</sup>{% endif %}{% endif %}{% endif %}</td>
-                                <td class="set-score">{% if show_s3 %}{% if stb[0] or stb[1] %}{{ stb[1] }}{% else %}{{ match.score_state.games[2][1] }}{% endif %}{% endif %}</td>
+                                {{ setcell(cells[0], 1) }}{{ setcell(cells[1], 1) }}{{ setcell(cells[2], 1) }}
                             </tr>
                         </table>
                         {% if match.duration_formatted %}
@@ -104,25 +99,18 @@
                     {% elif match.started_at %}
                         <span class="status-badge live">🟢 LIVE</span>
                     {% endif %}
-                    {%- set tb = match.score_state.get('tiebreak_scores', [[0,0],[0,0],[0,0]]) -%}
-                    {%- set stb = match.score_state.get('super_tiebreak_score', [0,0]) -%}
-                    {%- set show_s2 = match.score_state.current_set >= 1 or match.score_state.winner is not none -%}
-                    {%- set show_s3 = match.score_state.current_set >= 2 or (match.score_state.winner is not none and match.score_state.sets[0] == 1 and match.score_state.sets[1] == 1) -%}
+                    {%- set cells = match.score_cells -%}
                     <a href="{% if is_scorer %}/match/{{ match.id }}{% else %}/watch/{{ match.share_code }}{% endif %}" class="scoreboard-link">
                         <table class="scoreboard-table">
                             <tr class="{% if match.score_state.winner == 0 %}winner{% endif %}">
                                 <td class="team-color team-a"></td>
                                 <td class="player-name">{{ match.player_a1 or 'Player A1' }} / {{ match.player_a2 or 'A2' }}</td>
-                                <td class="set-score">{{ match.score_state.games[0][0] }}{% if tb[0][0] or tb[0][1] %}{% if tb[0][0] < tb[0][1] %}<sup>{{ tb[0][0] }}</sup>{% endif %}{% endif %}</td>
-                                <td class="set-score">{% if show_s2 %}{{ match.score_state.games[1][0] }}{% if tb[1][0] or tb[1][1] %}{% if tb[1][0] < tb[1][1] %}<sup>{{ tb[1][0] }}</sup>{% endif %}{% endif %}{% endif %}</td>
-                                <td class="set-score">{% if show_s3 %}{% if stb[0] or stb[1] %}{{ stb[0] }}{% else %}{{ match.score_state.games[2][0] }}{% endif %}{% endif %}</td>
+                                {{ setcell(cells[0], 0) }}{{ setcell(cells[1], 0) }}{{ setcell(cells[2], 0) }}
                             </tr>
                             <tr class="{% if match.score_state.winner == 1 %}winner{% endif %}">
                                 <td class="team-color team-b"></td>
                                 <td class="player-name">{{ match.player_b1 or 'Player B1' }} / {{ match.player_b2 or 'B2' }}</td>
-                                <td class="set-score">{{ match.score_state.games[0][1] }}{% if tb[0][0] or tb[0][1] %}{% if tb[0][1] < tb[0][0] %}<sup>{{ tb[0][1] }}</sup>{% endif %}{% endif %}</td>
-                                <td class="set-score">{% if show_s2 %}{{ match.score_state.games[1][1] }}{% if tb[1][0] or tb[1][1] %}{% if tb[1][1] < tb[1][0] %}<sup>{{ tb[1][1] }}</sup>{% endif %}{% endif %}{% endif %}</td>
-                                <td class="set-score">{% if show_s3 %}{% if stb[0] or stb[1] %}{{ stb[1] }}{% else %}{{ match.score_state.games[2][1] }}{% endif %}{% endif %}</td>
+                                {{ setcell(cells[0], 1) }}{{ setcell(cells[1], 1) }}{{ setcell(cells[2], 1) }}
                             </tr>
                         </table>
                         {% if match.duration_formatted %}
@@ -235,46 +223,9 @@
         const matchDay = {{ match_day | tojson }};
         const isScorer = {{ is_scorer | tojson }};
 
-        function parseLK(fullName) {
-            if (!fullName) return { name: fullName || '', lk: null };
-            const m = fullName.match(/^(.*?)\s*\(LK\s+([^)]+)\)$/);
-            if (m) return { name: m[1].trim(), lk: m[2] };
-            return { name: fullName, lk: null };
-        }
-
-        function formatNameForTable(fullName, fallback) {
-            const p = parseLK(fullName || fallback);
-            if (p.lk) return `<span class="player-name-text">${p.name}</span><span class="player-lk">LK ${p.lk}</span>`;
-            return p.name;
-        }
-
-        function formatDoublesForTable(p1, p2, fb1, fb2) {
-            const a = parseLK(p1 || fb1);
-            const b = parseLK(p2 || fb2);
-            const name = `${a.name} / ${b.name}`;
-            const lks = [a.lk, b.lk].filter(Boolean);
-            if (lks.length) return `<span class="player-name-text">${name}</span><span class="player-lk">LK ${lks.join(' / ')}</span>`;
-            return name;
-        }
-
         // Store scorer token for API calls when accessed via /scoreday/{token}
         if (isScorer && matchDay.scorer_token) {
             sessionStorage.setItem('scorer_token', matchDay.scorer_token);
-        }
-
-        // Helper to get scorer token
-        function getScorerToken() {
-            return sessionStorage.getItem('scorer_token') || '';
-        }
-
-        // Helper to add auth headers to fetch calls
-        function getAuthHeaders() {
-            const headers = { 'Content-Type': 'application/json' };
-            const token = getScorerToken();
-            if (token) {
-                headers['X-Scorer-Token'] = token;
-            }
-            return headers;
         }
 
         // Extract players from singles matches (more reliable than stored arrays)
@@ -324,16 +275,11 @@
             icon.textContent = section.classList.contains('collapsed') ? '+' : '−';
         }
 
-        function copyLink(inputId) {
+        async function copyLink(inputId) {
             const input = document.getElementById(inputId);
             if (!input) return;
-            input.select();
-            document.execCommand('copy');
-
-            const btn = event.target;
-            const originalText = btn.textContent;
-            btn.textContent = 'Copied!';
-            setTimeout(() => btn.textContent = originalText, 2000);
+            const ok = await copyToClipboard(input.value);
+            showToast(ok ? 'Link copied' : 'Could not copy link', ok ? 'success' : 'error');
         }
 
         // Check if all singles matches are finished
@@ -783,7 +729,7 @@
         // Save match score
         async function saveMatchScore() {
             if (selectedWinner === null) {
-                alert('Please select a winner');
+                showToast('Please select a winner', 'error');
                 return;
             }
 
@@ -817,7 +763,7 @@
                 closeScoreModal();
                 window.location.reload();
             } catch (error) {
-                alert('Error saving score: ' + error.message);
+                showToast('Error saving score: ' + error.message, 'error');
             }
         }
 
@@ -829,22 +775,7 @@
             }
         });
 
-        // ---- Timer utilities ----
-        function formatElapsed(totalSeconds) {
-            const h = Math.floor(totalSeconds / 3600);
-            const m = Math.floor((totalSeconds % 3600) / 60);
-            const s = totalSeconds % 60;
-            if (h > 0) return `${h}h ${String(m).padStart(2, '0')}m`;
-            return `${m}m ${String(s).padStart(2, '0')}s`;
-        }
-
-        function parseUtc(str) {
-            if (!str) return null;
-            const utcStr = str.endsWith('Z') || str.includes('+') ? str : str + 'Z';
-            const ms = new Date(utcStr).getTime();
-            return isNaN(ms) ? null : ms;
-        }
-
+        // ---- Timer utilities (formatElapsed, parseUtc live in common.js) ----
         function initMatchdayTimers() {
             // Inject ticking .match-duration into live match cards
             document.querySelectorAll('.scoreboard-card.live[data-started-at]').forEach(card => {
@@ -918,25 +849,13 @@
         // Render the scoreboard table rows for a match
         function renderMatchTableRows(matchData) {
             const ss = matchData.score_state;
-            const tb = ss.tiebreak_scores || [[0,0],[0,0],[0,0]];
-            const stb = ss.super_tiebreak_score || [0,0];
-            const showS2 = ss.current_set >= 1 || ss.winner !== null;
-            const showS3 = ss.current_set >= 2 || (ss.winner !== null && ss.sets[0] === 1 && ss.sets[1] === 1);
+            const cells = matchData.score_cells || [];
 
-            function setCell(setIdx, team, show) {
-                if (setIdx === 2 && show) {
-                    // Super tiebreak or regular games
-                    if (stb[0] || stb[1]) return `<td class="set-score">${stb[team]}</td>`;
-                    return `<td class="set-score">${ss.games[2][team]}</td>`;
-                }
-                if (!show) return '<td class="set-score"></td>';
-                const g = ss.games[setIdx][team];
-                const t = tb[setIdx];
-                const other = 1 - team;
-                if ((t[0] || t[1]) && t[team] < t[other]) {
-                    return `<td class="set-score">${g}<sup>${t[team]}</sup></td>`;
-                }
-                return `<td class="set-score">${g}</td>`;
+            function setCell(cell, team) {
+                if (!cell || !cell.show) return '<td class="set-score"></td>';
+                const val = team === 0 ? cell.a : cell.b;
+                const sup = team === 0 ? cell.a_sup : cell.b_sup;
+                return `<td class="set-score">${val}${sup ? `<sup>${sup}</sup>` : ''}</td>`;
             }
 
             const isDoubles = matchData.match_type === 'doubles';
@@ -951,12 +870,12 @@
                 <tr class="${ss.winner === 0 ? 'winner' : ''}">
                     <td class="team-color team-a"></td>
                     <td class="player-name">${nameA}</td>
-                    ${setCell(0, 0, true)}${setCell(1, 0, showS2)}${setCell(2, 0, showS3)}
+                    ${setCell(cells[0], 0)}${setCell(cells[1], 0)}${setCell(cells[2], 0)}
                 </tr>
                 <tr class="${ss.winner === 1 ? 'winner' : ''}">
                     <td class="team-color team-b"></td>
                     <td class="player-name">${nameB}</td>
-                    ${setCell(0, 1, true)}${setCell(1, 1, showS2)}${setCell(2, 1, showS3)}
+                    ${setCell(cells[0], 1)}${setCell(cells[1], 1)}${setCell(cells[2], 1)}
                 </tr>`;
         }
 
@@ -1040,21 +959,6 @@
         initDoublesPairing();
         initMatchdayTimers();
         connectMatchdayWs();
-    </script>
-    <script>
-        (function() {
-            const toggle = document.getElementById('theme-toggle');
-            const html = document.documentElement;
-            const theme = localStorage.getItem('theme') || 'light';
-            html.dataset.theme = theme;
-            toggle.textContent = theme === 'dark' ? '\u2600' : '\u263E';
-            toggle.addEventListener('click', () => {
-                const next = html.dataset.theme === 'dark' ? 'light' : 'dark';
-                html.dataset.theme = next;
-                localStorage.setItem('theme', next);
-                toggle.textContent = next === 'dark' ? '\u2600' : '\u263E';
-            });
-        })();
     </script>
 <div class="version-label">v{{ app_version }}</div>
 </body>

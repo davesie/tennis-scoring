@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Admin Login - Tennis Scoring</title>
     <link rel="stylesheet" href="/static/css/style.css">
+    <script src="/static/js/common.js"></script>
 </head>
 <body class="matchday-page">
     <button class="theme-toggle" id="theme-toggle" aria-label="Toggle theme"></button>
@@ -33,21 +34,6 @@
             <a href="/archive">View Archive (Public)</a>
         </div>
     </div>
-    <script>
-        (function() {
-            const toggle = document.getElementById('theme-toggle');
-            const html = document.documentElement;
-            const theme = localStorage.getItem('theme') || 'light';
-            html.dataset.theme = theme;
-            toggle.textContent = theme === 'dark' ? '\u2600' : '\u263E';
-            toggle.addEventListener('click', () => {
-                const next = html.dataset.theme === 'dark' ? 'light' : 'dark';
-                html.dataset.theme = next;
-                localStorage.setItem('theme', next);
-                toggle.textContent = next === 'dark' ? '\u2600' : '\u263E';
-            });
-        })();
-    </script>
 <div class="version-label">v{{ app_version }}</div>
 </body>
 </html>
