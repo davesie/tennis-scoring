@@ -306,6 +306,38 @@ header h1 {
     margin-bottom: 20px;
 }
 
+.matchday-name-preview {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 14px;
+    background: var(--bg-color);
+    border-radius: 8px;
+    margin-bottom: 16px;
+    font-family: var(--font-body);
+    font-size: 0.9rem;
+}
+
+.name-preview-label {
+    color: var(--bc-muted);
+    font-size: 0.8rem;
+    white-space: nowrap;
+    flex-shrink: 0;
+}
+
+.name-preview-value {
+    font-family: var(--font-display);
+    font-size: 1rem;
+    font-weight: 700;
+    letter-spacing: 0.02em;
+    text-transform: uppercase;
+    color: var(--bc-muted);
+}
+
+.name-preview-value.has-value {
+    color: var(--bc-text);
+}
+
 .team-input {
     background: var(--bg-color);
     padding: 16px;
