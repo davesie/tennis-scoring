@@ -27,6 +27,12 @@ class SetInitialServer(BaseModel):
     serving: int  # 0 or 1
 
 
+class UserRegister(BaseModel):
+    email: str
+    password: str
+    display_name: Optional[str] = None
+
+
 class MatchDayCreate(BaseModel):
     format: str = "6_person"  # "6_person" or "4_person"
     players: List[str] = []
@@ -37,6 +43,7 @@ class MatchDayCreate(BaseModel):
     club_a_id: Optional[str] = None
     club_b_id: Optional[str] = None
     category: Optional[str] = None
+    is_public: bool = True
 
 
 class DoublesPairingCreate(BaseModel):

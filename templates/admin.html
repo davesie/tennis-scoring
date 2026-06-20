@@ -12,10 +12,15 @@
     <button class="theme-toggle" id="theme-toggle" aria-label="Toggle theme"></button>
     <div class="admin-container">
         <header class="admin-header">
-            <h1>Tennis Scoring Admin</h1>
+            <div class="admin-header-top">
+                <h1>{% if user %}{{ user.display_name or user.email }}{% else %}Tennis Scoring{% endif %}</h1>
+                {% if is_superadmin %}<span class="superadmin-badge">Superadmin</span>{% endif %}
+            </div>
             <div class="header-actions">
                 <button class="btn btn-primary" onclick="toggleCreateSection()">+ New Match Day</button>
+                {% if is_superadmin %}
                 <button class="btn btn-secondary" onclick="toggleImportSection()">Import Fixtures</button>
+                {% endif %}
                 <a href="/archive" class="btn btn-secondary">View Archive</a>
                 <form action="/admin/logout" method="POST" style="margin: 0;">
                     <button type="submit" class="btn btn-outline-danger">Logout</button>
@@ -23,6 +28,27 @@
             </div>
         </header>
 
+        {% if stats %}
+        <section class="usage-stats-section">
+            <h2>Platform Stats</h2>
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <span class="stat-value">{{ stats.total_users }}</span>
+                    <span class="stat-label">Users</span>
+                </div>
+                <div class="stat-card">
+                    <span class="stat-value">{{ stats.total_match_days }}</span>
+                    <span class="stat-label">Match Days</span>
+                </div>
+                <div class="stat-card">
+                    <span class="stat-value">{{ stats.total_matches }}</span>
+                    <span class="stat-label">Matches</span>
+                </div>
+            </div>
+        </section>
+        {% endif %}
+
+        {% if is_superadmin %}
         <!-- WTB Data Management Section -->
         <section class="wtb-section">
             <h2>WTB Player Database</h2>
@@ -47,6 +73,9 @@
             </div>
         </section>
 
+        {% endif %}
+
+        {% if is_superadmin %}
         <!-- Import WTB Fixtures Section -->
         <section class="create-section" id="import-section">
             <h2>Import WTB Fixtures</h2>
@@ -82,6 +111,8 @@
                 <button class="btn btn-secondary" onclick="toggleImportSection()">Close</button>
             </div>
         </section>
+
+        {% endif %}
 
         <!-- Create Match Day Section -->
         <section class="create-section" id="create-section">
@@ -132,6 +163,19 @@
                 </div>
             </div>
 
+            <div class="form-group">
+                <label>Visibility</label>
+                <div class="toggle-group">
+                    <button type="button" class="toggle-btn active" data-visibility="public" onclick="selectVisibility('public', this)">
+                        Public
+                    </button>
+                    <button type="button" class="toggle-btn" data-visibility="private" onclick="selectVisibility('private', this)">
+                        Private
+                    </button>
+                </div>
+                <span class="form-hint" id="visibility-hint">Visible to everyone on the archive page</span>
+            </div>
+
             <div class="matchday-name-preview" id="matchday-name-preview">
                 <span class="name-preview-label">Match Day Name:</span>
                 <span class="name-preview-value" id="name-preview-value">—</span>
@@ -155,6 +199,7 @@
                     <div class="match-day-meta">
                         <span>{{ md.format | replace('_', ' ') | title }}</span>
                         {% if md.category %}<span class="category-badge">{{ md.category }}</span>{% endif %}
+                        {% if md.is_public is defined and not md.is_public %}<span class="visibility-badge private">Private</span>{% endif %}
                         {% if md.total_matches > 0 %}
                         <span>{{ md.completed_matches }}/{{ md.total_matches }} matches</span>
                         {% else %}
@@ -203,10 +248,23 @@
     <script>
         let currentFormat = '6_person';
         let currentCategory = 'Herren';
+        let currentVisibility = 'public';
         let teamAClubId = null;
         let teamBClubId = null;
-        let teamASelectedPlayers = [];  // [{id, name, ranking, birth_year}, ...]
+        let teamASelectedPlayers = [];
         let teamBSelectedPlayers = [];
+
+        function selectVisibility(vis, btn) {
+            currentVisibility = vis;
+            btn.closest('.toggle-group').querySelectorAll('.toggle-btn').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            const hint = document.getElementById('visibility-hint');
+            if (hint) {
+                hint.textContent = vis === 'public'
+                    ? 'Visible to everyone on the archive page'
+                    : 'Only visible to you and people with the link';
+            }
+        }
 
         // ==================== Autocomplete Widget ====================
 
@@ -507,9 +565,12 @@
         }
 
         function initMatchDay() {
-            // Reset all state for a fresh form
             currentCategory = 'Herren';
+            currentVisibility = 'public';
             document.getElementById('category-select').value = 'Herren';
+            document.querySelectorAll('[data-visibility]').forEach(b => b.classList.toggle('active', b.dataset.visibility === 'public'));
+            const hint = document.getElementById('visibility-hint');
+            if (hint) hint.textContent = 'Visible to everyone on the archive page';
             teamAClubId = null;
             teamBClubId = null;
             teamASelectedPlayers = [];
@@ -619,7 +680,8 @@
                 players: [...teamAPlayers, ...teamBPlayers],
                 club_a_id: teamAClubId || null,
                 club_b_id: teamBClubId || null,
-                category: currentCategory
+                category: currentCategory,
+                is_public: currentVisibility === 'public'
             };
 
             try {

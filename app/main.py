@@ -14,18 +14,20 @@ from fastapi.templating import Jinja2Templates
 from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from .database import get_db, init_db, async_session_maker
-from .models import Match, MatchDay, Club, Player
-from .schemas import MatchCreate, ScorePoint, MatchResponse, MatchDayCreate, ScoreGame, MatchPlayersUpdate, MatchScoreSet, DoublesCreate, SetInitialServer, FixtureImport, MatchDaySetup
+from .database import get_db, init_db, async_session_maker, ensure_superadmin
+from .models import Match, MatchDay, Club, Player, User
+from .schemas import MatchCreate, ScorePoint, MatchResponse, MatchDayCreate, ScoreGame, MatchPlayersUpdate, MatchScoreSet, DoublesCreate, SetInitialServer, FixtureImport, MatchDaySetup, UserRegister
 from .scoring import score_point, score_game, create_initial_state, get_score_summary
 from .auth import (
-    ADMIN_SESSION_COOKIE,
-    verify_admin_password,
-    create_admin_session,
-    get_admin_session,
-    delete_admin_session,
+    SESSION_COOKIE,
+    hash_password,
+    verify_password,
+    create_session,
+    get_current_user,
+    delete_session,
     get_scorer_token,
     verify_scorer_for_match,
+    is_owner_or_superadmin,
 )
 from .wtb_scraper import scrape_all_clubs, scrape_all_clubs_with_progress, scrape_club_players, scrape_club_teams, scrape_team_fixtures, scrape_spielbericht
 
@@ -120,14 +122,14 @@ async def broadcast_match_update(match, state):
 
 
 async def _render_matchday(request, db, match_day, is_scorer):
-    """Fetch matches for a match day and render matchday.html."""
     matches_result = await db.execute(
         select(Match).where(Match.match_day_id == match_day.id).order_by(Match.match_number)
     )
     matches = [m.to_dict() for m in matches_result.scalars().all()]
+    md_dict = match_day.to_dict_private() if is_scorer else match_day.to_dict()
     return templates.TemplateResponse("matchday.html", {
         "request": request,
-        "match_day": match_day.to_dict(),
+        "match_day": md_dict,
         "matches": matches,
         "is_scorer": is_scorer
     })
@@ -150,6 +152,7 @@ async def _startup_sync_clubs():
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     await init_db()
+    await ensure_superadmin()
     asyncio.create_task(_startup_sync_clubs())
     yield
 
@@ -244,61 +247,115 @@ async def home(request: Request):
 
 # Admin routes
 @app.get("/admin/login", response_class=HTMLResponse)
-async def admin_login_page(request: Request, db: AsyncSession = Depends(get_db)):
-    """Show admin login page."""
-    # If already logged in, redirect to dashboard
-    admin_session = await get_admin_session(request, db)
-    if admin_session:
+async def login_page(request: Request, db: AsyncSession = Depends(get_db)):
+    user = await get_current_user(request, db)
+    if user:
         return RedirectResponse(url="/admin", status_code=302)
-
-    return templates.TemplateResponse("admin_login.html", {"request": request})
+    return templates.TemplateResponse("login.html", {"request": request})
 
 
 @app.post("/admin/login")
-async def admin_login(
+async def login(
     request: Request,
+    email: str = Form(...),
     password: str = Form(...),
     db: AsyncSession = Depends(get_db)
 ):
-    """Process admin login."""
-    if not verify_admin_password(password):
-        return templates.TemplateResponse("admin_login.html", {
+    result = await db.execute(select(User).where(User.email == email))
+    user = result.scalar_one_or_none()
+
+    if not user or not verify_password(password, user.password_hash):
+        return templates.TemplateResponse("login.html", {
             "request": request,
-            "error": "Invalid password"
+            "error": "Invalid email or password"
         })
 
-    # Create session
-    session = await create_admin_session(db)
+    user.last_login_at = datetime.utcnow()
+    session = await create_session(db, user.id)
 
-    # Set cookie and redirect (303 See Other for POST-redirect-GET pattern)
     response = RedirectResponse(url="/admin", status_code=303)
     response.set_cookie(
-        key=ADMIN_SESSION_COOKIE,
+        key=SESSION_COOKIE,
         value=session.id,
         httponly=True,
         secure=request.url.scheme == "https",
         samesite="lax",
-        max_age=7 * 24 * 60 * 60  # 7 days
+        max_age=7 * 24 * 60 * 60
+    )
+    return response
+
+
+@app.get("/register", response_class=HTMLResponse)
+async def register_page(request: Request, db: AsyncSession = Depends(get_db)):
+    user = await get_current_user(request, db)
+    if user:
+        return RedirectResponse(url="/admin", status_code=302)
+    return templates.TemplateResponse("register.html", {"request": request})
+
+
+@app.post("/register")
+async def register(
+    request: Request,
+    email: str = Form(...),
+    password: str = Form(...),
+    display_name: str = Form(""),
+    db: AsyncSession = Depends(get_db)
+):
+    if len(password) < 6:
+        return templates.TemplateResponse("register.html", {
+            "request": request,
+            "error": "Password must be at least 6 characters",
+            "email": email,
+            "display_name": display_name,
+        })
+
+    existing = await db.execute(select(User).where(User.email == email))
+    if existing.scalar_one_or_none():
+        return templates.TemplateResponse("register.html", {
+            "request": request,
+            "error": "An account with this email already exists",
+            "email": email,
+            "display_name": display_name,
+        })
+
+    user = User(
+        email=email,
+        password_hash=hash_password(password),
+        display_name=display_name.strip() or None,
+    )
+    db.add(user)
+    await db.commit()
+    await db.refresh(user)
+
+    session = await create_session(db, user.id)
+
+    response = RedirectResponse(url="/admin", status_code=303)
+    response.set_cookie(
+        key=SESSION_COOKIE,
+        value=session.id,
+        httponly=True,
+        secure=request.url.scheme == "https",
+        samesite="lax",
+        max_age=7 * 24 * 60 * 60
     )
     return response
 
 
 @app.get("/admin", response_class=HTMLResponse)
 async def admin_dashboard(request: Request, db: AsyncSession = Depends(get_db)):
-    """Admin dashboard - main control panel."""
-    admin_session = await get_admin_session(request, db)
-    if not admin_session:
+    user = await get_current_user(request, db)
+    if not user:
         return RedirectResponse(url="/admin/login", status_code=302)
 
-    # Get all match days, preferring scheduled_date for ordering
-    result = await db.execute(
-        select(MatchDay).order_by(
-            func.coalesce(MatchDay.scheduled_date, MatchDay.created_at).desc()
-        )
+    query = select(MatchDay).order_by(
+        func.coalesce(MatchDay.scheduled_date, MatchDay.created_at).desc()
     )
+    if not user.is_superadmin:
+        query = query.where(MatchDay.owner_id == user.id)
+
+    result = await db.execute(query)
     match_days = result.scalars().all()
 
-    # Build data with match counts
     match_days_data = []
     for md in match_days:
         matches_result = await db.execute(
@@ -311,7 +368,7 @@ async def admin_dashboard(request: Request, db: AsyncSession = Depends(get_db)):
         stats = compute_matchday_stats(matches)
         singles_completed = sum(1 for m in singles if m.score_state.get("winner") is not None)
 
-        md_dict = md.to_dict()
+        md_dict = md.to_dict_private()
         match_days_data.append({
             **md_dict,
             **stats,
@@ -320,27 +377,40 @@ async def admin_dashboard(request: Request, db: AsyncSession = Depends(get_db)):
             "has_doubles": len(doubles) > 0,
         })
 
-    # Query last club sync timestamp
     last_sync_result = await db.execute(select(func.max(Club.last_synced)))
     last_club_sync_dt = last_sync_result.scalar()
     last_club_sync = last_club_sync_dt.isoformat() if last_club_sync_dt else None
+
+    # Usage stats for superadmin
+    stats = None
+    if user.is_superadmin:
+        total_users = (await db.execute(select(func.count()).select_from(User))).scalar()
+        total_match_days = (await db.execute(select(func.count()).select_from(MatchDay))).scalar()
+        total_matches = (await db.execute(select(func.count()).select_from(Match))).scalar()
+        stats = {
+            "total_users": total_users,
+            "total_match_days": total_match_days,
+            "total_matches": total_matches,
+        }
 
     return templates.TemplateResponse("admin.html", {
         "request": request,
         "match_days": match_days_data,
         "last_club_sync": last_club_sync,
+        "user": user.to_dict(),
+        "is_superadmin": user.is_superadmin,
+        "stats": stats,
     })
 
 
 @app.post("/admin/logout")
-async def admin_logout(request: Request, db: AsyncSession = Depends(get_db)):
-    """Log out admin user."""
-    session_id = request.cookies.get(ADMIN_SESSION_COOKIE)
+async def logout(request: Request, db: AsyncSession = Depends(get_db)):
+    session_id = request.cookies.get(SESSION_COOKIE)
     if session_id:
-        await delete_admin_session(session_id, db)
+        await delete_session(session_id, db)
 
     response = RedirectResponse(url="/", status_code=303)
-    response.delete_cookie(key=ADMIN_SESSION_COOKIE)
+    response.delete_cookie(key=SESSION_COOKIE)
     return response
 
 
@@ -351,30 +421,28 @@ async def match_page(request: Request, match_id: str, db: AsyncSession = Depends
     if not match:
         raise HTTPException(status_code=404, detail="Match not found")
 
-    # Check if user is admin
-    admin_session = await get_admin_session(request, db)
+    user = await get_current_user(request, db)
 
-    # Get match day info if part of a match day
     match_day_share_code = None
     match_day_scorer_token = None
+    is_owner = False
     if match.match_day_id:
         md_result = await db.execute(select(MatchDay).where(MatchDay.id == match.match_day_id))
         match_day = md_result.scalar_one_or_none()
         if match_day:
             match_day_share_code = match_day.share_code
             match_day_scorer_token = match_day.scorer_token
+            if user:
+                is_owner = await is_owner_or_superadmin(user, match_day)
 
-    # Determine scorer token to use for API calls
-    # Priority: 1. Match day token (if part of match day), 2. Match's own token
-    # Only provide token if user is admin (otherwise they should have it in sessionStorage)
     scorer_token = None
-    if admin_session:
+    if is_owner:
         scorer_token = match_day_scorer_token or match.scorer_token
 
     return templates.TemplateResponse("match.html", {
         "request": request,
         "match": match.to_dict(),
-        "is_scorer": True,
+        "is_scorer": is_owner,
         "match_day_share_code": match_day_share_code,
         "scorer_token": scorer_token
     })
@@ -406,11 +474,9 @@ async def spectator_page(request: Request, share_code: str, db: AsyncSession = D
 # API routes
 @app.post("/api/matches", response_model=MatchResponse)
 async def create_match(match_data: MatchCreate, request: Request, db: AsyncSession = Depends(get_db)):
-    """Create a single match. Requires admin authentication."""
-    # Verify admin authentication
-    admin_session = await get_admin_session(request, db)
-    if not admin_session:
-        raise HTTPException(status_code=401, detail="Admin authentication required")
+    user = await get_current_user(request, db)
+    if not user:
+        raise HTTPException(status_code=401, detail="Authentication required")
 
     match = Match(
         match_type=match_data.match_type,
@@ -629,43 +695,48 @@ async def score_game_endpoint(match_id: str, score_data: ScoreGame, request: Req
 # Match Day routes
 @app.get("/archive", response_class=HTMLResponse)
 async def archive_page(request: Request, db: AsyncSession = Depends(get_db)):
-    """Display archive of all match days."""
-    result = await db.execute(
-        select(MatchDay).order_by(MatchDay.created_at.desc())
-    )
+    user = await get_current_user(request, db)
+
+    from sqlalchemy import or_
+    query = select(MatchDay).order_by(MatchDay.created_at.desc())
+    if user and user.is_superadmin:
+        pass  # superadmin sees all
+    elif user:
+        query = query.where(or_(MatchDay.is_public == True, MatchDay.owner_id == user.id))
+    else:
+        query = query.where(MatchDay.is_public == True)
+
+    result = await db.execute(query)
     match_days = result.scalars().all()
 
-    # Build archive data
     archive = []
     for md in match_days:
         matches_result = await db.execute(
             select(Match).where(Match.match_day_id == md.id)
         )
         matches = matches_result.scalars().all()
-
         archive.append({**md.to_dict(), **compute_matchday_stats(matches)})
-
-    # Check if user is logged in as admin
-    admin_session = await get_admin_session(request, db)
 
     return templates.TemplateResponse("archive.html", {
         "request": request,
         "match_days": archive,
-        "is_admin": admin_session is not None
+        "user": user.to_dict() if user else None,
     })
 
 
 @app.get("/matchday/{match_day_id}", response_class=HTMLResponse)
 async def match_day_page(request: Request, match_day_id: str, db: AsyncSession = Depends(get_db)):
-    # Require admin authentication for direct match day access
-    admin_session = await get_admin_session(request, db)
-    if not admin_session:
+    user = await get_current_user(request, db)
+    if not user:
         return RedirectResponse(url="/admin/login", status_code=302)
 
     result = await db.execute(select(MatchDay).where(MatchDay.id == match_day_id))
     match_day = result.scalar_one_or_none()
     if not match_day:
         raise HTTPException(status_code=404, detail="Match day not found")
+
+    if not await is_owner_or_superadmin(user, match_day):
+        raise HTTPException(status_code=403, detail="Access denied")
 
     return await _render_matchday(request, db, match_day, is_scorer=True)
 
@@ -693,13 +764,10 @@ async def scorer_match_day_page(request: Request, scorer_token: str, db: AsyncSe
 
 @app.post("/api/matchdays")
 async def create_match_day(data: MatchDayCreate, request: Request, db: AsyncSession = Depends(get_db)):
-    """Create a match day with all matches. Requires admin authentication."""
-    # Verify admin authentication
-    admin_session = await get_admin_session(request, db)
-    if not admin_session:
-        raise HTTPException(status_code=401, detail="Admin authentication required")
+    user = await get_current_user(request, db)
+    if not user:
+        raise HTTPException(status_code=401, detail="Authentication required")
 
-    # Auto-generate match day name from team names
     name = f"{data.team_a_name} vs {data.team_b_name}"
 
     match_day = MatchDay(
@@ -713,6 +781,8 @@ async def create_match_day(data: MatchDayCreate, request: Request, db: AsyncSess
         club_a_id=data.club_a_id,
         club_b_id=data.club_b_id,
         category=data.category,
+        owner_id=user.id,
+        is_public=data.is_public,
     )
     db.add(match_day)
     await db.flush()
@@ -755,15 +825,17 @@ async def create_match_day(data: MatchDayCreate, request: Request, db: AsyncSess
 
 @app.post("/api/matchdays/{match_day_id}/doubles")
 async def create_match_day_doubles(match_day_id: str, data: DoublesCreate, request: Request, db: AsyncSession = Depends(get_db)):
-    """Create doubles matches for a match day after all singles are complete. Requires admin authentication."""
-    admin_session = await get_admin_session(request, db)
-    if not admin_session:
-        raise HTTPException(status_code=401, detail="Admin authentication required")
+    user = await get_current_user(request, db)
+    if not user:
+        raise HTTPException(status_code=401, detail="Authentication required")
 
     result = await db.execute(select(MatchDay).where(MatchDay.id == match_day_id))
     match_day = result.scalar_one_or_none()
     if not match_day:
         raise HTTPException(status_code=404, detail="Match day not found")
+
+    if not await is_owner_or_superadmin(user, match_day):
+        raise HTTPException(status_code=403, detail="Access denied")
 
     matches_result = await db.execute(
         select(Match).where(Match.match_day_id == match_day_id).order_by(Match.match_number)
@@ -813,21 +885,27 @@ async def create_match_day_doubles(match_day_id: str, data: DoublesCreate, reque
 
 
 @app.get("/api/matchdays")
-async def list_match_days(db: AsyncSession = Depends(get_db)):
-    """List all match days sorted by creation date (newest first)."""
-    result = await db.execute(
-        select(MatchDay).order_by(MatchDay.created_at.desc())
-    )
+async def list_match_days(request: Request, db: AsyncSession = Depends(get_db)):
+    user = await get_current_user(request, db)
+
+    from sqlalchemy import or_
+    query = select(MatchDay).order_by(MatchDay.created_at.desc())
+    if user and user.is_superadmin:
+        pass
+    elif user:
+        query = query.where(or_(MatchDay.is_public == True, MatchDay.owner_id == user.id))
+    else:
+        query = query.where(MatchDay.is_public == True)
+
+    result = await db.execute(query)
     match_days = result.scalars().all()
 
-    # For each match day, get the match results summary
     archive = []
     for md in match_days:
         matches_result = await db.execute(
             select(Match).where(Match.match_day_id == md.id)
         )
         matches = matches_result.scalars().all()
-
         archive.append({**md.to_dict(), **compute_matchday_stats(matches)})
 
     return {"match_days": archive}
@@ -853,17 +931,17 @@ async def get_match_day(match_day_id: str, db: AsyncSession = Depends(get_db)):
 
 @app.delete("/api/matchdays/{match_day_id}")
 async def delete_match_day(match_day_id: str, request: Request, db: AsyncSession = Depends(get_db)):
-    """Delete a match day and all its matches. Requires admin authentication."""
-    # Verify admin authentication
-    admin_session = await get_admin_session(request, db)
-    if not admin_session:
-        raise HTTPException(status_code=401, detail="Admin authentication required")
+    user = await get_current_user(request, db)
+    if not user:
+        raise HTTPException(status_code=401, detail="Authentication required")
 
-    # Find the match day
     result = await db.execute(select(MatchDay).where(MatchDay.id == match_day_id))
     match_day = result.scalar_one_or_none()
     if not match_day:
         raise HTTPException(status_code=404, detail="Match day not found")
+
+    if not await is_owner_or_superadmin(user, match_day):
+        raise HTTPException(status_code=403, detail="Access denied")
 
     # Delete all matches in this match day first
     matches_result = await db.execute(
@@ -884,14 +962,9 @@ async def delete_match_day(match_day_id: str, request: Request, db: AsyncSession
 
 @app.post("/api/admin/sync-clubs")
 async def sync_wtb_clubs(request: Request, db: AsyncSession = Depends(get_db)):
-    """
-    Scrape and sync all WTB clubs. Admin only.
-    This will scrape all pages from the WTB website and update the database.
-    """
-    # Verify admin authentication
-    admin_session = await get_admin_session(request, db)
-    if not admin_session:
-        raise HTTPException(status_code=401, detail="Admin authentication required")
+    user = await get_current_user(request, db)
+    if not user or not user.is_superadmin:
+        raise HTTPException(status_code=403, detail="Superadmin access required")
 
     try:
         # Scrape all clubs from WTB
@@ -926,10 +999,9 @@ async def sync_wtb_clubs_stream(request: Request, db: AsyncSession = Depends(get
     """
     global _sync_in_progress
 
-    # Verify admin authentication
-    admin_session = await get_admin_session(request, db)
-    if not admin_session:
-        raise HTTPException(status_code=401, detail="Admin authentication required")
+    user = await get_current_user(request, db)
+    if not user or not user.is_superadmin:
+        raise HTTPException(status_code=403, detail="Superadmin access required")
 
     if _sync_in_progress:
         raise HTTPException(status_code=409, detail="Sync already in progress")
@@ -1001,14 +1073,9 @@ async def sync_club_players_endpoint(
     request: Request,
     db: AsyncSession = Depends(get_db)
 ):
-    """
-    Scrape and sync players for a specific club. Admin only.
-    Only scrapes Herren (Men) category.
-    """
-    # Verify admin authentication
-    admin_session = await get_admin_session(request, db)
-    if not admin_session:
-        raise HTTPException(status_code=401, detail="Admin authentication required")
+    user = await get_current_user(request, db)
+    if not user or not user.is_superadmin:
+        raise HTTPException(status_code=403, detail="Superadmin access required")
 
     # Find the club
     result = await db.execute(select(Club).where(Club.id == club_id))
@@ -1197,9 +1264,9 @@ async def import_fixture(
     - Played fixtures: scrapes Spielbericht for full match data (players, scores)
     - Future fixtures: creates shell MatchDay (no players/matches yet)
     """
-    admin_session = await get_admin_session(request, db)
-    if not admin_session:
-        raise HTTPException(status_code=401, detail="Admin authentication required")
+    user = await get_current_user(request, db)
+    if not user:
+        raise HTTPException(status_code=401, detail="Authentication required")
 
     # Check if already imported
     existing = await db.execute(
@@ -1228,6 +1295,7 @@ async def import_fixture(
         wtb_meeting_id=data.meeting_id,
         wtb_team_id=data.wtb_team_id,
         wtb_club_id=data.wtb_club_id,
+        owner_id=user.id,
     )
     db.add(match_day)
     await db.flush()  # Get the match_day.id before creating matches
@@ -1341,15 +1409,17 @@ async def setup_match_day(
     request: Request,
     db: AsyncSession = Depends(get_db)
 ):
-    """Set up players and create matches for an imported shell MatchDay."""
-    admin_session = await get_admin_session(request, db)
-    if not admin_session:
-        raise HTTPException(status_code=401, detail="Admin authentication required")
+    user = await get_current_user(request, db)
+    if not user:
+        raise HTTPException(status_code=401, detail="Authentication required")
 
     result = await db.execute(select(MatchDay).where(MatchDay.id == match_day_id))
     match_day = result.scalar_one_or_none()
     if not match_day:
         raise HTTPException(status_code=404, detail="Match day not found")
+
+    if not await is_owner_or_superadmin(user, match_day):
+        raise HTTPException(status_code=403, detail="Access denied")
 
     # Check no matches exist yet
     existing_matches = await db.execute(
@@ -1401,9 +1471,9 @@ async def sync_fixtures(
     db: AsyncSession = Depends(get_db)
 ):
     """Re-scrape fixtures for a team and update imported MatchDays with date/venue changes."""
-    admin_session = await get_admin_session(request, db)
-    if not admin_session:
-        raise HTTPException(status_code=401, detail="Admin authentication required")
+    user = await get_current_user(request, db)
+    if not user:
+        raise HTTPException(status_code=401, detail="Authentication required")
 
     # Get wtb_club_id and wtb_team_id from query params
     wtb_club_id = request.query_params.get("wtb_club_id")

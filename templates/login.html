@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login - Tennis Scoring</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+    <link rel="icon" type="image/svg+xml" href="/static/favicon.svg">
+    <script src="/static/js/common.js"></script>
+</head>
+<body class="matchday-page">
+    <button class="theme-toggle" id="theme-toggle" aria-label="Toggle theme"></button>
+    <div class="login-container">
+        <form class="login-form" method="POST" action="/admin/login">
+            <div class="login-header">
+                <h1>Tennis Scoring</h1>
+                <p>Log in to your account</p>
+            </div>
+
+            {% if error %}
+            <div class="error-message">
+                {{ error }}
+            </div>
+            {% endif %}
+
+            <div class="form-group">
+                <label for="email">Email</label>
+                <input type="email" id="email" name="email" required autofocus autocomplete="email">
+            </div>
+
+            <div class="form-group">
+                <label for="password">Password</label>
+                <input type="password" id="password" name="password" required autocomplete="current-password">
+            </div>
+
+            <button type="submit" class="btn-login">Log In</button>
+        </form>
+
+        <div class="login-footer-links">
+            <a href="/register">Create an account</a>
+            <span class="login-link-sep">&middot;</span>
+            <a href="/archive">View Archive</a>
+        </div>
+    </div>
+<div class="version-label">v{{ app_version }}</div>
+</body>
+</html>

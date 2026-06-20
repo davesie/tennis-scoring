@@ -23,11 +23,33 @@ def generate_session_expiry():
     return datetime.utcnow() + timedelta(days=7)
 
 
+class User(Base):
+    __tablename__ = "users"
+
+    id = Column(String, primary_key=True, default=generate_uuid)
+    email = Column(String, unique=True, nullable=False, index=True)
+    password_hash = Column(String, nullable=False)
+    display_name = Column(String, nullable=True)
+    is_superadmin = Column(Boolean, default=False)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    last_login_at = Column(DateTime, nullable=True)
+
+    def to_dict(self):
+        return {
+            "id": self.id,
+            "email": self.email,
+            "display_name": self.display_name,
+            "is_superadmin": self.is_superadmin,
+            "created_at": self.created_at.isoformat() if self.created_at else None,
+            "last_login_at": self.last_login_at.isoformat() if self.last_login_at else None,
+        }
+
+
 class AdminSession(Base):
-    """Stores admin login sessions."""
     __tablename__ = "admin_sessions"
 
     id = Column(String, primary_key=True, default=generate_uuid)
+    user_id = Column(String, ForeignKey("users.id"), nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
     expires_at = Column(DateTime, default=generate_session_expiry, nullable=False)
 
@@ -57,6 +79,10 @@ class MatchDay(Base):
     # Team category (WTB league category, e.g. "Herren", "Damen", "Herren 30")
     category = Column(String, nullable=True)
 
+    # Ownership and visibility
+    owner_id = Column(String, ForeignKey("users.id"), nullable=True)
+    is_public = Column(Boolean, default=True)
+
     created_at = Column(DateTime, default=datetime.utcnow)
 
     # WTB fixture import fields
@@ -70,7 +96,6 @@ class MatchDay(Base):
         return {
             "id": self.id,
             "share_code": self.share_code,
-            "scorer_token": self.scorer_token,
             "name": self.name,
             "format": self.format,
             "players": self.players,
@@ -81,6 +106,8 @@ class MatchDay(Base):
             "club_a_id": self.club_a_id,
             "club_b_id": self.club_b_id,
             "category": self.category,
+            "owner_id": self.owner_id,
+            "is_public": self.is_public,
             "created_at": self.created_at.isoformat() if self.created_at else None,
             "scheduled_date": self.scheduled_date.isoformat() if self.scheduled_date else None,
             "venue": self.venue,
@@ -88,6 +115,9 @@ class MatchDay(Base):
             "wtb_team_id": self.wtb_team_id,
             "wtb_club_id": self.wtb_club_id,
         }
+
+    def to_dict_private(self):
+        return {**self.to_dict(), "scorer_token": self.scorer_token}
 
 
 class Match(Base):
