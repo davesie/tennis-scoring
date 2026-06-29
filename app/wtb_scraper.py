@@ -227,35 +227,67 @@ async def scrape_club_players(wtb_id: str, category: str = "Herren") -> List[Dic
                 return players
 
             rows = table.find_all('tr')
+            if not rows:
+                return players
 
-            # Skip header row
+            # Read actual column headers to determine positions dynamically.
+            # WTB page headers are typically: Rang, LK, Name, ID-Nummer, Nation
+            # but column count and order can vary across clubs.
+            header_row = rows[0]
+            headers = [th.get_text(strip=True).lower() for th in header_row.find_all(['th', 'td'])]
+
+            def col(keywords):
+                """Return index of first header matching any keyword, or None."""
+                for i, h in enumerate(headers):
+                    if any(k in h for k in keywords):
+                        return i
+                return None
+
+            # Map header keywords to column indices
+            rang_col  = col(['rang'])
+            lk_col    = col(['lk', 'leistung'])
+            name_col  = col(['name', 'spieler'])
+            id_col    = col(['id', 'nummer', 'dtb'])
+
+            # Fallback to assumed fixed positions if headers aren't recognised
+            if rang_col is None: rang_col = 0
+            if lk_col   is None: lk_col   = 1
+            if name_col is None: name_col  = 2
+            if id_col   is None: id_col    = 3
+
+            logger.debug(
+                "Club %s cols — rang=%d lk=%d name=%d id=%d headers=%s",
+                wtb_id, rang_col, lk_col, name_col, id_col, headers
+            )
+
             for row in rows[1:]:
                 cells = row.find_all('td')
 
-                if len(cells) < 4:
+                if len(cells) <= max(rang_col, lk_col, name_col):
                     continue
 
-                # Cell structure: [Rang, LK, Name (Birth Year), ID-Nummer, Nation]
-                # Rang can be "1", "2 MF", etc. — extract leading number for rank,
-                # detect "MF" flag (Mannschaftsführer / team captain)
-                rang_cell = cells[0].text.strip()
+                # Rang: "1", "2 MF", etc. — extract leading number, detect MF flag
+                rang_cell = cells[rang_col].text.strip()
                 rang_match = re.match(r'^(\d+)', rang_cell)
                 ranking = int(rang_match.group(1)) if rang_match else None
                 is_captain = 'MF' in rang_cell
 
-                lk_raw = cells[1].text.strip() if len(cells) > 1 else ""
+                lk_raw = cells[lk_col].text.strip()
                 # Strip "LK" prefix — store only the numeric value (e.g. "4,0")
-                lk_cell = re.sub(r'^LK\s*', '', lk_raw)
+                lk_cell = re.sub(r'^LK\s*', '', lk_raw).strip()
+                # Treat placeholder values (k.L., —, -, n/a, etc.) as None
+                if lk_cell and not re.match(r'^\d', lk_cell):
+                    lk_cell = None
 
-                name_cell = cells[2].text.strip()
-                wtb_id_cell = cells[3].text.strip() if len(cells) > 3 else ""
+                name_cell = cells[name_col].text.strip()
+                wtb_id_cell = cells[id_col].text.strip() if id_col < len(cells) else ""
 
-                # Parse name and birth year
-                match = re.match(r'^(.+?)\s*\((\d{4})\)$', name_cell)
+                # Parse "Firstname Lastname (birth_year)" format
+                name_match = re.match(r'^(.+?)\s*\((\d{4})\)$', name_cell)
 
-                if match:
-                    player_name = match.group(1).strip()
-                    birth_year = int(match.group(2))
+                if name_match:
+                    player_name = name_match.group(1).strip()
+                    birth_year = int(name_match.group(2))
 
                     players.append({
                         "name": player_name,

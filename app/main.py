@@ -1071,44 +1071,40 @@ async def sync_wtb_clubs_stream(request: Request, db: AsyncSession = Depends(get
 async def sync_club_players_endpoint(
     club_id: str,
     request: Request,
+    category: str = "Herren",
     db: AsyncSession = Depends(get_db)
 ):
     user = await get_current_user(request, db)
     if not user or not user.is_superadmin:
         raise HTTPException(status_code=403, detail="Superadmin access required")
 
-    # Find the club
     result = await db.execute(select(Club).where(Club.id == club_id))
     club = result.scalar_one_or_none()
     if not club:
         raise HTTPException(status_code=404, detail="Club not found")
 
     try:
-        # Scrape players from WTB
-        players_data = await scrape_club_players(club.wtb_id)
+        players_data = await scrape_club_players(club.wtb_id, category=category)
 
-        # Delete existing players for this club (to avoid duplicates)
-        existing_players = (await db.execute(
-            select(Player).where(Player.club_id == club_id)
+        # Delete only players for this specific category to avoid clobbering others
+        existing = (await db.execute(
+            select(Player).where(Player.club_id == club_id, Player.category == category)
         )).scalars().all()
-
-        for player in existing_players:
+        for player in existing:
             await db.delete(player)
 
-        # Add new players
         for player_data in players_data:
             db.add(create_player_from_data(player_data, club_id))
 
-        # Update club's last_synced timestamp
         club.last_synced = datetime.utcnow()
-
         await db.commit()
 
         return {
             "success": True,
             "synced": len(players_data),
             "club_name": club.name,
-            "message": f"Successfully synced {len(players_data)} Herren players for {club.name}"
+            "category": category,
+            "message": f"Synced {len(players_data)} {category} players for {club.name}",
         }
 
     except Exception as e:
@@ -1139,12 +1135,18 @@ async def search_clubs(q: str = "", limit: int = 10, db: AsyncSession = Depends(
 
 
 @app.get("/api/clubs/{club_id}/players")
-async def get_club_players(club_id: str, category: str = "Herren", db: AsyncSession = Depends(get_db)):
+async def get_club_players(
+    club_id: str,
+    category: str = "Herren",
+    refresh: bool = False,
+    db: AsyncSession = Depends(get_db)
+):
     """
     Return players for a club filtered by category, sorted by ranking ASC (nulls last).
-    If the club has no players for the given category yet, auto-triggers a scrape first.
-    Public endpoint - no authentication required.
+    Auto-scrapes on first load or when data is older than 7 days.
+    Pass ?refresh=true to force a re-scrape regardless of age.
     """
+    from datetime import timedelta
     club_result = await db.execute(select(Club).where(Club.id == club_id))
     club = club_result.scalar_one_or_none()
     if not club:
@@ -1157,13 +1159,25 @@ async def get_club_players(club_id: str, category: str = "Herren", db: AsyncSess
     )
     player_count = count_result.scalar()
 
-    if player_count == 0:
+    stale = (
+        club.last_synced is None or
+        club.last_synced < datetime.utcnow() - timedelta(days=7)
+    )
+
+    if player_count == 0 or refresh or stale:
         try:
             players_data = await scrape_club_players(club.wtb_id, category=category)
-            for player_data in players_data:
-                db.add(create_player_from_data(player_data, club_id))
-            club.last_synced = datetime.utcnow()
-            await db.commit()
+            if players_data:
+                # Replace stale records for this category only
+                existing = (await db.execute(
+                    select(Player).where(Player.club_id == club_id, Player.category == category)
+                )).scalars().all()
+                for p in existing:
+                    await db.delete(p)
+                for player_data in players_data:
+                    db.add(create_player_from_data(player_data, club_id))
+                club.last_synced = datetime.utcnow()
+                await db.commit()
         except Exception as e:
             logger.warning(f"Auto-sync players (category={category}) for club {club_id} failed: {e}")
             await db.rollback()

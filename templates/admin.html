@@ -378,10 +378,11 @@
             } catch { return []; }
         }
 
-        async function fetchAllClubPlayers(clubId, category) {
+        async function fetchAllClubPlayers(clubId, category, forceRefresh = false) {
             try {
                 const cat = encodeURIComponent(category || currentCategory);
-                const res = await fetch(`/api/clubs/${clubId}/players?category=${cat}`);
+                const refresh = forceRefresh ? '&refresh=true' : '';
+                const res = await fetch(`/api/clubs/${clubId}/players?category=${cat}${refresh}`);
                 if (!res.ok) return [];
                 return await res.json();
             } catch { return []; }
@@ -425,7 +426,7 @@
             });
         }
 
-        async function loadPlayerPicker(team, clubId) {
+        async function loadPlayerPicker(team, clubId, forceRefresh = false) {
             const containerId = team === 'A' ? 'team-a-players' : 'team-b-players';
             const container = document.getElementById(containerId);
 
@@ -434,7 +435,7 @@
 
             container.innerHTML = '<div class="picker-loading">Loading players\u2026</div>';
 
-            const players = await fetchAllClubPlayers(clubId, currentCategory);
+            const players = await fetchAllClubPlayers(clubId, currentCategory, forceRefresh);
 
             if (!players.length) {
                 container.innerHTML = '<p class="picker-empty">No players found for this club.</p>';
@@ -595,7 +596,7 @@
                 updateNamePreview();
                 if (club) {
                     teamAClubId = club.id;
-                    loadPlayerPicker('A', club.id);
+                    loadPlayerPicker('A', club.id, true);
                 } else {
                     teamAClubId = null;
                     teamASelectedPlayers = [];
@@ -607,7 +608,7 @@
                 updateNamePreview();
                 if (club) {
                     teamBClubId = club.id;
-                    loadPlayerPicker('B', club.id);
+                    loadPlayerPicker('B', club.id, true);
                 } else {
                     teamBClubId = null;
                     teamBSelectedPlayers = [];
