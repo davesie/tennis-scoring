@@ -16,7 +16,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from .database import get_db, init_db, async_session_maker, ensure_superadmin
 from .models import Match, MatchDay, Club, Player, User
-from .schemas import MatchCreate, ScorePoint, MatchResponse, MatchDayCreate, ScoreGame, MatchPlayersUpdate, MatchScoreSet, DoublesCreate, SetInitialServer, FixtureImport, MatchDaySetup, UserRegister
+from .schemas import MatchCreate, ScorePoint, MatchResponse, MatchDayCreate, ScoreGame, MatchPlayersUpdate, MatchScoreSet, DoublesCreate, SetInitialServer, FixtureImport, MatchDaySetup, UserRegister, PointOutcome
 from .scoring import score_point, score_game, create_initial_state, get_score_summary
 from .auth import (
     SESSION_COOKIE,
@@ -85,18 +85,27 @@ def create_player_from_data(player_data: dict, club_id: str) -> Player:
 
 
 def push_history(match) -> list:
-    """Append current state to match history, keeping at most 50 entries."""
+    """Snapshot the current score state AND point log for undo.
+
+    Each entry is {"score_state": ..., "point_log": ...} so undoing a point
+    also rolls back its statistics entry. Keeps at most 50 entries.
+    """
     history = match.history.copy() if match.history else []
-    history.append(match.score_state.copy())
+    history.append({
+        "score_state": match.score_state.copy() if match.score_state else None,
+        "point_log": list(match.point_log) if match.point_log else [],
+    })
     if len(history) > 50:
         history = history[-50:]
     return history
 
 
-async def apply_new_state(match, new_state, history, db):
+async def apply_new_state(match, new_state, history, db, point_log=None):
     """Apply a new score state to a match, commit, and broadcast."""
     match.score_state = new_state
     match.history = history
+    if point_log is not None:
+        match.point_log = point_log
     match.updated_at = datetime.utcnow()
 
     if new_state.get("winner") is not None:
@@ -441,7 +450,7 @@ async def match_page(request: Request, match_id: str, db: AsyncSession = Depends
 
     return templates.TemplateResponse("match.html", {
         "request": request,
-        "match": match.to_dict(),
+        "match": match.to_dict(include_stats=is_owner),
         "is_scorer": is_owner,
         "match_day_share_code": match_day_share_code,
         "scorer_token": scorer_token
@@ -529,11 +538,59 @@ async def score(match_id: str, score_data: ScorePoint, request: Request, db: Asy
     if not match.started_at and not match.history:
         match.started_at = datetime.utcnow()
 
+    # Capture who served this point BEFORE the state transition (for stats)
+    serving_before = match.score_state.get("serving")
+    set_before = match.score_state.get("current_set", 0)
+
     history = push_history(match)
     new_state = score_point(match.score_state, score_data.team, match.super_tiebreak_final_set)
-    await apply_new_state(match, new_state, history, db)
 
-    return {"success": True, "match": match.to_dict()}
+    new_log = list(match.point_log or [])
+    new_log.append({
+        "winner": score_data.team,
+        "server": serving_before,
+        "set": set_before,
+        "outcome": None,
+        "ts": datetime.utcnow().isoformat(),
+    })
+
+    await apply_new_state(match, new_state, history, db, point_log=new_log)
+
+    return {"success": True, "match": match.to_dict(include_stats=True)}
+
+
+@app.post("/api/matches/{match_id}/point-outcome")
+async def tag_point_outcome(match_id: str, data: PointOutcome, request: Request, db: AsyncSession = Depends(get_db)):
+    """Classify how the most recent point ended (optional, scorer only).
+
+    Updates the last point_log entry. Does not broadcast — live stats stay on
+    the scorer's screen; the scorer's panel updates from this response.
+    """
+    match = await verify_scorer_for_match(match_id, request, db)
+
+    point_log = list(match.point_log or [])
+    if not point_log:
+        raise HTTPException(status_code=400, detail="No point to tag yet")
+
+    last = dict(point_log[-1])
+    winner = last.get("winner")
+    server = last.get("server")
+
+    # Validate serve-context outcomes against who won the point
+    if data.outcome == "ace" and winner is not None and server is not None and winner != server:
+        raise HTTPException(status_code=400, detail="An ace can only be tagged when the server won the point")
+    if data.outcome == "double_fault" and winner is not None and server is not None and winner == server:
+        raise HTTPException(status_code=400, detail="A double fault can only be tagged when the receiver won the point")
+
+    last["outcome"] = data.outcome
+    point_log[-1] = last
+    match.point_log = point_log
+    match.updated_at = datetime.utcnow()
+
+    await db.commit()
+    await db.refresh(match)
+
+    return {"success": True, "match": match.to_dict(include_stats=True)}
 
 
 @app.post("/api/matches/{match_id}/undo")
@@ -545,8 +602,15 @@ async def undo(match_id: str, request: Request, db: AsyncSession = Depends(get_d
     if not history:
         raise HTTPException(status_code=400, detail="No history to undo")
 
-    # Restore previous state
-    previous_state = history.pop()
+    # Restore previous snapshot. New entries wrap score_state + point_log;
+    # legacy entries are the bare score_state dict.
+    previous = history.pop()
+    if isinstance(previous, dict) and "score_state" in previous:
+        previous_state = previous["score_state"]
+        match.point_log = previous.get("point_log", [])
+    else:
+        previous_state = previous
+
     match.score_state = previous_state
     match.history = history
     match.updated_at = datetime.utcnow()
@@ -557,7 +621,7 @@ async def undo(match_id: str, request: Request, db: AsyncSession = Depends(get_d
 
     await broadcast_match_update(match, previous_state)
 
-    return {"success": True, "match": match.to_dict()}
+    return {"success": True, "match": match.to_dict(include_stats=True)}
 
 
 @app.post("/api/matches/{match_id}/reset")
@@ -567,6 +631,7 @@ async def reset_match(match_id: str, request: Request, db: AsyncSession = Depend
 
     match.score_state = create_initial_state()
     match.history = []
+    match.point_log = []
     match.updated_at = datetime.utcnow()
     match.started_at = None
     match.finished_at = None
@@ -576,7 +641,7 @@ async def reset_match(match_id: str, request: Request, db: AsyncSession = Depend
 
     await broadcast_match_update(match, match.score_state)
 
-    return {"success": True, "match": match.to_dict()}
+    return {"success": True, "match": match.to_dict(include_stats=True)}
 
 
 @app.post("/api/matches/{match_id}/set-server")
@@ -689,7 +754,7 @@ async def score_game_endpoint(match_id: str, score_data: ScoreGame, request: Req
     new_state = score_game(match.score_state, score_data.team, match.super_tiebreak_final_set)
     await apply_new_state(match, new_state, history, db)
 
-    return {"success": True, "match": match.to_dict()}
+    return {"success": True, "match": match.to_dict(include_stats=True)}
 
 
 # Match Day routes

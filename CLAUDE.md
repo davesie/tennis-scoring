@@ -64,6 +64,22 @@ podman run -d -p 8000:8000 -v tennis_data:/app/data tennis-scoring
 }
 ```
 
+### Per-Point Statistics
+
+Per-point stats are tracked separately from the score state machine:
+
+- **`Match.point_log`** (JSON column) — append-only list; one entry per point scored via the **Point** button (Game-button points are not logged). Each entry:
+  ```python
+  {"winner": 0|1, "server": 0|1, "set": int,
+   "outcome": None|"ace"|"winner"|"unforced_error"|"forced_error"|"double_fault",
+   "ts": "<iso>"}
+  ```
+- **Tagging** — `POST /api/matches/{id}/point-outcome` `{"outcome": ...}` sets the outcome on the **last** log entry (optional; the scorer can skip). `ace` is only valid when the server won the point; `double_fault` only when the receiver won.
+- **Stats** — `scoring.compute_match_stats(point_log)` aggregates per-team `points_won`, `aces`, `double_faults`, `winners`, `unforced_errors`, `forced_errors`, plus `tagged`/`total` coverage.
+- **Visibility** — `Match.to_dict(include_stats=False)`: the raw `point_log` + live `stats` go only to scorer-facing responses (`include_stats=True`); the public/WS payload includes a `stats` summary **only once the match is finished** (post-match summary for all). Live stats are never broadcast to spectators.
+- **Undo** — `push_history()` snapshots both `score_state` and `point_log`, so undo rolls back stats too. Legacy (pre-2.1) history entries are bare score-state dicts and are handled defensively.
+- **UI** — `templates/match.html`: a skippable tag sheet appears after each point (scorer only), a live stats panel (scorer), and a post-match summary table (everyone). One-tap scoring is unchanged.
+
 ### Match Day Formats
 
 - **6-person:** 6 singles + 3 doubles (players 1-6 paired as 1v1, 2v2...6v6 for singles; (1,2)v(1,2), (3,4)v(3,4), (5,6)v(5,6) for doubles)

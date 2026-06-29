@@ -1,5 +1,5 @@
 from pydantic import BaseModel
-from typing import Optional, List
+from typing import Optional, List, Literal
 from datetime import datetime
 
 
@@ -21,6 +21,11 @@ class ScorePoint(BaseModel):
 
 class ScoreGame(BaseModel):
     team: int  # 0 or 1
+
+
+class PointOutcome(BaseModel):
+    """Optional classification of how the most recent point ended."""
+    outcome: Literal["ace", "winner", "unforced_error", "forced_error", "double_fault"]
 
 
 class SetInitialServer(BaseModel):

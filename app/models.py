@@ -4,7 +4,7 @@ from datetime import datetime, timedelta
 import uuid
 
 from .database import Base
-from .scoring import create_initial_state, format_set_cells, get_point_display
+from .scoring import create_initial_state, format_set_cells, get_point_display, compute_match_stats
 
 
 def generate_uuid():
@@ -148,6 +148,9 @@ class Match(Base):
     # Match history for undo
     history = Column(JSON, default=list)
 
+    # Append-only per-point log for statistics (each: winner, server, set, outcome, ts)
+    point_log = Column(JSON, default=list)
+
     # Match settings
     best_of = Column(Integer, default=3)  # Best of 3 sets
     super_tiebreak_final_set = Column(Boolean, default=True)
@@ -175,8 +178,8 @@ class Match(Base):
             return f"{hours}h {minutes}m"
         return f"{minutes}m"
 
-    def to_dict(self):
-        return {
+    def to_dict(self, include_stats=False):
+        d = {
             "id": self.id,
             "share_code": self.share_code,
             "match_day_id": self.match_day_id,
@@ -200,6 +203,15 @@ class Match(Base):
             "duration_seconds": self.get_duration_seconds(),
             "duration_formatted": self.get_duration_formatted(),
         }
+        finished = (self.score_state or {}).get("winner") is not None
+        # Stats summary is public once the match is finished (post-match summary
+        # for everyone); during play it is sent only to scorer-facing responses.
+        if include_stats or finished:
+            d["stats"] = compute_match_stats(self.point_log or [])
+        # The raw point log goes only to the scorer (used to drive the live panel).
+        if include_stats:
+            d["point_log"] = self.point_log or []
+        return d
 
 
 class Club(Base):

@@ -107,6 +107,31 @@
             </div>
         </div>
 
+        <!-- Match Statistics Panel (live for scorer, final summary for everyone) -->
+        <div class="stats-panel" id="stats-panel" style="display: none;">
+            <div class="stats-panel-header">
+                <span class="stats-panel-title" id="stats-panel-title">Live Stats</span>
+                <span class="stats-panel-coverage" id="stats-coverage"></span>
+            </div>
+            <table class="stats-table">
+                <thead>
+                    <tr>
+                        <th class="stat-label-col"></th>
+                        <th class="stat-team-a" id="stats-name-a">A</th>
+                        <th class="stat-team-b" id="stats-name-b">B</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr><td>Points won</td><td id="st-points-a">0</td><td id="st-points-b">0</td></tr>
+                    <tr><td>Aces</td><td id="st-aces-a">0</td><td id="st-aces-b">0</td></tr>
+                    <tr><td>Double faults</td><td id="st-df-a">0</td><td id="st-df-b">0</td></tr>
+                    <tr><td>Winners</td><td id="st-win-a">0</td><td id="st-win-b">0</td></tr>
+                    <tr><td>Unforced errors</td><td id="st-ue-a">0</td><td id="st-ue-b">0</td></tr>
+                    <tr><td>Forced errors</td><td id="st-fe-a">0</td><td id="st-fe-b">0</td></tr>
+                </tbody>
+            </table>
+        </div>
+
         {% if is_scorer %}
         <!-- Serve Selection Overlay -->
         <div class="serve-overlay" id="serve-overlay" style="display: none;">
@@ -185,6 +210,15 @@
                 <button class="btn btn-secondary" onclick="undoPoint()">Undo</button>
                 <button class="btn btn-danger" onclick="resetMatch()">Reset</button>
             </div>
+
+            <!-- Point Outcome Tag Sheet (optional, appears after each point) -->
+            <div class="tag-sheet" id="tag-sheet" style="display: none;">
+                <div class="tag-sheet-header">
+                    <span id="tag-sheet-title">Last point</span>
+                    <button class="tag-sheet-skip" onclick="dismissTagSheet()" aria-label="Skip tagging">Skip</button>
+                </div>
+                <div class="tag-sheet-buttons" id="tag-sheet-buttons"></div>
+            </div>
         </div>
         {% else %}
         <!-- Spectator View -->
@@ -232,6 +266,17 @@
         const maxReconnectAttempts = 10;
         let timerInterval = null;
         window.SCORER_TOKEN = "{{ scorer_token or '' }}";
+
+        // Per-point statistics state
+        let latestStats = (matchData && matchData.stats) || null;
+        let tagSheetTimer = null;
+        const OUTCOME_LABELS = {
+            ace: 'Ace',
+            winner: 'Winner',
+            unforced_error: 'Unforced error',
+            forced_error: 'Forced error',
+            double_fault: 'Double fault',
+        };
 
         // parseLK / stripLK / formatPlayerNameHTML / formatElapsed live in common.js
 
@@ -515,6 +560,9 @@
             set3Header.style.visibility = showSet3 ? 'visible' : 'hidden';
             set3A.style.visibility = showSet3 ? 'visible' : 'hidden';
             set3B.style.visibility = showSet3 ? 'visible' : 'hidden';
+
+            // Refresh statistics (post-match summary for everyone; live panel for scorer)
+            renderStats();
         }
 
         function updateServeOverlay(state) {
@@ -570,10 +618,111 @@
             }
         }
 
+        // ==================== Statistics ====================
+
+        function renderStats() {
+            const panel = document.getElementById('stats-panel');
+            if (!panel) return;
+
+            const ss = matchData.score_state || {};
+            const finished = ss.winner !== null && ss.winner !== undefined;
+
+            // Finished → public stats summary (everyone). Live → scorer-only running stats.
+            let stats = null, title = 'Live Stats';
+            if (finished && matchData.stats) {
+                stats = matchData.stats;
+                title = 'Match Statistics';
+            } else if (isScorer && latestStats) {
+                stats = latestStats;
+                title = 'Live Stats';
+            }
+
+            if (!stats) { panel.style.display = 'none'; return; }
+
+            document.getElementById('stats-panel-title').textContent = title;
+            document.getElementById('stats-name-a').textContent = getWinnerDisplayName(0);
+            document.getElementById('stats-name-b').textContent = getWinnerDisplayName(1);
+
+            const a = stats.a || {}, b = stats.b || {};
+            const set = (id, v) => { const el = document.getElementById(id); if (el) el.textContent = v || 0; };
+            set('st-points-a', a.points_won); set('st-points-b', b.points_won);
+            set('st-aces-a', a.aces);         set('st-aces-b', b.aces);
+            set('st-df-a', a.double_faults);  set('st-df-b', b.double_faults);
+            set('st-win-a', a.winners);       set('st-win-b', b.winners);
+            set('st-ue-a', a.unforced_errors); set('st-ue-b', b.unforced_errors);
+            set('st-fe-a', a.forced_errors);  set('st-fe-b', b.forced_errors);
+
+            const cov = document.getElementById('stats-coverage');
+            if (cov) {
+                cov.textContent = (typeof stats.tagged === 'number' && typeof stats.total === 'number')
+                    ? `${stats.tagged}/${stats.total} points tagged` : '';
+            }
+            panel.style.display = 'block';
+        }
+
+        function showTagSheet(pointLog) {
+            if (!isScorer || !pointLog || !pointLog.length) return;
+            const last = pointLog[pointLog.length - 1];
+            if (!last || last.winner === null || last.winner === undefined) return;
+
+            document.getElementById('tag-sheet-title').textContent =
+                `Point to ${getWinnerDisplayName(last.winner)} — how?`;
+
+            // Context-aware outcomes: ace only if server won; double fault only if receiver won.
+            const outcomes = (last.server === last.winner)
+                ? ['ace', 'winner', 'unforced_error', 'forced_error']
+                : ['double_fault', 'winner', 'unforced_error', 'forced_error'];
+
+            const container = document.getElementById('tag-sheet-buttons');
+            container.innerHTML = '';
+            outcomes.forEach(o => {
+                const btn = document.createElement('button');
+                btn.className = 'tag-btn tag-' + o + (last.outcome === o ? ' active' : '');
+                btn.textContent = OUTCOME_LABELS[o];
+                btn.onclick = () => tagPoint(o);
+                container.appendChild(btn);
+            });
+
+            document.getElementById('tag-sheet').style.display = 'block';
+            if (tagSheetTimer) clearTimeout(tagSheetTimer);
+            tagSheetTimer = setTimeout(dismissTagSheet, 12000);
+        }
+
+        function dismissTagSheet() {
+            const sheet = document.getElementById('tag-sheet');
+            if (sheet) sheet.style.display = 'none';
+            if (tagSheetTimer) { clearTimeout(tagSheetTimer); tagSheetTimer = null; }
+        }
+
+        async function tagPoint(outcome) {
+            try {
+                const response = await fetch(`/api/matches/${matchId}/point-outcome`, {
+                    method: 'POST',
+                    headers: getAuthHeaders(),
+                    body: JSON.stringify({ outcome })
+                });
+                const data = await response.json().catch(() => ({}));
+                if (!response.ok) throw new Error(data.detail || 'Failed to tag point');
+
+                if (data.match && data.match.stats) {
+                    latestStats = data.match.stats;
+                    renderStats();
+                }
+                vibrate(20);
+                dismissTagSheet();
+            } catch (error) {
+                console.error('Error tagging point:', error);
+                showToast(error.message || 'Failed to tag point', 'error');
+            }
+        }
+
+        // ==================== Scoring ====================
+
         async function scorePoint(team) {
             const btn = team === 0 ? document.getElementById('score-a') : document.getElementById('score-b');
             btn.classList.add('scoring');
             vibrate(30);  // light tap
+            dismissTagSheet();  // clear any pending tag for the previous point
 
             try {
                 const response = await fetch(`/api/matches/${matchId}/score`, {
@@ -582,9 +731,15 @@
                     body: JSON.stringify({ team })
                 });
 
+                const data = await response.json().catch(() => ({}));
                 if (!response.ok) {
-                    const data = await response.json().catch(() => ({}));
                     throw new Error(data.detail || 'Failed to score point');
+                }
+
+                if (data.match) {
+                    if (data.match.stats) { latestStats = data.match.stats; }
+                    renderStats();
+                    showTagSheet(data.match.point_log);
                 }
             } catch (error) {
                 console.error('Error scoring point:', error);
@@ -599,6 +754,7 @@
             const btn = team === 0 ? document.getElementById('game-a') : document.getElementById('game-b');
             btn.classList.add('scoring');
             vibrate([50, 30, 50]);  // stronger for full game
+            dismissTagSheet();
 
             try {
                 const response = await fetch(`/api/matches/${matchId}/game`, {
@@ -607,10 +763,13 @@
                     body: JSON.stringify({ team })
                 });
 
+                const data = await response.json().catch(() => ({}));
                 if (!response.ok) {
-                    const data = await response.json().catch(() => ({}));
                     showToast(data.detail || 'Failed to score game', 'error');
                     vibrate([50, 50, 50]);
+                } else if (data.match && data.match.stats) {
+                    latestStats = data.match.stats;
+                    renderStats();
                 }
             } catch (error) {
                 console.error('Error scoring game:', error);
@@ -624,6 +783,7 @@
         async function undoPoint() {
             if (!confirm('Undo the last action?')) return;
             vibrate([40, 30, 40]);  // double pulse for undo
+            dismissTagSheet();
 
             try {
                 const response = await fetch(`/api/matches/${matchId}/undo`, {
@@ -631,10 +791,13 @@
                     headers: getAuthHeaders()
                 });
 
+                const data = await response.json().catch(() => ({}));
                 if (!response.ok) {
-                    const data = await response.json().catch(() => ({}));
                     showToast(data.detail || 'Failed to undo', 'error');
                     vibrate([50, 50, 50]);
+                } else if (data.match && data.match.stats) {
+                    latestStats = data.match.stats;
+                    renderStats();
                 }
             } catch (error) {
                 console.error('Error undoing:', error);
@@ -646,6 +809,7 @@
         async function resetMatch() {
             if (!confirm('Are you sure you want to reset the entire match? This cannot be undone.')) return;
             vibrate([100, 50, 100, 50, 100]);  // strong warning pattern
+            dismissTagSheet();
 
             try {
                 const response = await fetch(`/api/matches/${matchId}/reset`, {
@@ -653,10 +817,12 @@
                     headers: getAuthHeaders()
                 });
 
+                const data = await response.json().catch(() => ({}));
                 if (!response.ok) {
-                    const data = await response.json().catch(() => ({}));
                     throw new Error(data.detail || 'Failed to reset match');
                 }
+                latestStats = (data.match && data.match.stats) || null;
+                renderStats();
             } catch (error) {
                 console.error('Error resetting:', error);
                 showToast(error.message || 'Failed to reset match. Please try again.', 'error');

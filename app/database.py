@@ -54,6 +54,7 @@ async def init_db():
             "ALTER TABLE match_days ADD COLUMN owner_id TEXT REFERENCES users(id)",
             "ALTER TABLE match_days ADD COLUMN is_public BOOLEAN DEFAULT 1",
             "ALTER TABLE admin_sessions ADD COLUMN user_id TEXT REFERENCES users(id)",
+            "ALTER TABLE matches ADD COLUMN point_log JSON",
         ]:
             try:
                 await conn.execute(text(col_def))
