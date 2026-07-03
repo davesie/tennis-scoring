@@ -38,6 +38,11 @@ class UserRegister(BaseModel):
     display_name: Optional[str] = None
 
 
+class UserLogin(BaseModel):
+    email: str
+    password: str
+
+
 class MatchDayCreate(BaseModel):
     format: str = "6_person"  # "6_person" or "4_person"
     players: List[str] = []

@@ -11,12 +11,13 @@ from fastapi import FastAPI, WebSocket, WebSocketDisconnect, Depends, HTTPExcept
 from fastapi.responses import HTMLResponse, RedirectResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
+from starlette.exceptions import HTTPException as StarletteHTTPException
 from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from .database import get_db, init_db, async_session_maker, ensure_superadmin
 from .models import Match, MatchDay, Club, Player, User
-from .schemas import MatchCreate, ScorePoint, MatchResponse, MatchDayCreate, ScoreGame, MatchPlayersUpdate, MatchScoreSet, DoublesCreate, SetInitialServer, FixtureImport, MatchDaySetup, UserRegister, PointOutcome
+from .schemas import MatchCreate, ScorePoint, MatchResponse, MatchDayCreate, ScoreGame, MatchPlayersUpdate, MatchScoreSet, DoublesCreate, SetInitialServer, FixtureImport, MatchDaySetup, UserRegister, UserLogin, PointOutcome
 from .scoring import score_point, score_game, create_initial_state, get_score_summary
 from .auth import (
     SESSION_COOKIE,
@@ -24,6 +25,7 @@ from .auth import (
     verify_password,
     create_session,
     get_current_user,
+    get_session_id,
     delete_session,
     get_scorer_token,
     verify_scorer_for_match,
@@ -171,6 +173,32 @@ app = FastAPI(title="Tennis Scoring", lifespan=lifespan)
 # Mount static files and templates
 app.mount("/static", StaticFiles(directory="static"), name="static")
 templates = Jinja2Templates(directory="templates")
+
+
+class SPAStaticFiles(StaticFiles):
+    """StaticFiles that falls back to index.html for unknown paths.
+
+    Lets the Flutter web build's client-side (go_router) routes resolve on a
+    hard refresh, e.g. GET /app/watchday/{code} serves index.html so the app
+    can route it, instead of returning 404.
+    """
+
+    async def get_response(self, path, scope):
+        try:
+            return await super().get_response(path, scope)
+        except StarletteHTTPException as exc:
+            if exc.status_code == 404:
+                return await super().get_response("index.html", scope)
+            raise
+
+
+# Serve the compiled Flutter web bundle at /app (same origin as the API, so no
+# CORS is needed). Only mounted when the build exists; run
+# `flutter build web --base-href /app/` from mobile/ to produce it. The existing
+# Jinja routes (/, /archive, /admin, ...) are unaffected.
+_flutter_web_dir = Path(__file__).resolve().parent.parent / "mobile" / "build" / "web"
+if _flutter_web_dir.is_dir():
+    app.mount("/app", SPAStaticFiles(directory=str(_flutter_web_dir), html=True), name="flutter_web")
 
 
 def _get_app_version() -> str:
@@ -421,6 +449,62 @@ async def logout(request: Request, db: AsyncSession = Depends(get_db)):
     response = RedirectResponse(url="/", status_code=303)
     response.delete_cookie(key=SESSION_COOKIE)
     return response
+
+
+# ==================== JSON auth (for the Flutter iOS/Android/Web client) ====================
+# These mirror the form-based routes above but speak JSON and return a bearer
+# token (the AdminSession id) instead of setting a cookie. The same session
+# machinery backs both, so cookie-based web login is unaffected.
+
+@app.post("/api/auth/register")
+async def api_register(payload: UserRegister, db: AsyncSession = Depends(get_db)):
+    if len(payload.password) < 6:
+        raise HTTPException(status_code=400, detail="Password must be at least 6 characters")
+
+    existing = await db.execute(select(User).where(User.email == payload.email))
+    if existing.scalar_one_or_none():
+        raise HTTPException(status_code=409, detail="An account with this email already exists")
+
+    user = User(
+        email=payload.email,
+        password_hash=hash_password(payload.password),
+        display_name=(payload.display_name or "").strip() or None,
+    )
+    db.add(user)
+    await db.commit()
+    await db.refresh(user)
+
+    session = await create_session(db, user.id)
+    return {"token": session.id, "user": user.to_dict()}
+
+
+@app.post("/api/auth/login")
+async def api_login(payload: UserLogin, db: AsyncSession = Depends(get_db)):
+    result = await db.execute(select(User).where(User.email == payload.email))
+    user = result.scalar_one_or_none()
+
+    if not user or not verify_password(payload.password, user.password_hash):
+        raise HTTPException(status_code=401, detail="Invalid email or password")
+
+    user.last_login_at = datetime.utcnow()
+    session = await create_session(db, user.id)
+    return {"token": session.id, "user": user.to_dict()}
+
+
+@app.get("/api/auth/me")
+async def api_me(request: Request, db: AsyncSession = Depends(get_db)):
+    user = await get_current_user(request, db)
+    if not user:
+        raise HTTPException(status_code=401, detail="Authentication required")
+    return {"user": user.to_dict()}
+
+
+@app.post("/api/auth/logout")
+async def api_logout(request: Request, db: AsyncSession = Depends(get_db)):
+    session_id = get_session_id(request)
+    if session_id:
+        await delete_session(session_id, db)
+    return {"success": True}
 
 
 @app.get("/match/{match_id}", response_class=HTMLResponse)

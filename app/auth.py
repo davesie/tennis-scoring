@@ -39,8 +39,28 @@ async def create_session(db: AsyncSession, user_id: str) -> AdminSession:
     return session
 
 
+def get_session_id(request: Request) -> Optional[str]:
+    """Resolve the session id from a bearer/header token or the session cookie.
+
+    Native and web Flutter clients send the session id as
+    ``Authorization: Bearer <session_id>`` (or ``X-Session-Token``); the existing
+    server-rendered site continues to use the ``admin_session`` cookie.
+    """
+    auth_header = request.headers.get("Authorization", "")
+    if auth_header.lower().startswith("bearer "):
+        token = auth_header[7:].strip()
+        if token:
+            return token
+
+    header_token = request.headers.get("X-Session-Token")
+    if header_token:
+        return header_token
+
+    return request.cookies.get(SESSION_COOKIE)
+
+
 async def get_current_user(request: Request, db: AsyncSession) -> Optional[User]:
-    session_id = request.cookies.get(SESSION_COOKIE)
+    session_id = get_session_id(request)
     if not session_id:
         return None
 
