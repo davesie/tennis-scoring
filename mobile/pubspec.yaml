@@ -1,0 +1,32 @@
+name: tennis_scoring
+description: Real-time tennis scoring client for iOS, Android and Web.
+publish_to: "none"
+version: 2.2.0+1
+
+environment:
+  sdk: ">=3.3.0 <4.0.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+  # State management / DI
+  flutter_riverpod: ^2.5.1
+  # REST
+  dio: ^5.4.0
+  # Live updates (uses the browser WebSocket on web, dart:io sockets on mobile)
+  web_socket_channel: ^2.4.5
+  # URL-based routing: deep links on mobile == real browser URLs on web
+  go_router: ^13.2.0
+  # Token storage (mobile: keychain/keystore; web: browser-backed fallback)
+  flutter_secure_storage: ^9.0.0
+  shared_preferences: ^2.2.2
+  # Broadcast Court fonts
+  google_fonts: ^6.2.1
+  # Native share sheet for share codes
+  share_plus: ^7.2.2
+
+dev_dependencies:
+  flutter_lints: ^3.0.1
+
+flutter:
+  uses-material-design: true

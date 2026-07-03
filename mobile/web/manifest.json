@@ -1,0 +1,11 @@
+{
+  "name": "Tennis Scoring",
+  "short_name": "Tennis",
+  "start_url": ".",
+  "display": "standalone",
+  "background_color": "#F7F5EE",
+  "theme_color": "#C6EF3E",
+  "description": "Real-time tennis scoring",
+  "orientation": "portrait-primary",
+  "prefer_related_applications": false
+}

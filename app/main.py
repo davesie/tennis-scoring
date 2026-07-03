@@ -1078,6 +1078,39 @@ async def get_match_day(match_day_id: str, db: AsyncSession = Depends(get_db)):
     }
 
 
+async def _match_day_bundle(match_day: MatchDay, db: AsyncSession, private: bool) -> dict:
+    matches_result = await db.execute(
+        select(Match).where(Match.match_day_id == match_day.id).order_by(Match.match_number)
+    )
+    matches = [m.to_dict() for m in matches_result.scalars().all()]
+    md = match_day.to_dict_private() if private else match_day.to_dict()
+    return {"match_day": md, "matches": matches}
+
+
+@app.get("/api/matchdays/share/{share_code}")
+async def get_match_day_by_share_code(share_code: str, db: AsyncSession = Depends(get_db)):
+    """Public spectator read of a match day by its 8-char share code."""
+    result = await db.execute(select(MatchDay).where(MatchDay.share_code == share_code))
+    match_day = result.scalar_one_or_none()
+    if not match_day:
+        raise HTTPException(status_code=404, detail="Match day not found")
+    return await _match_day_bundle(match_day, db, private=False)
+
+
+@app.get("/api/matchdays/by-scorer-token/{scorer_token}")
+async def get_match_day_by_scorer_token(scorer_token: str, db: AsyncSession = Depends(get_db)):
+    """Scorer read of a match day by its 12-char scorer token.
+
+    Returns the private view (includes scorer_token) so the client can then
+    score its matches with the X-Scorer-Token header.
+    """
+    result = await db.execute(select(MatchDay).where(MatchDay.scorer_token == scorer_token))
+    match_day = result.scalar_one_or_none()
+    if not match_day:
+        raise HTTPException(status_code=404, detail="Invalid scorer token")
+    return await _match_day_bundle(match_day, db, private=True)
+
+
 @app.delete("/api/matchdays/{match_day_id}")
 async def delete_match_day(match_day_id: str, request: Request, db: AsyncSession = Depends(get_db)):
     user = await get_current_user(request, db)
