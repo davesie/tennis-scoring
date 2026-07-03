@@ -27,15 +27,15 @@ async def init_db():
         try:
             await conn.execute(text("ALTER TABLE players ADD COLUMN ranking INTEGER"))
         except Exception:
-            pass  # Column already exists
+            pass
         try:
             await conn.execute(text("ALTER TABLE players ADD COLUMN is_captain BOOLEAN DEFAULT 0"))
         except Exception:
-            pass  # Column already exists
+            pass
         try:
             await conn.execute(text("ALTER TABLE players ADD COLUMN lk TEXT"))
         except Exception:
-            pass  # Column already exists
+            pass
         try:
             await conn.execute(text("ALTER TABLE match_days ADD COLUMN club_a_id TEXT REFERENCES clubs(id)"))
         except Exception:
@@ -44,7 +44,6 @@ async def init_db():
             await conn.execute(text("ALTER TABLE match_days ADD COLUMN club_b_id TEXT REFERENCES clubs(id)"))
         except Exception:
             pass
-        # MatchDay WTB fixture import fields
         for col_def in [
             "ALTER TABLE match_days ADD COLUMN scheduled_date DATETIME",
             "ALTER TABLE match_days ADD COLUMN venue TEXT",
@@ -52,15 +51,57 @@ async def init_db():
             "ALTER TABLE match_days ADD COLUMN wtb_team_id TEXT",
             "ALTER TABLE match_days ADD COLUMN wtb_club_id TEXT",
             "ALTER TABLE match_days ADD COLUMN category TEXT",
+            "ALTER TABLE match_days ADD COLUMN owner_id TEXT REFERENCES users(id)",
+            "ALTER TABLE match_days ADD COLUMN is_public BOOLEAN DEFAULT 1",
+            "ALTER TABLE admin_sessions ADD COLUMN user_id TEXT REFERENCES users(id)",
+            "ALTER TABLE matches ADD COLUMN point_log JSON",
         ]:
             try:
                 await conn.execute(text(col_def))
             except Exception:
                 pass
-        # Unique index on wtb_meeting_id (ALTER TABLE can't add UNIQUE in SQLite)
         try:
             await conn.execute(text(
                 "CREATE UNIQUE INDEX IF NOT EXISTS ix_match_days_wtb_meeting_id ON match_days (wtb_meeting_id)"
             ))
         except Exception:
             pass
+
+
+async def ensure_superadmin():
+    """Create superadmin user from env vars if no superadmin exists yet.
+    Also backfill ownerless match days to the superadmin."""
+    from .models import User, MatchDay
+    from .auth import hash_password
+
+    admin_password = os.getenv("ADMIN_PASSWORD", "")
+    if not admin_password:
+        return
+
+    async with async_session() as db:
+        result = await db.execute(
+            text("SELECT id FROM users WHERE is_superadmin = 1 LIMIT 1")
+        )
+        existing = result.first()
+        if existing:
+            return
+
+        admin_email = os.getenv("ADMIN_EMAIL", "admin@localhost")
+        from .models import generate_uuid
+        user_id = generate_uuid()
+        pw_hash = hash_password(admin_password)
+
+        await db.execute(text(
+            "INSERT INTO users (id, email, password_hash, display_name, is_superadmin) "
+            "VALUES (:id, :email, :pw, :name, 1)"
+        ), {"id": user_id, "email": admin_email, "pw": pw_hash, "name": "Admin"})
+
+        await db.execute(text(
+            "UPDATE match_days SET owner_id = :uid WHERE owner_id IS NULL"
+        ), {"uid": user_id})
+
+        await db.execute(text(
+            "UPDATE admin_sessions SET user_id = :uid WHERE user_id IS NULL"
+        ), {"uid": user_id})
+
+        await db.commit()

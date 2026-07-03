@@ -266,6 +266,64 @@ def score_game(state: Dict[str, Any], team: int, super_tiebreak_final: bool = Tr
     return new_state
 
 
+def _empty_team_stats() -> Dict[str, int]:
+    return {
+        "points_won": 0,
+        "aces": 0,
+        "double_faults": 0,
+        "winners": 0,
+        "unforced_errors": 0,
+        "forced_errors": 0,
+    }
+
+
+def compute_match_stats(point_log: list) -> Dict[str, Any]:
+    """Aggregate per-team statistics from an append-only point log.
+
+    Each entry: {"winner": 0|1, "server": 0|1, "set": int,
+                 "outcome": None|"ace"|"winner"|"unforced_error"
+                            |"forced_error"|"double_fault", "ts": str}
+
+    Attribution:
+        ace            -> point winner (server won outright)
+        double_fault   -> the server (who lost the point)
+        winner         -> point winner
+        unforced/forced error -> the point loser
+    """
+    teams = {"a": _empty_team_stats(), "b": _empty_team_stats()}
+    keys = ("a", "b")
+    tagged = 0
+
+    for entry in point_log or []:
+        winner = entry.get("winner")
+        if winner not in (0, 1):
+            continue
+        teams[keys[winner]]["points_won"] += 1
+
+        outcome = entry.get("outcome")
+        if not outcome:
+            continue
+        tagged += 1
+        loser = 1 - winner
+        server = entry.get("server")
+
+        if outcome == "ace":
+            teams[keys[winner]]["aces"] += 1
+        elif outcome == "winner":
+            teams[keys[winner]]["winners"] += 1
+        elif outcome == "unforced_error":
+            teams[keys[loser]]["unforced_errors"] += 1
+        elif outcome == "forced_error":
+            teams[keys[loser]]["forced_errors"] += 1
+        elif outcome == "double_fault":
+            # The server double-faulted and lost the point.
+            credit = server if server in (0, 1) else loser
+            teams[keys[credit]]["double_faults"] += 1
+
+    total = sum(1 for e in (point_log or []) if e.get("winner") in (0, 1))
+    return {"a": teams["a"], "b": teams["b"], "tagged": tagged, "total": total}
+
+
 def get_score_summary(state: Dict[str, Any]) -> Dict[str, Any]:
     """Get a formatted summary of the current score."""
     point_a, point_b = get_point_display(state)

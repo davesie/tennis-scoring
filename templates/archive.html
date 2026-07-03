@@ -14,11 +14,17 @@
         <header class="matchday-header archive-page-header">
             <div class="archive-header-top">
                 <h1><img src="/static/logo.svg" alt="Tennis Scoring" class="header-logo">Match Day Archive</h1>
-                {% if is_admin %}
-                <a href="/admin" class="archive-admin-link">Admin Dashboard</a>
-                {% else %}
-                <a href="/admin/login" class="archive-admin-link">Admin Login</a>
-                {% endif %}
+                <div class="archive-header-actions">
+                    {% if user %}
+                    <a href="/admin" class="archive-admin-link">My Dashboard</a>
+                    <form action="/admin/logout" method="POST" style="display:inline;margin:0;">
+                        <button type="submit" class="archive-admin-link archive-logout-btn">Logout</button>
+                    </form>
+                    {% else %}
+                    <a href="/admin/login" class="archive-admin-link">Login</a>
+                    <a href="/register" class="archive-admin-link">Register</a>
+                    {% endif %}
+                </div>
             </div>
             <p class="archive-subtitle">View past match days and results</p>
         </header>
@@ -58,7 +64,11 @@
         {% else %}
         <div class="empty-archive">
             <p>No match days yet.</p>
+            {% if user %}
             <a href="/admin" class="btn btn-primary">Create a Match Day</a>
+            {% else %}
+            <a href="/register" class="btn btn-primary">Sign Up to Create Match Days</a>
+            {% endif %}
         </div>
         {% endif %}
     </div>
