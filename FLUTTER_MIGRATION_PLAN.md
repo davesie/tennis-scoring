@@ -8,8 +8,8 @@ latest code lives on the **`dev`** branch (v2.1.0) and is ahead of `main` with t
 features: a multi-user platform (registration/login/ownership, v2.0.0) and per-point
 match statistics with scorer tagging (v2.1.0).
 
-The goal is to use this product as a native **iOS and Android app**. The key finding from
-exploring the codebase: the backend already exposes nearly everything a mobile client
+The goal is to use this product as a native **iOS app, Android app, and website**. The key
+finding from exploring the codebase: the backend already exposes nearly everything a client
 needs as JSON REST + two WebSocket endpoints, and the tennis scoring engine
 (`app/scoring.py`) is pure, side-effect-free Python. So the migration is overwhelmingly a
 *client* project, not a backend rewrite.
@@ -25,12 +25,18 @@ needs as JSON REST + two WebSocket endpoints, and the tennis scoring engine
    in v1. (`scoring.py` stays the only scoring implementation.)
 4. **Auth: token links + JSON login.** Add a small JSON bearer-token login for account
    holders; also open scorer (12-char) and watcher (8-char) share links directly.
+5. **Three targets from one codebase: iOS + Android + Web.** The same Flutter project also
+   compiles to Web. The web build is served by the existing FastAPI backend at the **same
+   origin** (like the current `/static` mount) → no CORS needed. The existing Jinja/JS
+   website **coexists** for now: Flutter covers scorer + spectator on all three platforms;
+   the Jinja site keeps admin match-day creation + WTB sync until/if those are rebuilt in
+   Flutter later.
 
 ## Goal
 
-Ship a Flutter app (iOS + Android) that lets a scorer run a match day live and lets
-anyone watch in real time, backed by the existing `dev` backend with only minimal,
-additive backend changes.
+Ship one Flutter codebase that runs as an **iOS app, an Android app, and a website**,
+letting a scorer run a match day live and anyone watch in real time, backed by the
+existing `dev` backend with only minimal, additive backend changes.
 
 ---
 
@@ -59,8 +65,15 @@ changes.
    the existing `X-Scorer-Token` header via `verify_scorer_for_match()`
    (`app/auth.py:74-120`); spectator reads use the public `share_code` routes. No change
    needed for the core v1 flows.
-4. **CORS:** *Not required* for native iOS/Android (CORS is a browser-only concern). Only
-   add `CORSMiddleware` if a Flutter **Web** build is later wanted.
+4. **Serve the Flutter web build (no CORS).** Native iOS/Android never hit CORS. The
+   Flutter **Web** build is served by FastAPI at the same origin, so CORS is still not
+   needed. Add a `StaticFiles` mount (mirroring the existing `/static` mount,
+   `app/main.py:251`) that serves the compiled `mobile/build/web` bundle at a dedicated
+   path — e.g. `/app` — with a catch-all fallback to `index.html` so Flutter's
+   client-side routing (deep-link URLs like `/app/scoreday/{token}`) survives a page
+   refresh. The existing Jinja routes (`/`, `/archive`, `/admin`, `/watchday/...`) are
+   untouched and coexist. (Only add `CORSMiddleware` if you later choose to host the web
+   build on a separate domain.)
 5. **Version bump** in `pyproject.toml` per repo convention (minor bump for the new JSON
    auth feature, e.g. `2.2.0`).
 
@@ -77,16 +90,29 @@ Everything else the app needs already exists:
 ## Part B — Flutter app
 
 New top-level directory **`mobile/`** in the same repo (keeps backend + app versioned
-together). Standard Flutter project (`flutter create`), targeting iOS + Android.
+together). Standard Flutter project (`flutter create --platforms=ios,android,web`),
+targeting **iOS + Android + Web from one codebase**.
 
 ### Architecture
-- **State management:** Riverpod (plan assumes Riverpod; Bloc is an acceptable alternative).
-- **Networking:** `dio` for REST, `web_socket_channel` for the live feeds.
+- **State management:** Riverpod (or Bloc) — pick one; plan assumes Riverpod.
+- **Networking:** `dio` for REST, `web_socket_channel` for the live feeds. Both run on
+  iOS, Android, **and Web** — `web_socket_channel` uses the browser `WebSocket` on web and
+  dart:io sockets on mobile, transparently.
+- **Cross-platform hygiene (so Web keeps working):** never import `dart:io` in shared code
+  (breaks web) — use conditional imports or platform-abstracting packages. Resolve the API
+  and WS base URL in one place (`ApiConfig`): absolute base URL on mobile
+  (`--dart-define`), same-origin on web via `Uri.base`, so the web build auto-targets
+  whatever host serves it.
+- **Routing:** `go_router` with URL-based paths so the same routes act as deep links on
+  mobile and real browser URLs on web (`/scoreday/{token}`, `/watchday/{code}`,
+  `/watch/{code}`, `/match/{id}`, `/matchday/{id}`). Build the web bundle with a `/app/`
+  base href to sit under the FastAPI mount.
 - **Models:** Dart data classes mirroring the JSON in `Match.to_dict()`
   (`app/models.py:164`), `score_state`, `score_cells`, `point_display`, `stats`, plus
   `MatchDay`. Use `json_serializable`/`freezed`. **Do not port scoring logic** — the app
   renders server-computed `score_state`/`score_cells`/`point_display` and posts actions.
-- **Config:** backend base URL via `--dart-define` (dev vs prod).
+- **Config:** backend base URL via `--dart-define` (dev vs prod); web defaults to
+  same-origin.
 
 ### Core services
 - `ApiClient` — wraps REST calls; injects `Authorization: Bearer` (account login) and
@@ -123,26 +149,40 @@ together). Standard Flutter project (`flutter create`), targeting iOS + Android.
   (scores), DM Sans (body) via `google_fonts`; colors `--bc-bg/-text/-team-a/-team-b/`
   `-accent (#C6EF3E)` and the `--match-scoreboard-*` layer; spacing/radius/shadow scales.
   Persist light/dark choice (`shared_preferences`), mirroring the JS `localStorage` theme.
-- **Deep links / share:** register URL schemes / universal links so scorer & watcher
-  links open the app; add native share + clipboard for share codes.
+- **Deep links / share:** on mobile, register URL schemes / universal links so scorer &
+  watcher links open the app; on web the same `go_router` URLs work natively. Use
+  `share_plus` + `Clipboard` for share codes; guard mobile-only APIs (haptics, secure
+  storage) behind `kIsWeb`/capability checks so web degrades gracefully.
+- **Token storage:** `flutter_secure_storage` on mobile; on web it falls back to a
+  browser-backed store — acceptable for session tokens. Keep it behind the `AuthStore`
+  abstraction so the platform difference is invisible to the rest of the app.
 - **Helpers to port from `static/js/common.js`:** `parseLK`/`stripLK` (player name + LK
   badge), `formatElapsed`, `parseUtc`, toast/snackbar feedback.
 
 ### Build & release
-- Android: app bundle + signing; iOS: Xcode project, signing, App Store assets.
-- App icons / splash; permissions are minimal (network only).
+- **Web:** `flutter build web --base-href /app/`; the output (`mobile/build/web`) is served
+  by FastAPI's static mount (Part A #4). Add a small build step/Make target so a backend
+  deploy ships the current web bundle.
+- **Android:** app bundle + signing; **iOS:** Xcode project, signing, App Store assets.
+- App icons / splash for all targets; permissions are minimal (network only; haptics
+  need none special).
 
 ---
 
 ## Suggested phasing
 
-1. **Backend:** add JSON auth endpoints + bearer support (Part A). Verify with `curl`.
-2. **Flutter spike:** project scaffold, models, `ApiClient`, read-only **spectator**
-   match view over REST + `/ws/{matchId}`. Proves the live pipeline end-to-end.
+1. **Backend:** add JSON auth endpoints + bearer support + the Flutter-web static mount
+   (Part A). Verify with `curl`.
+2. **Flutter spike (all three platforms early):** project scaffold with
+   `--platforms=ios,android,web`, `go_router`, models, `ApiClient`, read-only **spectator**
+   match view over REST + `/ws/{matchId}`. Run it on an emulator **and** `flutter run -d
+   chrome` from day one so web never silently rots.
 3. **Match Day dashboard** (spectator) over `/ws/matchday/{id}`.
 4. **Scorer flow:** scoring buttons, server overlay, undo/reset, outcome tagging, stats.
-5. **Auth + entry screen + deep links;** theming polish (light/dark, fonts).
-6. **Release hardening:** icons, store metadata, signing, device testing.
+5. **Auth + entry screen + deep links / web routes;** theming polish (light/dark, fonts).
+6. **Wire the web build into the backend:** `flutter build web --base-href /app/`, serve
+   from FastAPI, confirm `/app` works same-origin next to the existing Jinja site.
+7. **Release hardening:** app icons, store metadata, signing, device + browser testing.
 
 ---
 
@@ -152,8 +192,8 @@ together). Standard Flutter project (`flutter create`), targeting iOS + Android.
 - `app/auth.py` — reuse `hash_password`/`verify_password` (24-31), `create_session`
   (34-39); extend `get_current_user` (42-54) to accept a bearer token.
 - `app/main.py` — add `/api/auth/*` routes near the existing `/admin/login`,`/register`
-  handlers; all scoring/match-day/WebSocket routes already present (469-706, 708-936,
-  1612-1659).
+  handlers; add the Flutter-web `StaticFiles` mount; all scoring/match-day/WebSocket routes
+  already present (469-706, 708-936, 1612-1659).
 - `app/models.py` — `Match.to_dict()` (164) and `score_state` shape are the JSON contract
   the Dart models mirror; `User`/`AdminSession` (23-48) back the JSON auth.
 - `pyproject.toml` — version bump.
@@ -166,7 +206,9 @@ together). Standard Flutter project (`flutter create`), targeting iOS + Android.
   clipboard.
 
 **New:**
-- `mobile/` — the Flutter project.
+- `mobile/` — the single Flutter project that builds to iOS, Android, and Web.
+- `mobile/build/web` (git-ignored build output) — the compiled web bundle FastAPI serves
+  at `/app`.
 
 ---
 
@@ -176,10 +218,17 @@ together). Standard Flutter project (`flutter create`), targeting iOS + Android.
   confirm a token comes back; call `GET /api/matchdays/{id}` and a scoring `POST` with the
   bearer token and with `X-Scorer-Token` to confirm both auth paths work; confirm cookie
   login (web) still works unchanged.
-- **Flutter:** `flutter run` on Android emulator + iOS simulator. Open a watcher link →
-  confirm scoreboard renders and updates live when a point is scored from the web app
-  (validates `/ws/{matchId}`). Open a scorer link → score points/games, undo, reset, set
-  server, tag an outcome → confirm the web spectator view updates simultaneously
-  (validates the shared backend is the single source of truth).
-- **Parity check:** score a full set incl. a tiebreak in the app and confirm the displayed
-  `score_cells`/points match the web app exactly (since both render the same server state).
+- **Flutter (mobile):** `flutter run` on Android emulator + iOS simulator. Open a watcher
+  link → confirm scoreboard renders and updates live when a point is scored from the
+  existing web app (validates `/ws/{matchId}`). Open a scorer link → score points/games,
+  undo, reset, set server, tag an outcome → confirm the existing web spectator view updates
+  simultaneously (validates the shared backend is the single source of truth).
+- **Flutter (web):** `flutter run -d chrome` during dev, then `flutter build web
+  --base-href /app/` and load `/app` from the FastAPI server → confirm the same scorer and
+  spectator flows work in-browser, that deep-link URLs (`/app/watchday/{code}`) resolve on
+  refresh, and that the WebSocket connects same-origin with no CORS errors in the console.
+- **Coexistence:** confirm the existing Jinja routes (`/archive`, `/admin`, `/watchday/…`)
+  still render normally alongside the new `/app` mount.
+- **Cross-platform parity:** score a full set incl. a tiebreak on mobile, web, and the old
+  site simultaneously and confirm all three show identical `score_cells`/points live (they
+  all render the same server state).
