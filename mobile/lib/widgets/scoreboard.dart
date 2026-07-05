@@ -21,7 +21,7 @@ class Scoreboard extends StatelessWidget {
         borderRadius: BorderRadius.circular(12),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.12),
+            color: Colors.black.withValues(alpha: 0.12),
             blurRadius: 16,
             offset: const Offset(0, 6),
           ),
@@ -31,7 +31,7 @@ class Scoreboard extends StatelessWidget {
       child: Column(
         children: [
           _row(context, sb, teamIndex: 0),
-          Divider(height: compact ? 8 : 12, color: sb.text.withOpacity(0.08)),
+          Divider(height: compact ? 8 : 12, color: sb.text.withValues(alpha: 0.08)),
           _row(context, sb, teamIndex: 1),
         ],
       ),
@@ -87,7 +87,7 @@ class Scoreboard extends StatelessWidget {
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
                   decoration: BoxDecoration(
-                    color: teamColor.withOpacity(0.15),
+                    color: teamColor.withValues(alpha: 0.15),
                     borderRadius: BorderRadius.circular(4),
                   ),
                   child: Text('LK ${parsed.lk}',
@@ -122,7 +122,7 @@ class Scoreboard extends StatelessWidget {
                   text: sup,
                   style: BC.score(TextStyle(
                     fontSize: compact ? 9 : 11,
-                    color: sb.text.withOpacity(0.6),
+                    color: sb.text.withValues(alpha: 0.6),
                   )),
                 ),
             ],
@@ -138,7 +138,7 @@ class Scoreboard extends StatelessWidget {
       alignment: Alignment.center,
       padding: const EdgeInsets.symmetric(vertical: 2),
       decoration: BoxDecoration(
-        color: sb.accent.withOpacity(0.18),
+        color: sb.accent.withValues(alpha: 0.18),
         borderRadius: BorderRadius.circular(6),
       ),
       child: Text(

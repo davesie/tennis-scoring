@@ -1,4 +1,4 @@
-/// Helpers ported from static/js/common.js so mobile/web match the site.
+// Helpers ported from static/js/common.js so mobile/web match the site.
 
 class PlayerName {
   final String name;

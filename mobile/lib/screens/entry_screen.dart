@@ -108,7 +108,7 @@ class _EntryScreenState extends ConsumerState<EntryScreen> {
                 Container(
                   padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
-                    color: BC.accent.withOpacity(0.15),
+                    color: BC.accent.withValues(alpha: 0.15),
                     borderRadius: BorderRadius.circular(8),
                   ),
                   child: Text(_error!),

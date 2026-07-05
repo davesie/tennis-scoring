@@ -14,7 +14,7 @@ import '../widgets/scoreboard.dart';
 enum _Source { shareCode, scorerToken, id }
 
 class MatchDayScreen extends ConsumerStatefulWidget {
-  const MatchDayScreen._(this.value, this.source, {required this.canScore});
+  const MatchDayScreen._(this.value, this._source, {required this.canScore});
 
   factory MatchDayScreen.spectator(String code) =>
       MatchDayScreen._(code, _Source.shareCode, canScore: false);
@@ -24,7 +24,7 @@ class MatchDayScreen extends ConsumerStatefulWidget {
       MatchDayScreen._(id, _Source.id, canScore: true);
 
   final String value;
-  final _Source source;
+  final _Source _source;
   final bool canScore;
 
   @override
@@ -49,7 +49,7 @@ class _MatchDayScreenState extends ConsumerState<MatchDayScreen> {
     final api = ref.read(apiClientProvider);
     try {
       final MatchDayBundle bundle;
-      switch (widget.source) {
+      switch (widget._source) {
         case _Source.shareCode:
           bundle = await api.getMatchDayByShareCode(widget.value);
           break;
@@ -253,7 +253,7 @@ class _MatchCard extends StatelessWidget {
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                 decoration: BoxDecoration(
-                  color: statusColor.withOpacity(0.15),
+                  color: statusColor.withValues(alpha: 0.15),
                   borderRadius: BorderRadius.circular(6),
                 ),
                 child: Text(status,
