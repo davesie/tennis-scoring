@@ -1,3 +1,18 @@
+# ---------- Stage 1: build the Flutter web app (served by the backend at /app) ----------
+FROM ghcr.io/cirruslabs/flutter:stable AS flutter-web
+
+WORKDIR /build
+# CI builders (Coolify) run as root; the SDK checkout may be owned differently
+RUN git config --global --add safe.directory '*'
+
+# Dependency layer — only re-runs when pubspec changes
+COPY mobile/pubspec.yaml mobile/pubspec.lock ./
+RUN flutter pub get
+
+COPY mobile/ ./
+RUN flutter build web --release --base-href /app/
+
+# ---------- Stage 2: Python backend ----------
 FROM python:3.11-slim
 
 # Copy uv binary from official image
@@ -13,6 +28,9 @@ RUN uv sync --frozen --no-dev --no-install-project
 COPY app/ ./app/
 COPY static/ ./static/
 COPY templates/ ./templates/
+
+# Flutter web bundle — app/main.py mounts this at /app when present
+COPY --from=flutter-web /build/build/web ./mobile/build/web
 
 # Persistent SQLite data directory
 RUN mkdir -p /app/data
