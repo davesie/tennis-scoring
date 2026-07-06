@@ -33,6 +33,10 @@ from .auth import (
 )
 from .wtb_scraper import scrape_all_clubs, scrape_all_clubs_with_progress, scrape_club_players, scrape_club_teams, scrape_team_fixtures, scrape_spielbericht
 
+# Make app INFO logs (superadmin bootstrap, sync progress) visible in
+# container logs; uvicorn only configures its own loggers.
+logging.basicConfig(level=logging.INFO, format="%(levelname)s:%(name)s:%(message)s")
+
 logger = logging.getLogger(__name__)
 
 # Flag to prevent concurrent club syncs

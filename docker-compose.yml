@@ -37,6 +37,7 @@ services:
       - tennis_data:/app/data
     environment:
       - DATABASE_URL=sqlite+aiosqlite:///./data/tennis.db
+      - ADMIN_EMAIL=${ADMIN_EMAIL:-admin@localhost}
       - ADMIN_PASSWORD=${ADMIN_PASSWORD:-changeme}
     restart: unless-stopped
     labels:

@@ -142,7 +142,26 @@ tennis_scoring/
 | Variable | Default | Description |
 |----------|---------|-------------|
 | `DATABASE_URL` | `sqlite+aiosqlite:///./tennis.db` | Database connection string |
-| `ADMIN_PASSWORD` | (required) | Password for admin access to create match days |
+| `ADMIN_EMAIL` | `admin@localhost` | Superadmin login email (synced on every boot) |
+| `ADMIN_PASSWORD` | (required) | Superadmin password (synced on every boot) |
+
+## Accounts & Testing
+
+**Admin (superadmin):** the account is synced from `ADMIN_EMAIL` + `ADMIN_PASSWORD`
+on every boot — created if missing, promoted if the email belongs to a normal
+user, and the password is reset to the env value. So to set it up (or recover a
+forgotten password): set both vars in Coolify → redeploy → log in at
+`/admin/login`. The startup log states exactly what happened
+("Superadmin created/updated: …").
+
+**Normal user:** open `/register` and create an account with any email (no
+verification). Registered users get their own dashboard at `/admin` and own the
+match days they create; the superadmin sees everything.
+
+**Testing both roles side by side:** log in as admin in your normal browser
+window and as a registered user in a private/incognito window (sessions are
+cookie-based). The Flutter app at `/app` logs in via the same accounts
+(`POST /api/auth/login`), and scorer/watcher links need no account at all.
 
 ## Deploying with Coolify
 
@@ -154,6 +173,7 @@ tennis_scoring/
 2. Set **Build Pack: Dockerfile**
 3. Set **Port**: `8000`
 4. Under **Environment Variables**, add:
+   - `ADMIN_EMAIL` = your admin login email
    - `ADMIN_PASSWORD` = your secure password
    - `DATABASE_URL` = `sqlite+aiosqlite:///./data/tennis.db` (optional — this is the Dockerfile default)
 5. Under **Persistent Storage**, add a volume mounted at `/app/data` — this preserves your SQLite database across deploys

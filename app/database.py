@@ -69,32 +69,56 @@ async def init_db():
 
 
 async def ensure_superadmin():
-    """Create superadmin user from env vars if no superadmin exists yet.
-    Also backfill ownerless match days to the superadmin."""
-    from .models import User, MatchDay
-    from .auth import hash_password
+    """Sync the superadmin account with ADMIN_EMAIL / ADMIN_PASSWORD on every boot.
 
+    The env vars are the source of truth: the account is created if missing,
+    promoted if it exists as a normal user, and its password is reset to the
+    env value — so updating the vars (e.g. in Coolify) and redeploying always
+    yields a working admin login. Also backfills ownerless match days.
+    """
+    import logging
+    from .auth import hash_password
+    from .models import generate_uuid
+
+    logger = logging.getLogger(__name__)
+
+    admin_email = os.getenv("ADMIN_EMAIL", "").strip()
     admin_password = os.getenv("ADMIN_PASSWORD", "")
+
     if not admin_password:
+        logger.warning(
+            "No ADMIN_PASSWORD set — skipping admin bootstrap. "
+            "Set ADMIN_EMAIL and ADMIN_PASSWORD (e.g. in Coolify env vars) "
+            "to get a superadmin login; normal users can register at /register."
+        )
         return
+
+    if not admin_email:
+        admin_email = "admin@localhost"
+        logger.warning("ADMIN_EMAIL not set — using default '%s'", admin_email)
+
+    pw_hash = hash_password(admin_password)
 
     async with async_session() as db:
         result = await db.execute(
-            text("SELECT id FROM users WHERE is_superadmin = 1 LIMIT 1")
+            text("SELECT id, is_superadmin FROM users WHERE email = :email"),
+            {"email": admin_email},
         )
-        existing = result.first()
-        if existing:
-            return
+        row = result.first()
 
-        admin_email = os.getenv("ADMIN_EMAIL", "admin@localhost")
-        from .models import generate_uuid
-        user_id = generate_uuid()
-        pw_hash = hash_password(admin_password)
-
-        await db.execute(text(
-            "INSERT INTO users (id, email, password_hash, display_name, is_superadmin) "
-            "VALUES (:id, :email, :pw, :name, 1)"
-        ), {"id": user_id, "email": admin_email, "pw": pw_hash, "name": "Admin"})
+        if row:
+            user_id = row[0]
+            await db.execute(text(
+                "UPDATE users SET password_hash = :pw, is_superadmin = 1 WHERE id = :id"
+            ), {"pw": pw_hash, "id": user_id})
+            action = "updated (password synced from env)" if row[1] else "promoted from normal user"
+        else:
+            user_id = generate_uuid()
+            await db.execute(text(
+                "INSERT INTO users (id, email, password_hash, display_name, is_superadmin) "
+                "VALUES (:id, :email, :pw, :name, 1)"
+            ), {"id": user_id, "email": admin_email, "pw": pw_hash, "name": "Admin"})
+            action = "created"
 
         await db.execute(text(
             "UPDATE match_days SET owner_id = :uid WHERE owner_id IS NULL"
@@ -105,3 +129,4 @@ async def ensure_superadmin():
         ), {"uid": user_id})
 
         await db.commit()
+        logger.info("Superadmin %s: %s (login at /admin/login)", action, admin_email)
