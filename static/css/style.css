@@ -1224,17 +1224,26 @@ a:focus {
     animation: live-pulse 2s infinite;
 }
 
-.status-badge.final {
-    background: var(--score-accent);
-    color: var(--white);
-    font-size: 1rem;
-    padding: 4px 8px;
-    border-radius: 50%;
-    width: 28px;
-    height: 28px;
-    display: flex;
+/* Winner checkmark — rendered on the winning player's row */
+.scoreboard-table tr.winner .player-name::after {
+    content: '\2713';
+    display: inline-flex;
     align-items: center;
     justify-content: center;
+    width: 18px;
+    height: 18px;
+    margin-left: 8px;
+    border-radius: 50%;
+    background: var(--bc-accent);
+    color: #1A1917;
+    font-size: 0.7rem;
+    font-weight: 700;
+    vertical-align: middle;
+}
+
+[data-theme="dark"] .scoreboard-table tr.winner .player-name::after {
+    background: var(--score-accent);
+    color: #131210;
 }
 
 .scoreboard-link {
@@ -1282,8 +1291,7 @@ a:focus {
 [data-theme="dark"] .scoreboard-table tr.winner .player-name { color: var(--score-accent); }
 
 /* Add padding when badge is present */
-.scoreboard-card.live .scoreboard-table .player-name,
-.scoreboard-card.finished .scoreboard-table .player-name {
+.scoreboard-card.live .scoreboard-table .player-name {
     padding-left: 80px;
 }
 

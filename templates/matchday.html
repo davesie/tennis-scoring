@@ -50,9 +50,7 @@
                 {% for match in matches %}
                 {% if match.match_type == 'singles' %}
                 <div class="scoreboard-card {% if match.score_state.winner is not none %}finished{% elif match.started_at %}live{% else %}upcoming{% endif %}" data-match-id="{{ match.id }}" data-started-at="{{ match.started_at or '' }}">
-                    {% if match.score_state.winner is not none %}
-                        <span class="status-badge final">✓</span>
-                    {% elif match.started_at %}
+                    {% if match.score_state.winner is none and match.started_at %}
                         <span class="status-badge live">🟢 LIVE</span>
                     {% endif %}
                     {%- set cells = match.score_cells -%}
@@ -102,9 +100,7 @@
                 {% for match in matches %}
                 {% if match.match_type == 'doubles' %}
                 <div class="scoreboard-card {% if match.score_state.winner is not none %}finished{% elif match.started_at %}live{% else %}upcoming{% endif %}" data-match-id="{{ match.id }}" data-started-at="{{ match.started_at or '' }}">
-                    {% if match.score_state.winner is not none %}
-                        <span class="status-badge final">✓</span>
-                    {% elif match.started_at %}
+                    {% if match.score_state.winner is none and match.started_at %}
                         <span class="status-badge live">🟢 LIVE</span>
                     {% endif %}
                     {%- set cells = match.score_cells -%}
@@ -938,13 +934,9 @@
             card.className = `scoreboard-card ${isFinished ? 'finished' : isLive ? 'live' : 'upcoming'}`;
             card.setAttribute('data-started-at', matchData.started_at || '');
 
-            // Update status badge
+            // Update status badge (finished matches show the ✓ on the winner row instead)
             let badge = card.querySelector('.status-badge');
-            if (isFinished) {
-                if (!badge) { badge = document.createElement('span'); card.insertBefore(badge, card.firstChild); }
-                badge.className = 'status-badge final';
-                badge.textContent = '✓';
-            } else if (isLive) {
+            if (isLive) {
                 if (!badge) { badge = document.createElement('span'); card.insertBefore(badge, card.firstChild); }
                 badge.className = 'status-badge live';
                 badge.textContent = '🟢 LIVE';

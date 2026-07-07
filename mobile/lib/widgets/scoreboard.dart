@@ -94,6 +94,10 @@ class Scoreboard extends StatelessWidget {
                       style: BC.score(TextStyle(fontSize: 10, color: teamColor))),
                 ),
               ],
+              if (isWinner) ...[
+                const SizedBox(width: 6),
+                Icon(Icons.check_circle, size: 14, color: sb.accent),
+              ],
             ],
           ),
         ),
