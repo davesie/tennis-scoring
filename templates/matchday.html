@@ -966,19 +966,36 @@
         }
 
         // WebSocket connection for live matchday updates
+        let matchdayWs = null;
+
+        function applyMatchUpdate(matchData) {
+            const idx = matches.findIndex(m => m.id === matchData.id);
+            if (idx !== -1) matches[idx] = matchData;
+            updateMatchCard(matchData);
+        }
+
         function connectMatchdayWs() {
+            // Avoid duplicate sockets (retry timer racing the visibility handler)
+            if (matchdayWs && (matchdayWs.readyState === WebSocket.OPEN ||
+                               matchdayWs.readyState === WebSocket.CONNECTING)) {
+                return;
+            }
             const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
             const ws = new WebSocket(`${protocol}//${window.location.host}/ws/matchday/${matchDay.id}`);
+            matchdayWs = ws;
 
             ws.onmessage = function(event) {
                 const data = JSON.parse(event.data);
                 if (data.type === 'match_update') {
-                    // Update local matches array
-                    const idx = matches.findIndex(m => m.id === data.match.id);
-                    if (idx !== -1) matches[idx] = data.match;
-                    // Update DOM
-                    updateMatchCard(data.match);
+                    applyMatchUpdate(data.match);
                     updateTeamWins();
+                } else if (data.type === 'initial') {
+                    // Full snapshot on (re)connect — catches up on anything
+                    // missed while the connection was down (phone locked,
+                    // proxy timeout, network blip).
+                    data.matches.forEach(applyMatchUpdate);
+                    updateTeamWins();
+                    initMatchdayTimers();
                 }
             };
 
@@ -991,6 +1008,16 @@
                 ws.close();
             };
         }
+
+        // When the tab becomes visible again (phone unlock, tab switch),
+        // reconnect immediately if the socket died in the background —
+        // the initial snapshot then refreshes all scores at once.
+        document.addEventListener('visibilitychange', function() {
+            if (document.visibilityState === 'visible' &&
+                (!matchdayWs || matchdayWs.readyState === WebSocket.CLOSED)) {
+                connectMatchdayWs();
+            }
+        });
 
         // Initial updates
         updateTeamWins();
