@@ -78,6 +78,7 @@ Per-point stats are tracked separately from the score state machine:
 - **Stats** — `scoring.compute_match_stats(point_log)` aggregates per-team `points_won`, `aces`, `double_faults`, `winners`, `unforced_errors`, `forced_errors`, plus `tagged`/`total` coverage.
 - **Visibility** — `Match.to_dict(include_stats=False)`: the raw `point_log` + live `stats` go only to scorer-facing responses (`include_stats=True`); the public/WS payload includes a `stats` summary **only once the match is finished** (post-match summary for all). Live stats are never broadcast to spectators.
 - **Undo** — `push_history()` snapshots both `score_state` and `point_log`, so undo rolls back stats too. Legacy (pre-2.1) history entries are bare score-state dicts and are handled defensively.
+- **Point-by-point (v2.6)** — `scoring.build_point_by_point(point_log)` replays the log into a broadcast-style timeline (per set → per game → score chips with BP/SP/MP badges). It is **public and live** (`to_dict()` always includes `point_by_point`) but carries no outcome tags. Game-button scoring appends a `{"kind": "game", "team": …}` marker to `point_log` (no `winner` key → ignored by stats) so the timeline stays faithful with mixed scoring. Rendered on `match.html` as a "Point by Point" section with set tabs.
 - **UI** — `templates/match.html`: a skippable tag sheet appears after each point (scorer only), a live stats panel (scorer), and a post-match summary table (everyone). One-tap scoring is unchanged.
 
 ### Match Day Formats

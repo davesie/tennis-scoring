@@ -3214,6 +3214,153 @@ a:focus {
     margin: 1rem 0;
     box-shadow: var(--shadow-sm);
 }
+
+/* ==================== Point by Point ==================== */
+.pbp-section {
+    background: var(--card-bg);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-lg);
+    padding: 1rem 1.25rem;
+    margin: 1rem 0;
+    box-shadow: var(--shadow-sm);
+}
+
+.pbp-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 0.75rem;
+    margin-bottom: 0.6rem;
+}
+
+.pbp-title {
+    font-family: var(--font-display);
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+}
+
+.pbp-legend {
+    font-family: var(--font-score);
+    font-size: 0.72rem;
+    color: var(--bc-muted);
+}
+
+.pbp-set-tabs {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 12px;
+    flex-wrap: wrap;
+}
+
+.pbp-set-tab {
+    font-family: var(--font-display);
+    font-size: 0.8rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    padding: 5px 14px;
+    border-radius: 999px;
+    border: 1px solid var(--bc-border);
+    background: transparent;
+    color: var(--bc-muted);
+    cursor: pointer;
+}
+
+.pbp-set-tab.active {
+    background: var(--bc-accent);
+    border-color: var(--bc-accent);
+    color: #1A1917;
+}
+
+.pbp-game {
+    padding: 10px 0;
+    border-top: 1px solid var(--bc-border);
+}
+
+.pbp-game.in-progress {
+    background: color-mix(in srgb, var(--bc-accent) 6%, transparent);
+    border-radius: 8px;
+    padding: 10px 8px;
+}
+
+.pbp-game-header {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 8px;
+}
+
+.pbp-serve-slot {
+    width: 18px;
+    text-align: center;
+    font-size: 0.7rem;
+}
+
+.pbp-game-score {
+    font-family: var(--font-score);
+    font-size: 1.15rem;
+    font-weight: 700;
+}
+
+.pbp-game-score.win-a { color: var(--bc-team-a); }
+.pbp-game-score.win-b { color: var(--bc-team-b); }
+
+.pbp-tag {
+    font-family: var(--font-score);
+    font-size: 0.6rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    color: var(--bc-muted);
+    border: 1px solid var(--bc-border);
+    border-radius: 4px;
+    padding: 1px 5px;
+}
+
+.pbp-tag.live {
+    color: #1A1917;
+    background: var(--bc-accent);
+    border-color: var(--bc-accent);
+}
+
+.pbp-chips {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 6px;
+}
+
+.pbp-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    font-family: var(--font-score);
+    font-size: 0.8rem;
+    font-weight: 600;
+    padding: 3px 9px;
+    border-radius: 7px;
+    border: 1px solid var(--bc-border);
+    background: var(--match-scoreboard-bg);
+    color: var(--match-scoreboard-text);
+    white-space: nowrap;
+}
+
+.pbp-badge {
+    font-size: 0.58rem;
+    font-weight: 700;
+    letter-spacing: 0.03em;
+    background: #3a3a40;
+    color: #fff;
+    border-radius: 4px;
+    padding: 1px 4px;
+}
+
+.pbp-no-detail {
+    font-size: 0.78rem;
+    color: var(--bc-muted);
+    font-style: italic;
+}
 .stats-panel-header {
     display: flex;
     justify-content: space-between;

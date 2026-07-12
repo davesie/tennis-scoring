@@ -102,6 +102,8 @@ class MatchDaySetup(BaseModel):
 class MatchResponse(BaseModel):
     id: str
     share_code: str
+    match_day_id: Optional[str] = None
+    match_number: Optional[int] = None
     match_type: str
     team_a_name: str
     team_b_name: str
@@ -110,11 +112,20 @@ class MatchResponse(BaseModel):
     player_a2: Optional[str]
     player_b2: Optional[str]
     score_state: dict
+    score_cells: Optional[list] = None
+    point_display: Optional[dict] = None
     best_of: int
     super_tiebreak_final_set: bool
     created_at: Optional[datetime]
     updated_at: Optional[datetime]
+    started_at: Optional[datetime] = None
     finished_at: Optional[datetime]
+    duration_seconds: Optional[int] = None
+    duration_formatted: Optional[str] = None
+    # Public post-match summary (never includes the raw point_log)
+    stats: Optional[dict] = None
+    # Point-by-point timeline (public, live) — no outcome tags
+    point_by_point: Optional[dict] = None
 
     class Config:
         from_attributes = True

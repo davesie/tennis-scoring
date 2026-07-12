@@ -601,7 +601,9 @@ async def get_match(match_id: str, db: AsyncSession = Depends(get_db)):
     match = result.scalar_one_or_none()
     if not match:
         raise HTTPException(status_code=404, detail="Match not found")
-    return match
+    # to_dict() so computed fields (score_cells, point_by_point, stats when
+    # finished, durations) reach the public payload, not just column attrs.
+    return match.to_dict()
 
 
 @app.get("/api/matches/share/{share_code}", response_model=MatchResponse)
@@ -610,7 +612,7 @@ async def get_match_by_share_code(share_code: str, db: AsyncSession = Depends(ge
     match = result.scalar_one_or_none()
     if not match:
         raise HTTPException(status_code=404, detail="Match not found")
-    return match
+    return match.to_dict()
 
 
 @app.post("/api/matches/{match_id}/score")
@@ -839,9 +841,24 @@ async def score_game_endpoint(match_id: str, score_data: ScoreGame, request: Req
     if not match.started_at and not match.history:
         match.started_at = datetime.utcnow()
 
+    serving_before = match.score_state.get("serving")
+    set_before = match.score_state.get("current_set", 0)
+
     history = push_history(match)
     new_state = score_game(match.score_state, score_data.team, match.super_tiebreak_final_set)
-    await apply_new_state(match, new_state, history, db)
+
+    # Log a game marker (no "winner" key, so point statistics are unaffected)
+    # to keep the point-by-point timeline faithful with mixed scoring.
+    new_log = list(match.point_log or [])
+    new_log.append({
+        "kind": "game",
+        "team": score_data.team,
+        "server": serving_before,
+        "set": set_before,
+        "ts": datetime.utcnow().isoformat(),
+    })
+
+    await apply_new_state(match, new_state, history, db, point_log=new_log)
 
     return {"success": True, "match": match.to_dict(include_stats=True)}
 

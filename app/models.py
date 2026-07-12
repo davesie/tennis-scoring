@@ -4,7 +4,7 @@ from datetime import datetime, timedelta
 import uuid
 
 from .database import Base
-from .scoring import create_initial_state, format_set_cells, get_point_display, compute_match_stats
+from .scoring import create_initial_state, format_set_cells, get_point_display, compute_match_stats, build_point_by_point
 
 
 def generate_uuid():
@@ -211,6 +211,11 @@ class Match(Base):
         # The raw point log goes only to the scorer (used to drive the live panel).
         if include_stats:
             d["point_log"] = self.point_log or []
+        # Point-by-point timeline is public, live included — it carries no
+        # outcome tags, only the score progression (chips + BP/SP/MP badges).
+        d["point_by_point"] = build_point_by_point(
+            self.point_log or [], self.super_tiebreak_final_set
+        )
         return d
 
 

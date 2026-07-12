@@ -132,6 +132,16 @@
             </table>
         </div>
 
+        <!-- Point by Point timeline (public, updates live) -->
+        <div class="pbp-section" id="pbp-section" style="display: none;">
+            <div class="pbp-header">
+                <span class="pbp-title">Point by Point</span>
+                <span class="pbp-legend" id="pbp-legend"></span>
+            </div>
+            <div class="pbp-set-tabs" id="pbp-set-tabs"></div>
+            <div class="pbp-games" id="pbp-games"></div>
+        </div>
+
         {% if is_scorer %}
         <!-- Serve Selection Overlay -->
         <div class="serve-overlay" id="serve-overlay" style="display: none;">
@@ -563,6 +573,84 @@
 
             // Refresh statistics (post-match summary for everyone; live panel for scorer)
             renderStats();
+
+            // Refresh the point-by-point timeline (public, live)
+            renderPointByPoint();
+        }
+
+        // ==================== Point by Point ====================
+        let pbpSelectedSet = null;
+        let pbpUserPicked = false;
+
+        function pbpShortName(team) {
+            const name = team === 0
+                ? (stripLK(matchData.player_a1) || matchData.team_a_name)
+                : (stripLK(matchData.player_b1) || matchData.team_b_name);
+            return (name || '').split(' ')[0] || (team === 0 ? 'A' : 'B');
+        }
+
+        function renderPointByPoint() {
+            const section = document.getElementById('pbp-section');
+            if (!section) return;
+            const pbp = matchData && matchData.point_by_point;
+            const sets = ((pbp && pbp.sets) || []).filter(s => s.games && s.games.length);
+            if (!sets.length) { section.style.display = 'none'; return; }
+            section.style.display = '';
+
+            document.getElementById('pbp-legend').textContent =
+                `${pbpShortName(0)} : ${pbpShortName(1)}`;
+
+            const setNums = sets.map(s => s.set);
+            // Follow the latest set unless the viewer explicitly picked one
+            if (!pbpUserPicked || !setNums.includes(pbpSelectedSet)) {
+                pbpSelectedSet = setNums[setNums.length - 1];
+            }
+
+            const tabs = document.getElementById('pbp-set-tabs');
+            tabs.innerHTML = '';
+            sets.forEach(s => {
+                const b = document.createElement('button');
+                b.type = 'button';
+                b.className = 'pbp-set-tab' + (s.set === pbpSelectedSet ? ' active' : '');
+                b.textContent = `Set ${s.set}`;
+                b.onclick = () => { pbpSelectedSet = s.set; pbpUserPicked = true; renderPointByPoint(); };
+                tabs.appendChild(b);
+            });
+
+            const setData = sets.find(s => s.set === pbpSelectedSet);
+            const wrap = document.getElementById('pbp-games');
+            wrap.innerHTML = '';
+            (setData.games || []).forEach(g => {
+                const div = document.createElement('div');
+                div.className = 'pbp-game' + (g.winner === null ? ' in-progress' : '');
+
+                const ball = '<span class="pbp-ball" title="Server">🎾</span>';
+                const scoreCls = g.winner === 0 ? 'win-a' : g.winner === 1 ? 'win-b' : '';
+                let tag = '';
+                if (g.winner === null) tag = '<span class="pbp-tag live">live</span>';
+                else if (g.super_tiebreak) tag = '<span class="pbp-tag">Match TB</span>';
+                else if (g.tiebreak) tag = '<span class="pbp-tag">TB</span>';
+
+                const header = `
+                    <div class="pbp-game-header">
+                        <span class="pbp-serve-slot">${g.server === 0 ? ball : ''}</span>
+                        <span class="pbp-game-score ${scoreCls}">${g.score[0]}-${g.score[1]}</span>
+                        <span class="pbp-serve-slot">${g.server === 1 ? ball : ''}</span>
+                        ${tag}
+                    </div>`;
+
+                let chipsHtml;
+                if (g.chips && g.chips.length) {
+                    chipsHtml = g.chips.map(c =>
+                        `<span class="pbp-chip">${c.a}:${c.b}${c.badge ? `<span class="pbp-badge">${c.badge}</span>` : ''}</span>`
+                    ).join('');
+                } else {
+                    chipsHtml = '<span class="pbp-no-detail">game entered without point detail</span>';
+                }
+
+                div.innerHTML = header + `<div class="pbp-chips">${chipsHtml}</div>`;
+                wrap.appendChild(div);
+            });
         }
 
         function updateServeOverlay(state) {

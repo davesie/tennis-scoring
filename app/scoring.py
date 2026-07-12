@@ -324,6 +324,139 @@ def compute_match_stats(point_log: list) -> Dict[str, Any]:
     return {"a": teams["a"], "b": teams["b"], "tagged": tagged, "total": total}
 
 
+def _chip_label(state: Dict[str, Any]) -> Dict[str, str]:
+    """Fixed team-A:team-B chip label for a state (AD -> 'A', '-' -> '40')."""
+    a, b = get_point_display(state)
+    if a == "AD":
+        a, b = "A", "40"
+    elif b == "AD":
+        a, b = "40", "A"
+    return {"a": a, "b": b}
+
+
+def _chip_badge(state: Dict[str, Any]) -> str:
+    """BP/SP/MP badge for the current state, or None.
+
+    Finds the team holding a point to win the current game, then classifies:
+    winning the match -> MP, winning the set -> SP, breaking serve -> BP.
+    """
+    holder = None
+    if state["is_tiebreak"] or state["is_super_tiebreak"]:
+        target = 10 if state["is_super_tiebreak"] else 7
+        tp = state["tiebreak_points"]
+        for t in (0, 1):
+            if tp[t] >= target - 1 and tp[t] - tp[1 - t] >= 1:
+                holder = t
+    else:
+        p = state["points"]
+        for t in (0, 1):
+            if p[t] >= 3 and (p[1 - t] < 3 or state.get("deuce_advantage") == t):
+                holder = t
+    if holder is None:
+        return None
+
+    if state["is_super_tiebreak"]:
+        return "MP"
+
+    cs = state["current_set"]
+    g = state["games"][cs][holder] + 1
+    o = state["games"][cs][1 - holder]
+    wins_set = state["is_tiebreak"] or (g >= 6 and g - o >= 2)
+    if wins_set:
+        return "MP" if state["sets"][holder] + 1 >= 2 else "SP"
+    if holder != state["serving"]:
+        return "BP"
+    return None
+
+
+def build_point_by_point(point_log: list, super_tiebreak_final: bool = True) -> Dict[str, Any]:
+    """Reconstruct a broadcast-style point-by-point timeline from the log.
+
+    Replays the append-only point log through the scoring rules, so the page
+    never re-implements tennis logic. Contains no outcome tags — safe to send
+    to spectators during live play.
+
+    Returns {"sets": [{"set": n, "games": [game, ...]}, ...]} where a game is
+        {"server": 0|1, "winner": 0|1|None,   # None = game in progress
+         "score": [games_a, games_b],          # within its set, after the game
+         "tiebreak": bool, "super_tiebreak": bool,
+         "quick": bool,                        # awarded via the Game button
+         "chips": [{"a": "15", "b": "0", "badge": None|"BP"|"SP"|"MP"}]}
+    """
+    state = create_initial_state()
+    sets_out: List[Dict[str, Any]] = []
+    chips: List[Dict[str, Any]] = []
+    game_server = None
+
+    def _emit(set_idx: int, game: Dict[str, Any]) -> None:
+        while len(sets_out) <= set_idx:
+            sets_out.append({"set": len(sets_out) + 1, "games": []})
+        sets_out[set_idx]["games"].append(game)
+
+    def _games_total(st: Dict[str, Any]) -> int:
+        return sum(g[0] + g[1] for g in st["games"]) + sum(st["sets"])
+
+    for entry in point_log or []:
+        is_marker = entry.get("kind") == "game"
+        team = entry.get("team") if is_marker else entry.get("winner")
+        if team not in (0, 1):
+            continue
+
+        prev = state
+        if chips == [] and not is_marker:
+            game_server = entry.get("server", prev["serving"])
+        elif game_server is None:
+            game_server = entry.get("server", prev["serving"])
+
+        was_tb = prev["is_tiebreak"]
+        was_stb = prev["is_super_tiebreak"]
+        set_idx = prev["current_set"]
+
+        if is_marker:
+            state = score_game(prev, team, super_tiebreak_final)
+        else:
+            state = score_point(prev, team, super_tiebreak_final)
+
+        game_over = (
+            is_marker
+            or _games_total(state) != _games_total(prev)
+            or state["sets"] != prev["sets"]
+            or state["winner"] is not None
+        )
+
+        if game_over:
+            if was_stb:
+                score = list(state.get("super_tiebreak_score", [0, 0]))
+            else:
+                score = list(state["games"][set_idx])
+            _emit(set_idx, {
+                "server": game_server if game_server is not None else prev["serving"],
+                "winner": team,
+                "score": score,
+                "tiebreak": was_tb,
+                "super_tiebreak": was_stb,
+                "quick": is_marker,
+                "chips": chips,
+            })
+            chips = []
+            game_server = None
+        else:
+            chips.append({**_chip_label(state), "badge": _chip_badge(state)})
+
+    if chips:
+        _emit(state["current_set"], {
+            "server": game_server if game_server is not None else state["serving"],
+            "winner": None,
+            "score": list(state["games"][state["current_set"]]),
+            "tiebreak": state["is_tiebreak"],
+            "super_tiebreak": state["is_super_tiebreak"],
+            "quick": False,
+            "chips": chips,
+        })
+
+    return {"sets": sets_out}
+
+
 def get_score_summary(state: Dict[str, Any]) -> Dict[str, Any]:
     """Get a formatted summary of the current score."""
     point_a, point_b = get_point_display(state)
