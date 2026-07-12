@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FAQ - Tennis Scoring</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+    <link rel="icon" type="image/svg+xml" href="/static/favicon.svg">
+    <script src="/static/js/common.js"></script>
+</head>
+<body class="matchday-page">
+    <button class="theme-toggle" id="theme-toggle" aria-label="Toggle theme"></button>
+    <div class="faq-container">
+        <header class="faq-header">
+            <h1>FAQ</h1>
+            <p>How to run a match day with this app.</p>
+        </header>
+
+        <details class="faq-item">
+            <summary>How does live scoring work?</summary>
+            <div class="faq-answer">
+                <p>Open your <strong>scorer link</strong> (<code>/scoreday/…</code>) on the phone at
+                the court. On each match, tap <strong>Point</strong> for whoever won the rally —
+                games, sets, tiebreaks and deuce are handled automatically. Use
+                <strong>Game</strong> to award a whole game at once, and <strong>Undo</strong> to
+                take back mistakes.</p>
+            </div>
+        </details>
+
+        <details class="faq-item">
+            <summary>How do spectators watch live?</summary>
+            <div class="faq-answer">
+                <p>Share the <strong>spectator link</strong> (<code>/watchday/…</code>) from the
+                match day's Share section. Everything updates automatically in real time — the
+                match cards, the team score and the sets/games totals. No account needed.</p>
+            </div>
+        </details>
+
+        <details class="faq-item">
+            <summary>What's the difference between the scorer link and the spectator link?</summary>
+            <div class="faq-answer">
+                <p>The <strong>scorer link</strong> can enter scores, set doubles pairings and
+                reset matches — treat it like a key and only give it to the person scoring.
+                The <strong>spectator link</strong> is view-only and safe to share with everyone.</p>
+            </div>
+        </details>
+
+        <details class="faq-item">
+            <summary>How do I set the doubles pairings?</summary>
+            <div class="faq-answer">
+                <p>Once <strong>all singles are finished</strong>, the "Set up Doubles Pairings"
+                panel appears automatically on the scorer's match day page. Pick the players for
+                each doubles and hit <strong>Create Doubles</strong>. Afterwards the panel closes;
+                a small <strong>Edit Doubles Pairings</strong> button remains in the Doubles
+                section until the first doubles match starts.</p>
+            </div>
+        </details>
+
+        <details class="faq-item">
+            <summary>A doubles match already started — how do I fix a wrong pairing?</summary>
+            <div class="faq-answer">
+                <p>Pairings lock as soon as a doubles match starts, so the edit button disappears.
+                To change the names anyway:</p>
+                <ol>
+                    <li>Open that doubles match from the match day page (as scorer).</li>
+                    <li>Press <strong>Reset</strong> — this clears that match's score
+                        (only that one match).</li>
+                    <li>Back on the match day page, the <strong>Edit Doubles Pairings</strong>
+                        button is available again. Fix the names and save.</li>
+                    <li>Re-enter the points that had been played, if any.</li>
+                </ol>
+                <p><em>Note:</em> Reset really deletes that match's score — that's why changing
+                a running pairing is deliberately not a one-click action.</p>
+            </div>
+        </details>
+
+        <details class="faq-item">
+            <summary>I scored a point for the wrong player — what now?</summary>
+            <div class="faq-answer">
+                <p>Tap <strong>Undo</strong> on the match page. It takes back the last action
+                (point or game), one step at a time, and also rolls back the per-point
+                statistics.</p>
+            </div>
+        </details>
+
+        <details class="faq-item">
+            <summary>A match wasn't scored live — can I enter the final result?</summary>
+            <div class="faq-answer">
+                <p>Yes. On the scorer's match day page every match card has an
+                <strong>Enter Score</strong> button where you type the set results directly
+                (e.g. 6:4, 3:6, 10:7).</p>
+            </div>
+        </details>
+
+        <details class="faq-item">
+            <summary>What are the per-point tags (Ace, Winner, …)?</summary>
+            <div class="faq-answer">
+                <p>After each point the scorer can optionally tag how it ended — Ace, Winner,
+                Unforced Error, Forced Error or Double Fault. The tags feed the statistics
+                panel. Tagging is optional and can be skipped; the sheet closes by itself.
+                Spectators see the statistics once the match is finished.</p>
+            </div>
+        </details>
+
+        <details class="faq-item">
+            <summary>Do I need an account?</summary>
+            <div class="faq-answer">
+                <p>Only for <strong>creating</strong> match days. Register at
+                <a href="/register">/register</a>, then use "New Match Day" in your dashboard.
+                Scoring and watching work purely with the shared links.</p>
+            </div>
+        </details>
+
+        <details class="faq-item">
+            <summary>Where do the club players and LK values come from?</summary>
+            <div class="faq-answer">
+                <p>From the WTB website. When creating a match day, search for a club and its
+                player list (with Rang and LK) loads automatically. Player data refreshes when
+                it's older than a week; an admin can also trigger a sync manually.</p>
+            </div>
+        </details>
+
+        <div class="faq-footer">
+            <a href="/archive">&larr; Back to the archive</a>
+        </div>
+    </div>
+<a href="/faq" class="faq-link">FAQ</a>
+<div class="version-label">v{{ app_version }}</div>
+</body>
+</html>

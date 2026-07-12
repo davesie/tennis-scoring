@@ -846,6 +846,12 @@ async def score_game_endpoint(match_id: str, score_data: ScoreGame, request: Req
     return {"success": True, "match": match.to_dict(include_stats=True)}
 
 
+@app.get("/faq", response_class=HTMLResponse)
+async def faq_page(request: Request):
+    """Public FAQ — how to score, share links, doubles pairings, etc."""
+    return templates.TemplateResponse("faq.html", {"request": request})
+
+
 # Match Day routes
 @app.get("/archive", response_class=HTMLResponse)
 async def archive_page(request: Request, db: AsyncSession = Depends(get_db)):

@@ -435,6 +435,115 @@ footer {
     z-index: 9999;
 }
 
+/* FAQ link — mirrors the version label in the bottom-left corner */
+.faq-link {
+    position: fixed;
+    bottom: 4px;
+    left: 8px;
+    font-family: var(--font-score, monospace);
+    font-size: 0.65rem;
+    font-weight: 600;
+    letter-spacing: 0.05em;
+    color: var(--bc-muted, #999);
+    opacity: 0.7;
+    text-decoration: none;
+    z-index: 9999;
+    padding: 2px 6px;
+}
+
+.faq-link:hover {
+    opacity: 1;
+    color: var(--bc-text);
+    text-decoration: underline;
+}
+
+/* ==================== FAQ page ==================== */
+.faq-container {
+    max-width: 720px;
+    margin: 0 auto;
+    padding: 32px 16px 64px;
+}
+
+.faq-header h1 {
+    font-family: var(--font-display);
+    font-size: 2.2rem;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+}
+
+.faq-header p {
+    color: var(--bc-muted);
+    margin: 4px 0 24px;
+}
+
+.faq-item {
+    border: 1px solid var(--bc-border);
+    border-radius: 10px;
+    background: var(--match-scoreboard-bg);
+    margin-bottom: 10px;
+    overflow: hidden;
+}
+
+.faq-item summary {
+    cursor: pointer;
+    padding: 14px 16px;
+    font-family: var(--font-display);
+    font-size: 1.05rem;
+    font-weight: 700;
+    list-style: none;
+    position: relative;
+    padding-right: 40px;
+    user-select: none;
+}
+
+.faq-item summary::-webkit-details-marker { display: none; }
+
+.faq-item summary::after {
+    content: '+';
+    position: absolute;
+    right: 16px;
+    top: 50%;
+    transform: translateY(-50%);
+    font-family: var(--font-score);
+    font-size: 1.1rem;
+    color: var(--bc-accent);
+}
+
+.faq-item[open] summary::after { content: '−'; }
+
+.faq-item[open] summary { border-bottom: 1px solid var(--bc-border); }
+
+.faq-answer {
+    padding: 12px 16px 16px;
+    font-size: 0.92rem;
+    line-height: 1.55;
+}
+
+.faq-answer p { margin: 0 0 8px; }
+.faq-answer p:last-child { margin-bottom: 0; }
+.faq-answer ol { margin: 8px 0 8px 20px; }
+.faq-answer li { margin-bottom: 4px; }
+.faq-answer code {
+    font-family: var(--font-score);
+    font-size: 0.85em;
+    background: color-mix(in srgb, var(--bc-muted) 14%, transparent);
+    padding: 1px 5px;
+    border-radius: 4px;
+}
+.faq-answer a { color: var(--bc-team-a); }
+
+.faq-footer {
+    margin-top: 24px;
+}
+
+.faq-footer a {
+    color: var(--bc-muted);
+    text-decoration: none;
+}
+
+.faq-footer a:hover { color: var(--bc-text); }
+
 /* Toast notifications (non-blocking feedback) */
 .toast {
     position: fixed;
