@@ -144,6 +144,7 @@ tennis_scoring/
 | `DATABASE_URL` | `sqlite+aiosqlite:///./tennis.db` | Database connection string |
 | `ADMIN_EMAIL` | `admin@localhost` | Superadmin login email (synced on every boot) |
 | `ADMIN_PASSWORD` | (required) | Superadmin password (synced on every boot) |
+| `DB_BACKUP_KEEP` | `5` | Startup database backups to keep (oldest pruned) |
 
 ## Accounts & Testing
 
@@ -162,6 +163,36 @@ match days they create; the superadmin sees everything.
 window and as a registered user in a private/incognito window (sessions are
 cookie-based). The Flutter app at `/app` logs in via the same accounts
 (`POST /api/auth/login`), and scorer/watcher links need no account at all.
+
+## Data Persistence & Updating Production
+
+All data lives in a single SQLite file — in Docker that's `/app/data/tennis.db`
+(from the image's default `DATABASE_URL`).
+
+**The one hard requirement:** the deployment must mount a **persistent volume at
+`/app/data`**. Without it, every rebuild starts from an empty database. In
+Coolify: your app → **Persistent Storage** → a volume with destination
+`/app/data`. Verify this on the production app *before* deploying a new
+version to it.
+
+**Automatic backups:** on every startup (i.e. every deploy/restart) the app
+copies the database to `tennis.backup-<timestamp>.db` next to the live file —
+inside the volume — before running schema migrations, and keeps the newest 5
+(`DB_BACKUP_KEEP`). The deploy log shows `Database backed up to …`.
+
+**Manual backup / restore** (Coolify → app → Terminal):
+
+```bash
+# backup
+cp /app/data/tennis.db /app/data/manual-backup.db
+# restore (then restart the app)
+cp /app/data/tennis.backup-<timestamp>.db /app/data/tennis.db
+```
+
+**Schema migrations are additive:** new tables/columns are added in place at
+startup (`init_db()` / `ensure_superadmin()`); existing rows are never dropped.
+Upgrading a pre-2.x database is supported — existing match days are backfilled
+to the superadmin and stay publicly visible.
 
 ## Deploying with Coolify
 

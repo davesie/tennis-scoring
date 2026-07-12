@@ -1,9 +1,16 @@
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine, async_sessionmaker
 from sqlalchemy.orm import DeclarativeBase
 from sqlalchemy import text
+import logging
 import os
+import shutil
+from datetime import datetime
+from pathlib import Path
 
 DATABASE_URL = os.getenv("DATABASE_URL", "sqlite+aiosqlite:///./tennis.db")
+
+# How many startup backups of the SQLite file to keep (oldest pruned first)
+BACKUP_KEEP = int(os.getenv("DB_BACKUP_KEEP", "5"))
 
 engine = create_async_engine(DATABASE_URL, echo=False)
 async_session = async_sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
@@ -20,7 +27,40 @@ async def get_db():
         yield session
 
 
+def backup_database() -> None:
+    """Copy the SQLite file to a timestamped backup before startup migrations.
+
+    Runs before the engine touches the database, so the copy is consistent.
+    Backups live next to the database file (inside the persistent volume in
+    Docker) and are pruned to the newest BACKUP_KEEP so the disk can't fill up.
+    No-op for non-SQLite URLs or when the database doesn't exist yet.
+    """
+    logger = logging.getLogger(__name__)
+
+    prefix = "sqlite+aiosqlite:///"
+    if not DATABASE_URL.startswith(prefix):
+        return
+    db_path = Path(DATABASE_URL[len(prefix):])
+    if not db_path.is_file() or db_path.stat().st_size == 0:
+        return
+
+    stamp = datetime.now().strftime("%Y%m%d-%H%M%S")
+    backup_path = db_path.with_name(f"{db_path.stem}.backup-{stamp}{db_path.suffix}")
+    try:
+        shutil.copy2(db_path, backup_path)
+        backups = sorted(db_path.parent.glob(f"{db_path.stem}.backup-*{db_path.suffix}"))
+        for old in backups[:-BACKUP_KEEP]:
+            old.unlink()
+        logger.info(
+            "Database backed up to %s (%d backup(s) kept)",
+            backup_path, min(len(backups), BACKUP_KEEP),
+        )
+    except OSError as exc:
+        logger.warning("Database backup failed (continuing startup): %s", exc)
+
+
 async def init_db():
+    backup_database()
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
         # Migrations: add columns if they don't exist yet
