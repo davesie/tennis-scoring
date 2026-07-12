@@ -1,6 +1,7 @@
 import asyncio
 import json
 import logging
+import secrets
 import subprocess
 from contextlib import asynccontextmanager
 from datetime import datetime
@@ -978,17 +979,21 @@ async def create_match_day(data: MatchDayCreate, request: Request, db: AsyncSess
 
 @app.post("/api/matchdays/{match_day_id}/doubles")
 async def create_match_day_doubles(match_day_id: str, data: DoublesCreate, request: Request, db: AsyncSession = Depends(get_db)):
-    user = await get_current_user(request, db)
-    if not user:
-        raise HTTPException(status_code=401, detail="Authentication required")
-
     result = await db.execute(select(MatchDay).where(MatchDay.id == match_day_id))
     match_day = result.scalar_one_or_none()
     if not match_day:
         raise HTTPException(status_code=404, detail="Match day not found")
 
-    if not await is_owner_or_superadmin(user, match_day):
-        raise HTTPException(status_code=403, detail="Access denied")
+    # Owner/superadmin session, or the match day's scorer token (the on-court
+    # scorer via /scoreday/{token} is exactly who sets the doubles pairings).
+    user = await get_current_user(request, db)
+    authorized = user is not None and await is_owner_or_superadmin(user, match_day)
+    if not authorized:
+        token = get_scorer_token(request)
+        if token and match_day.scorer_token and secrets.compare_digest(token, match_day.scorer_token):
+            authorized = True
+    if not authorized:
+        raise HTTPException(status_code=401, detail="Authentication required")
 
     matches_result = await db.execute(
         select(Match).where(Match.match_day_id == match_day_id).order_by(Match.match_number)

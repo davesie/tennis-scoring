@@ -86,7 +86,11 @@
             <h2>Doubles</h2>
 
             {% if is_scorer %}
-            <!-- Doubles Pairing Setup Section (shown only after all singles finish) -->
+            <!-- Reopen button: visible only while pairings are set but no doubles match has started -->
+            <div class="pairing-edit-row">
+                <button id="edit-pairings-btn" class="btn btn-secondary btn-small" style="display: none;" onclick="openPairingPanel()">Edit Doubles Pairings</button>
+            </div>
+            <!-- Doubles Pairing Setup Section (auto-shown once after all singles finish, until pairings are set) -->
             <div id="doubles-pairing-section" class="doubles-pairing-section" style="display: none;">
                 <div class="pairing-header">
                     <h3>Set Doubles Pairings</h3>
@@ -95,6 +99,7 @@
                 <div id="pairing-form"></div>
                 <div class="pairing-actions">
                     <button id="save-pairings-btn" class="btn btn-primary" onclick="savePairings()">Save Pairings</button>
+                    <button id="cancel-pairings-btn" class="btn btn-secondary" style="display: none;" onclick="closePairingPanel()">Cancel</button>
                     <span id="pairing-status" class="pairing-status"></span>
                 </div>
             </div>
@@ -308,6 +313,7 @@
             if (scoreB) scoreB.classList.toggle('leading', teamBWins > teamAWins);
 
             updateTotals();
+            refreshPairingVisibility();
         }
 
         // Aggregate sets and games across all matches (shown under the team score)
@@ -578,21 +584,28 @@
             }
         }
 
-        // Initialize doubles pairing section
-        async function initDoublesPairing() {
-            if (!isScorer) return;
+        // True once any doubles match has begun — pairings are then fixed
+        function anyDoublesStarted() {
+            return getDoublesMatches().some(m =>
+                m.started_at || (m.score_state && m.score_state.winner !== null)
+            );
+        }
 
-            if (!allSinglesFinished()) return;
-
+        // Open the pairing panel (setup mode when no doubles exist yet,
+        // edit mode for corrections before the first doubles match starts)
+        async function openPairingPanel() {
             const section = document.getElementById('doubles-pairing-section');
             if (!section) return;
             section.style.display = 'block';
+            const editBtn = document.getElementById('edit-pairings-btn');
+            if (editBtn) editBtn.style.display = 'none';
 
             if (matchDay.club_a_id || matchDay.club_b_id) {
                 await loadClubRosters();
             }
 
             const hasDoubles = getDoublesMatches().length > 0;
+            document.getElementById('cancel-pairings-btn').style.display = hasDoubles ? '' : 'none';
             if (hasDoubles) {
                 document.querySelector('.pairing-header h3').textContent = 'Edit Doubles Pairings';
                 document.getElementById('edit-mode-btn').style.display = '';
@@ -606,6 +619,42 @@
                 document.getElementById('save-pairings-btn').onclick = createDoubles;
                 renderCreateDoublesForm();
             }
+        }
+
+        function closePairingPanel() {
+            const section = document.getElementById('doubles-pairing-section');
+            if (section) section.style.display = 'none';
+            refreshPairingVisibility();
+        }
+
+        // Decide what's visible: the setup panel (auto, once — before pairings
+        // exist), the small edit button (pairings set, nothing started), or
+        // nothing at all (a doubles match has started: pairings are fixed).
+        async function refreshPairingVisibility() {
+            if (!isScorer) return;
+            const section = document.getElementById('doubles-pairing-section');
+            const editBtn = document.getElementById('edit-pairings-btn');
+            if (!section) return;
+
+            if (!allSinglesFinished() || anyDoublesStarted()) {
+                section.style.display = 'none';
+                if (editBtn) editBtn.style.display = 'none';
+                return;
+            }
+
+            if (getDoublesMatches().length === 0) {
+                // Pairings not set yet — show the setup panel automatically
+                if (editBtn) editBtn.style.display = 'none';
+                if (section.style.display === 'none') await openPairingPanel();
+            } else if (section.style.display === 'none' && editBtn) {
+                // Pairings set, nothing started — offer a discreet edit button
+                editBtn.style.display = '';
+            }
+        }
+
+        // Initialize doubles pairing section
+        async function initDoublesPairing() {
+            await refreshPairingVisibility();
         }
 
         // Render a fresh create form with player dropdowns sourced from singles
