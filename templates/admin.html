@@ -455,31 +455,34 @@
             const picker = document.createElement('div');
             picker.className = 'player-picker';
 
-            // Available panel
-            const availPanel = document.createElement('div');
-            availPanel.className = 'player-picker-available';
-            availPanel.innerHTML = '<div class="picker-panel-label">Available Players</div>';
-
-            availablePlayers.forEach(player => {
-                const chip = document.createElement('div');
-                chip.className = 'player-chip' + (selectedIds.has(player.id) ? ' selected' : '');
-                chip.dataset.playerId = player.id;
-                const rankLabel = player.ranking != null ? `<span class="player-chip-rank">Rang\u00a0${player.ranking}</span>` : '';
-                const captainBadge = player.is_captain ? `<span class="player-chip-captain">MF</span>` : '';
-                const lkLabel = player.lk ? `<span class="player-chip-meta">LK\u00a0${player.lk}</span>` : '';
-                chip.innerHTML = `${rankLabel}<span class="player-chip-name">${player.name}</span>${captainBadge}${lkLabel}`;
-                chip.addEventListener('click', () => togglePlayer(team, player, availablePlayers));
-                availPanel.appendChild(chip);
-            });
-
-            // Selected panel
+            // Selected lineup \u2014 compact chip bar on top
             const selPanel = document.createElement('div');
             selPanel.className = 'player-picker-selected';
             selPanel.innerHTML = '<div class="picker-panel-label">Selected (by Rang)</div>';
             selPanel.id = `picker-selected-${team}`;
 
-            picker.appendChild(availPanel);
+            // Available players \u2014 responsive card grid below
+            const availPanel = document.createElement('div');
+            availPanel.className = 'player-picker-available';
+            availPanel.innerHTML = '<div class="picker-panel-label">Available players \u2014 tap to add</div>';
+            const grid = document.createElement('div');
+            grid.className = 'player-chip-grid';
+
+            availablePlayers.forEach(player => {
+                const chip = document.createElement('div');
+                chip.className = 'player-chip' + (selectedIds.has(player.id) ? ' selected' : '');
+                chip.dataset.playerId = player.id;
+                const rankLabel = `<span class="player-chip-rank">${player.ranking != null ? player.ranking : '\u2013'}</span>`;
+                const captainBadge = player.is_captain ? `<span class="player-chip-captain">MF</span>` : '';
+                const lkLabel = player.lk ? `<span class="player-chip-meta">LK\u00a0${player.lk}</span>` : '';
+                chip.innerHTML = `${rankLabel}<span class="player-chip-name">${player.name}</span>${captainBadge}${lkLabel}<span class="player-chip-check">\u2713</span>`;
+                chip.addEventListener('click', () => togglePlayer(team, player, availablePlayers));
+                grid.appendChild(chip);
+            });
+            availPanel.appendChild(grid);
+
             picker.appendChild(selPanel);
+            picker.appendChild(availPanel);
             container.appendChild(picker);
 
             renderSelectedSlots(team);
@@ -545,7 +548,7 @@
             arr.forEach((player, i) => {
                 const slot = document.createElement('div');
                 slot.className = 'player-slot';
-                const rankLabel = player.ranking != null ? `<span class="slot-rank">Rang\u00a0${player.ranking}</span>` : '';
+                const rankLabel = '';
                 const lkSlot = player.lk ? `<span class="slot-rank">LK\u00a0${player.lk}</span>` : '';
                 slot.innerHTML = `
                     <span class="slot-number">${i + 1}</span>
@@ -1168,29 +1171,32 @@
             const picker = document.createElement('div');
             picker.className = 'player-picker';
 
-            const availPanel = document.createElement('div');
-            availPanel.className = 'player-picker-available';
-            availPanel.innerHTML = '<div class="picker-panel-label">Available Players</div>';
-
-            availablePlayers.forEach(player => {
-                const chip = document.createElement('div');
-                chip.className = 'player-chip' + (selectedIds.has(player.id) ? ' selected' : '');
-                chip.dataset.playerId = player.id;
-                const rankLabel = player.ranking != null ? `<span class="player-chip-rank">Rang\u00a0${player.ranking}</span>` : '';
-                const captainBadge = player.is_captain ? `<span class="player-chip-captain">MF</span>` : '';
-                const lkLabel = player.lk ? `<span class="player-chip-meta">LK\u00a0${player.lk}</span>` : '';
-                chip.innerHTML = `${rankLabel}<span class="player-chip-name">${player.name}</span>${captainBadge}${lkLabel}`;
-                chip.addEventListener('click', () => toggleSetupPlayer(matchDayId, team, player, availablePlayers));
-                availPanel.appendChild(chip);
-            });
-
             const selPanel = document.createElement('div');
             selPanel.className = 'player-picker-selected';
             selPanel.innerHTML = '<div class="picker-panel-label">Selected (by Rang)</div>';
             selPanel.id = `setup-selected-${matchDayId}-${team}`;
 
-            picker.appendChild(availPanel);
+            const availPanel = document.createElement('div');
+            availPanel.className = 'player-picker-available';
+            availPanel.innerHTML = '<div class="picker-panel-label">Available players — tap to add</div>';
+            const grid = document.createElement('div');
+            grid.className = 'player-chip-grid';
+
+            availablePlayers.forEach(player => {
+                const chip = document.createElement('div');
+                chip.className = 'player-chip' + (selectedIds.has(player.id) ? ' selected' : '');
+                chip.dataset.playerId = player.id;
+                const rankLabel = `<span class="player-chip-rank">${player.ranking != null ? player.ranking : '–'}</span>`;
+                const captainBadge = player.is_captain ? `<span class="player-chip-captain">MF</span>` : '';
+                const lkLabel = player.lk ? `<span class="player-chip-meta">LK ${player.lk}</span>` : '';
+                chip.innerHTML = `${rankLabel}<span class="player-chip-name">${player.name}</span>${captainBadge}${lkLabel}<span class="player-chip-check">✓</span>`;
+                chip.addEventListener('click', () => toggleSetupPlayer(matchDayId, team, player, availablePlayers));
+                grid.appendChild(chip);
+            });
+            availPanel.appendChild(grid);
+
             picker.appendChild(selPanel);
+            picker.appendChild(availPanel);
             container.appendChild(picker);
 
             renderSetupSelectedSlots(matchDayId, team);
@@ -1243,7 +1249,7 @@
             arr.forEach((player, i) => {
                 const slot = document.createElement('div');
                 slot.className = 'player-slot';
-                const rankLabel = player.ranking != null ? `<span class="slot-rank">Rang\u00a0${player.ranking}</span>` : '';
+                const rankLabel = '';
                 const lkSlot = player.lk ? `<span class="slot-rank">LK\u00a0${player.lk}</span>` : '';
                 slot.innerHTML = `
                     <span class="slot-number">${i + 1}</span>

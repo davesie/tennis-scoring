@@ -945,137 +945,188 @@ a:focus {
 }
 
 /* ==================== Player Picker ==================== */
+/* Selected lineup bar on top, available players as a responsive grid below */
 .player-picker {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
+    display: flex;
+    flex-direction: column;
     gap: 12px;
     margin-top: 8px;
 }
 
 .player-picker-available,
 .player-picker-selected {
-    border: 1px solid var(--border-color);
-    border-radius: 8px;
-    padding: 10px;
-    background: var(--card-bg, var(--bg-color));
-    min-height: 120px;
-    max-height: 320px;
+    border: 1px solid var(--bc-border);
+    border-radius: 10px;
+    padding: 12px;
+    background: var(--match-scoreboard-bg);
+}
+
+.player-picker-available {
+    max-height: 340px;
     overflow-y: auto;
 }
 
 .picker-panel-label {
+    font-family: var(--font-body);
     font-size: 0.72rem;
     font-weight: 700;
     text-transform: uppercase;
     letter-spacing: 0.06em;
-    color: var(--text-muted, #888);
-    margin-bottom: 8px;
+    color: var(--bc-muted);
+    margin-bottom: 10px;
+}
+
+/* Available players: auto-fill grid — 2-3 columns on desktop, 1 on phones */
+.player-chip-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
+    gap: 8px;
 }
 
 .player-chip {
     display: flex;
     align-items: center;
-    gap: 6px;
-    padding: 6px 10px;
-    border-radius: 6px;
-    margin-bottom: 4px;
+    gap: 8px;
+    padding: 9px 12px;
+    border-radius: 8px;
     cursor: pointer;
-    border: 1px solid var(--border-color);
-    background: var(--bg-color);
+    border: 1px solid var(--bc-border);
+    background: var(--bc-bg);
     transition: background 0.15s, border-color 0.15s;
     font-size: 0.88rem;
     user-select: none;
+    min-width: 0;
 }
 
 .player-chip:hover {
-    background: var(--hover-bg, #f0f0f0);
-    border-color: var(--primary-color);
+    border-color: var(--bc-accent);
 }
 
 .player-chip.selected {
-    background: color-mix(in srgb, var(--primary-color) 12%, transparent);
-    border-color: var(--primary-color);
+    background: color-mix(in srgb, var(--bc-accent) 16%, transparent);
+    border-color: var(--bc-accent);
 }
 
 .player-chip-rank {
-    font-size: 0.72rem;
-    color: var(--text-muted, #888);
-    white-space: nowrap;
-    min-width: 46px;
+    font-family: var(--font-score);
+    font-size: 0.75rem;
+    font-weight: 700;
+    color: var(--bc-muted);
+    background: color-mix(in srgb, var(--bc-muted) 12%, transparent);
+    border-radius: 6px;
+    min-width: 26px;
+    height: 22px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
 }
 
 .player-chip-name {
     flex: 1;
-    font-weight: 500;
+    font-weight: 600;
+    min-width: 0;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
 .player-chip-captain {
     font-size: 0.65rem;
     font-weight: 700;
-    color: var(--primary-color, #3182ce);
-    background: color-mix(in srgb, var(--primary-color, #3182ce) 12%, transparent);
-    padding: 1px 4px;
-    border-radius: 3px;
+    color: var(--bc-team-a);
+    background: color-mix(in srgb, var(--bc-team-a) 12%, transparent);
+    padding: 2px 5px;
+    border-radius: 4px;
     letter-spacing: 0.04em;
+    flex-shrink: 0;
 }
 
 .player-chip-meta {
+    font-family: var(--font-score);
     font-size: 0.72rem;
-    color: var(--text-muted, #888);
+    color: var(--bc-muted);
     white-space: nowrap;
+    flex-shrink: 0;
 }
 
-.player-slot {
-    display: flex;
+.player-chip-check {
+    color: var(--bc-accent);
+    font-weight: 700;
+    flex-shrink: 0;
+    visibility: hidden;
+}
+
+.player-chip.selected .player-chip-check {
+    visibility: visible;
+}
+
+/* Selected lineup: compact numbered chips that wrap horizontally */
+.player-picker-selected .player-slot {
+    display: inline-flex;
     align-items: center;
-    gap: 8px;
-    padding: 6px 8px;
-    border-radius: 6px;
-    margin-bottom: 4px;
-    background: var(--hover-bg, #f0f0f0);
-    font-size: 0.88rem;
+    gap: 6px;
+    padding: 6px 8px 6px 6px;
+    border-radius: 999px;
+    margin: 0 6px 6px 0;
+    background: color-mix(in srgb, var(--bc-accent) 14%, transparent);
+    border: 1px solid color-mix(in srgb, var(--bc-accent) 45%, transparent);
+    font-size: 0.85rem;
+    max-width: 100%;
 }
 
 .slot-number {
-    font-size: 0.7rem;
+    font-family: var(--font-score);
+    font-size: 0.72rem;
     font-weight: 700;
-    color: var(--text-muted, #888);
-    min-width: 18px;
-    text-align: center;
+    color: #1A1917;
+    background: var(--bc-accent);
+    border-radius: 50%;
+    width: 20px;
+    height: 20px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
 }
 
 .slot-name {
-    flex: 1;
-    font-weight: 500;
+    font-weight: 600;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
 .slot-rank {
-    font-size: 0.72rem;
-    color: var(--text-muted, #888);
+    font-family: var(--font-score);
+    font-size: 0.7rem;
+    color: var(--bc-muted);
     white-space: nowrap;
+    flex-shrink: 0;
 }
 
 .slot-remove {
     background: none;
     border: none;
     cursor: pointer;
-    color: var(--text-muted, #888);
+    color: var(--bc-muted);
     font-size: 1rem;
     line-height: 1;
-    padding: 0 2px;
-    border-radius: 4px;
+    padding: 0 3px;
+    border-radius: 50%;
+    flex-shrink: 0;
 }
 
 .slot-remove:hover {
-    color: var(--danger-color, #c00);
-    background: color-mix(in srgb, var(--danger-color, #c00) 10%, transparent);
+    color: var(--bc-team-b);
+    background: color-mix(in srgb, var(--bc-team-b) 12%, transparent);
 }
 
 .picker-loading,
 .picker-empty,
 .picker-slots-empty {
     font-size: 0.85rem;
-    color: var(--text-muted, #888);
+    color: var(--bc-muted);
     padding: 12px 4px;
     text-align: center;
 }
