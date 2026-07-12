@@ -1154,6 +1154,20 @@ a:focus {
 .team-score-a { border-right: 1px solid var(--match-scoreboard-border); }
 .team-score-b { border-left: 1px solid var(--match-scoreboard-border); }
 
+/* Aggregated sets/games line under the team score pill */
+.team-totals {
+    display: flex; justify-content: center; gap: 24px;
+    margin: 8px auto 0; max-width: 480px;
+}
+.team-total {
+    font-family: var(--font-body); font-size: 0.75rem; font-weight: 600;
+    color: var(--bc-muted); text-transform: uppercase; letter-spacing: 0.5px;
+}
+.team-total-value {
+    font-family: var(--font-score); font-size: 0.85rem; font-weight: 700;
+    color: var(--bc-text); margin-left: 4px; text-transform: none;
+}
+
 .team-score .team-name {
     font-family: var(--font-display); font-size: 0.8rem; font-weight: 700;
     text-transform: uppercase; letter-spacing: 2px; order: -1;

@@ -34,6 +34,10 @@
                     <span class="score" id="team-b-wins">0</span>
                 </div>
             </div>
+            <div class="team-totals">
+                <span class="team-total">Sets <span class="team-total-value" id="total-sets">0:0</span></span>
+                <span class="team-total">Games <span class="team-total-value" id="total-games">0:0</span></span>
+            </div>
             {% if match_day.venue or match_day.scheduled_date or match_day.category %}
             <div class="matchday-meta-info">
                 {% if match_day.category %}<span class="matchday-category">{{ match_day.category }}</span>{% endif %}
@@ -302,6 +306,28 @@
             const scoreB = document.querySelector('.team-score-b');
             if (scoreA) scoreA.classList.toggle('leading', teamAWins > teamBWins);
             if (scoreB) scoreB.classList.toggle('leading', teamBWins > teamAWins);
+
+            updateTotals();
+        }
+
+        // Aggregate sets and games across all matches (shown under the team score)
+        function updateTotals() {
+            let setsA = 0, setsB = 0, gamesA = 0, gamesB = 0;
+            matches.forEach(match => {
+                const ss = match.score_state || {};
+                if (Array.isArray(ss.sets)) {
+                    setsA += ss.sets[0] || 0;
+                    setsB += ss.sets[1] || 0;
+                }
+                (ss.games || []).forEach(g => {
+                    gamesA += g[0] || 0;
+                    gamesB += g[1] || 0;
+                });
+            });
+            const setsEl = document.getElementById('total-sets');
+            const gamesEl = document.getElementById('total-games');
+            if (setsEl) setsEl.textContent = `${setsA}:${setsB}`;
+            if (gamesEl) gamesEl.textContent = `${gamesA}:${gamesB}`;
         }
 
         function copyShareLink() {

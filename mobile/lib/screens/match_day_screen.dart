@@ -120,6 +120,28 @@ class _MatchDayScreenState extends ConsumerState<MatchDayScreen> {
   int get _teamBWins =>
       _matches.values.where((m) => m.scoreState.winner == 1).length;
 
+  /// Aggregated (teamA, teamB) set and game totals across all matches.
+  (int, int) get _setTotals {
+    var a = 0, b = 0;
+    for (final m in _matches.values) {
+      final sets = m.scoreState.sets;
+      if (sets.isNotEmpty) a += sets[0];
+      if (sets.length > 1) b += sets[1];
+    }
+    return (a, b);
+  }
+
+  (int, int) get _gameTotals {
+    var a = 0, b = 0;
+    for (final m in _matches.values) {
+      for (final g in m.scoreState.games) {
+        if (g.isNotEmpty) a += g[0];
+        if (g.length > 1) b += g[1];
+      }
+    }
+    return (a, b);
+  }
+
   void _openMatch(TennisMatch m) {
     if (widget.canScore) {
       // Scorer token already stored (scoreday) or owner is authed.
@@ -166,6 +188,7 @@ class _MatchDayScreenState extends ConsumerState<MatchDayScreen> {
           padding: const EdgeInsets.all(16),
           children: [
             _teamScorePill(context),
+            _totalsLine(context),
             const SizedBox(height: 16),
             for (final m in ordered) ...[
               _MatchCard(
@@ -211,6 +234,39 @@ class _MatchDayScreenState extends ConsumerState<MatchDayScreen> {
                   fontSize: 30, fontWeight: FontWeight.w700))),
         ],
       );
+
+  /// Aggregated sets/games line under the team score pill.
+  Widget _totalsLine(BuildContext context) {
+    final (setsA, setsB) = _setTotals;
+    final (gamesA, gamesB) = _gameTotals;
+    final muted = Theme.of(context).disabledColor;
+    Widget item(String label, int a, int b) => Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(label,
+                style: BC.body(TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w600,
+                    letterSpacing: 0.5,
+                    color: muted))),
+            const SizedBox(width: 4),
+            Text('$a:$b',
+                style: BC.score(const TextStyle(
+                    fontSize: 13, fontWeight: FontWeight.w700))),
+          ],
+        );
+    return Padding(
+      padding: const EdgeInsets.only(top: 8),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          item('SETS', setsA, setsB),
+          const SizedBox(width: 24),
+          item('GAMES', gamesA, gamesB),
+        ],
+      ),
+    );
+  }
 }
 
 class _MatchCard extends StatelessWidget {
