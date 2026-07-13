@@ -60,7 +60,7 @@
                         <span class="status-badge live">🟢 {{ t('match.live') }}</span>
                     {% endif %}
                     {%- set cells = match.score_cells -%}
-                    <a href="{% if is_scorer %}/match/{{ match.id }}{% else %}/watch/{{ match.share_code }}{% endif %}" class="scoreboard-link">
+                    <a href="{% if is_scorer %}/match/{{ match.id }}{% if match_day.scorer_token %}?scorer_token={{ match_day.scorer_token }}{% endif %}{% else %}/watch/{{ match.share_code }}{% endif %}" class="scoreboard-link">
                         <table class="scoreboard-table">
                             <tr class="{% if match.score_state.winner == 0 %}winner{% endif %}">
                                 <td class="team-color team-a"></td>
@@ -115,7 +115,7 @@
                         <span class="status-badge live">🟢 {{ t('match.live') }}</span>
                     {% endif %}
                     {%- set cells = match.score_cells -%}
-                    <a href="{% if is_scorer %}/match/{{ match.id }}{% else %}/watch/{{ match.share_code }}{% endif %}" class="scoreboard-link">
+                    <a href="{% if is_scorer %}/match/{{ match.id }}{% if match_day.scorer_token %}?scorer_token={{ match_day.scorer_token }}{% endif %}{% else %}/watch/{{ match.share_code }}{% endif %}" class="scoreboard-link">
                         <table class="scoreboard-table">
                             <tr class="{% if match.score_state.winner == 0 %}winner{% endif %}">
                                 <td class="team-color team-a"></td>

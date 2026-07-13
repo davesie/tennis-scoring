@@ -19,16 +19,12 @@
         <!-- Match Navigation -->
         <div class="match-nav">
             {% if match.match_day_id %}
-                {% if is_scorer %}
-                <a href="/matchday/{{ match.match_day_id }}" class="match-nav-back">{{ t('match.back_matchday') }}</a>
-                {% else %}
-                <a href="/watchday/{{ match_day_share_code }}" class="match-nav-back">{{ t('match.back_matchday') }}</a>
-                {% endif %}
+                <a href="{{ back_url }}" class="match-nav-back">{{ t('match.back_matchday') }}</a>
                 {% if match.match_number %}
                 <span class="match-nav-badge">{{ t('match.match_n', n=match.match_number) }}</span>
                 {% endif %}
             {% else %}
-            <a href="/archive" class="match-nav-back">{{ t('match.back_archive_short') }}</a>
+            <a href="{{ back_url }}" class="match-nav-back">{{ t('match.back_archive_short') }}</a>
             {% endif %}
         </div>
 
@@ -257,13 +253,9 @@
 
         <div class="back-link">
             {% if match.match_day_id %}
-                {% if is_scorer %}
-                <a href="/matchday/{{ match.match_day_id }}">← Back to Match Day</a>
-                {% else %}
-                <a href="/watchday/{{ match_day_share_code }}">← Back to Match Day</a>
-                {% endif %}
+                <a href="{{ back_url }}">{{ t('match.back_matchday_long') }}</a>
             {% else %}
-            <a href="/archive">← View Archive</a>
+            <a href="{{ back_url }}">{{ t('nav.back_archive') }}</a>
             {% endif %}
         </div>
     </div>
@@ -727,7 +719,7 @@
                 title = t('stats.title_live');
             }
 
-            if (!stats) { panel.style.display = 'none'; return; }
+            if (!stats || !stats.total) { panel.style.display = 'none'; return; }
 
             document.getElementById('stats-panel-title').textContent = title;
             document.getElementById('stats-name-a').textContent = getWinnerDisplayName(0);

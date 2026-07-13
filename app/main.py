@@ -534,16 +534,37 @@ async def match_page(request: Request, match_id: str, db: AsyncSession = Depends
             if user:
                 is_owner = await is_owner_or_superadmin(user, match_day)
 
+    # Link-scorers (via /scoreday/{token}) carry the token as a query param —
+    # they get the full scorer view too, not just logged-in owners.
+    token = get_scorer_token(request)
+    is_token_scorer = bool(token) and (
+        (match.scorer_token and secrets.compare_digest(token, match.scorer_token))
+        or (match_day_scorer_token and secrets.compare_digest(token, match_day_scorer_token))
+    )
+    is_scorer = is_owner or is_token_scorer
+
     scorer_token = None
-    if is_owner:
+    if is_scorer:
         scorer_token = match_day_scorer_token or match.scorer_token
+
+    # Back link that preserves the visitor's role/context
+    if match.match_day_id:
+        if is_owner:
+            back_url = f"/matchday/{match.match_day_id}"
+        elif is_token_scorer and match_day_scorer_token:
+            back_url = f"/scoreday/{match_day_scorer_token}"
+        else:
+            back_url = f"/watchday/{match_day_share_code}"
+    else:
+        back_url = "/archive"
 
     return templates.TemplateResponse("match.html", {
         "request": request,
-        "match": match.to_dict(include_stats=is_owner),
-        "is_scorer": is_owner,
+        "match": match.to_dict(include_stats=is_scorer),
+        "is_scorer": is_scorer,
         "match_day_share_code": match_day_share_code,
-        "scorer_token": scorer_token
+        "scorer_token": scorer_token,
+        "back_url": back_url,
     })
 
 

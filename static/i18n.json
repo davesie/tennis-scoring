@@ -874,5 +874,9 @@
   "admin.synced_players": {
     "en": "✓ Synced {n} players for {club}!",
     "de": "✓ {n} Spieler von {club} synchronisiert!"
+  },
+  "match.back_matchday_long": {
+    "en": "← Back to Match Day",
+    "de": "← Zurück zum Spieltag"
   }
 }
