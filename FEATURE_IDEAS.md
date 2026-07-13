@@ -32,6 +32,7 @@ Revisit when opening up beyond ~15 users:
   service); token link flow. Until then: the superadmin resets by env-sync
   (own account) or edits the DB; testers can simply register a fresh account.
 - **Email verification** on signup (same SMTP dependency).
-- **Admin user management UI** — list users, deactivate, reset password,
-  promote; today only the superadmin exists as a special role.
+- ~~**Admin user management UI**~~ ✓ Done (v2.9.0) — superadmin sees a user
+  table in the dashboard (list, reset password, delete with match-day
+  reassignment). Deliberately no "promote to admin": one admin account only.
 - **Per-invite links** instead of one shared code (single-use, auditable).

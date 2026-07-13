@@ -18,6 +18,7 @@ from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from .database import get_db, init_db, async_session_maker, ensure_superadmin
+from .seed import seed_demo_data
 from .models import Match, MatchDay, Club, Player, User, AdminSession
 from .schemas import MatchCreate, ScorePoint, MatchResponse, MatchDayCreate, ScoreGame, MatchPlayersUpdate, MatchScoreSet, DoublesCreate, SetInitialServer, FixtureImport, MatchDaySetup, UserRegister, UserLogin, PointOutcome, AdminPasswordReset
 from .scoring import score_point, score_game, create_initial_state, get_score_summary
@@ -172,6 +173,7 @@ async def _startup_sync_clubs():
 async def lifespan(app: FastAPI):
     await init_db()
     await ensure_superadmin()
+    await seed_demo_data()
     asyncio.create_task(_startup_sync_clubs())
     yield
 

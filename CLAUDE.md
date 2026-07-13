@@ -110,7 +110,24 @@ Per-point stats are tracked separately from the score state machine:
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `DATABASE_URL` | `sqlite+aiosqlite:///./tennis.db` | Database connection string |
+| `DATABASE_URL` | `sqlite+aiosqlite:///./tennis.db` | Database connection string (Docker image sets `./data/tennis.db`) |
+| `ADMIN_EMAIL` / `ADMIN_PASSWORD` | — | Superadmin account, synced from env on every boot |
+| `REGISTRATION_MODE` | `open` | `open` \| `code` (requires `REGISTRATION_CODE`) \| `closed` |
+| `REGISTRATION_CODE` | — | Invite code when `REGISTRATION_MODE=code` |
+| `DB_BACKUP_KEEP` | `5` | Startup SQLite backups kept next to the DB file |
+| `SEED_DEMO_DATA` | off | `1`/`true` seeds demo users + match days on boot (dev only!) |
+
+## Demo Data (dev environment)
+
+`app/seed.py` seeds test data at startup when `SEED_DEMO_DATA=1` — set that env var
+on the **dev** Coolify app only, never on main. Idempotent (skips if `anna@demo.de`
+exists); dev has no persistent volume, so every redeploy reseeds fresh data.
+Seeded: users `anna@demo.de` / `ben@demo.de` / `clara@demo.de` (password `demo123`,
+clara has no data — safe to delete when testing user management), a finished
+4-person match day (full point-by-point + stats, `/watchday/demoday1`) and a live
+6-person match day with finished/live/upcoming matches (`/watchday/demoday2`,
+scorer link `/scoreday/demoscorer02`). Matches are simulated point-by-point through
+the real scoring engine with a fixed RNG seed, so every deploy yields identical data.
 
 ---
 
