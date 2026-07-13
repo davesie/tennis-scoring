@@ -165,6 +165,15 @@ Three roles exist, all fully implemented:
 - Per-club player sync via autocomplete search
 - Player picker: two-panel UI (Available / Selected), sorted by WTB ranking, MF badge shown
 
+## Internationalization (v2.7)
+
+Two languages (en/de) via one shared catalog `static/i18n.json` ({key: {en, de}}):
+- **Server:** `app/i18n.py` — `lang` cookie > Accept-Language (de* → de) > en. A Jinja `context_processor` gives every template `lang` and `t('key', **kwargs)`.
+- **Browser:** `/i18n.js` (loaded before common.js) sets `window.LANG` + `window.T` (current language only); `t(key, vars)` in common.js serves all dynamic JS strings.
+- **Switcher:** `.lang-toggle` button (top-right, next to theme toggle) sets the cookie and reloads.
+- Long-form FAQ content uses `{% if lang == 'de' %}` blocks instead of catalog keys.
+- API error `detail` strings remain English (surfaced rarely; not translated yet).
+
 ## Theme System
 
 All pages use CSS custom properties with `[data-theme]` on `<html>`:

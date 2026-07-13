@@ -1,14 +1,16 @@
 <!DOCTYPE html>
-<html lang="en" data-theme="light">
+<html lang="{{ lang }}" data-theme="light">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Admin Dashboard - Tennis Scoring</title>
+    <title>{{ t('admin.title') }}</title>
     <link rel="stylesheet" href="/static/css/style.css">
     <link rel="icon" type="image/svg+xml" href="/static/favicon.svg">
+    <script src="/i18n.js"></script>
     <script src="/static/js/common.js"></script>
 </head>
 <body class="matchday-page">
+    <button class="lang-toggle" id="lang-toggle" aria-label="Switch language"></button>
     <button class="theme-toggle" id="theme-toggle" aria-label="Toggle theme"></button>
     <div class="admin-container">
         <header class="admin-header">
@@ -17,32 +19,32 @@
                 {% if is_superadmin %}<span class="superadmin-badge">Superadmin</span>{% endif %}
             </div>
             <div class="header-actions">
-                <button class="btn btn-primary" onclick="toggleCreateSection()">+ New Match Day</button>
+                <button class="btn btn-primary" onclick="toggleCreateSection()">{{ t('admin.new_matchday') }}</button>
                 {% if is_superadmin %}
-                <button class="btn btn-secondary" onclick="toggleImportSection()">Import Fixtures</button>
+                <button class="btn btn-secondary" onclick="toggleImportSection()">{{ t('admin.import_fixtures') }}</button>
                 {% endif %}
-                <a href="/archive" class="btn btn-secondary">View Archive</a>
+                <a href="/archive" class="btn btn-secondary">{{ t('nav.archive') }}</a>
                 <form action="/admin/logout" method="POST" style="margin: 0;">
-                    <button type="submit" class="btn btn-outline-danger">Logout</button>
+                    <button type="submit" class="btn btn-outline-danger">{{ t('nav.logout') }}</button>
                 </form>
             </div>
         </header>
 
         {% if stats %}
         <section class="usage-stats-section">
-            <h2>Platform Stats</h2>
+            <h2>{{ t('admin.platform_stats') }}</h2>
             <div class="stats-grid">
                 <div class="stat-card">
                     <span class="stat-value">{{ stats.total_users }}</span>
-                    <span class="stat-label">Users</span>
+                    <span class="stat-label">{{ t('admin.stats_users') }}</span>
                 </div>
                 <div class="stat-card">
                     <span class="stat-value">{{ stats.total_match_days }}</span>
-                    <span class="stat-label">Match Days</span>
+                    <span class="stat-label">{{ t('admin.stats_matchdays') }}</span>
                 </div>
                 <div class="stat-card">
                     <span class="stat-value">{{ stats.total_matches }}</span>
-                    <span class="stat-label">Matches</span>
+                    <span class="stat-label">{{ t('admin.stats_matches') }}</span>
                 </div>
             </div>
         </section>
@@ -51,24 +53,24 @@
         {% if is_superadmin %}
         <!-- WTB Data Management Section -->
         <section class="wtb-section">
-            <h2>WTB Player Database</h2>
+            <h2>{{ t('admin.wtb_title') }}</h2>
             <div class="wtb-actions">
                 <button class="btn btn-secondary" id="sync-clubs-btn" onclick="syncClubs()">
-                    Sync All Clubs from WTB
+                    {{ t('admin.sync_clubs') }}
                 </button>
                 <div class="sync-status" id="sync-status"></div>
                 <div class="sync-meta" id="sync-meta">
                     {% if last_club_sync %}
-                    Last synced: <time id="last-sync-time" datetime="{{ last_club_sync }}">{{ last_club_sync }}</time>
+                    {{ t('admin.last_synced') }}: <time id="last-sync-time" datetime="{{ last_club_sync }}">{{ last_club_sync }}</time>
                     {% else %}
-                    Never synced
+                    {{ t('admin.never_synced') }}
                     {% endif %}
                 </div>
             </div>
 
             <div class="wtb-club-selector" id="club-selector-wtb" style="display: none;">
-                <label>Sync Players for Club</label>
-                <input type="text" id="wtb-club-search" placeholder="Search for a club..." onkeyup="searchWTBClubs(this.value)">
+                <label>{{ t('admin.sync_players_for_club') }}</label>
+                <input type="text" id="wtb-club-search" placeholder="{{ t('admin.search_club_ph') }}" onkeyup="searchWTBClubs(this.value)">
                 <div class="autocomplete-dropdown" id="wtb-club-dropdown"></div>
             </div>
         </section>
@@ -78,21 +80,21 @@
         {% if is_superadmin %}
         <!-- Import WTB Fixtures Section -->
         <section class="create-section" id="import-section">
-            <h2>Import WTB Fixtures</h2>
+            <h2>{{ t('admin.import_title') }}</h2>
 
             <div class="form-group">
-                <label>Search Club</label>
-                <input type="text" id="import-club-search" placeholder="Search for a club..." autocomplete="off">
+                <label>{{ t('admin.search_club') }}</label>
+                <input type="text" id="import-club-search" placeholder="{{ t('admin.search_club_ph') }}" autocomplete="off">
             </div>
 
             <div id="import-teams-container" style="display:none;">
                 <h3 id="import-club-name"></h3>
                 <div class="form-group">
-                    <label>Category</label>
+                    <label>{{ t('admin.category_label') }}</label>
                     <div class="toggle-group">
                         <button type="button" class="toggle-btn active" onclick="loadTeams('Herren', this)">Herren</button>
                         <button type="button" class="toggle-btn" onclick="loadTeams('Damen', this)">Damen</button>
-                        <button type="button" class="toggle-btn" onclick="loadTeams('', this)">All</button>
+                        <button type="button" class="toggle-btn" onclick="loadTeams('', this)">{{ t('admin.all') }}</button>
                     </div>
                 </div>
                 <div id="import-teams-list" class="import-teams-list"></div>
@@ -101,14 +103,14 @@
             <div id="import-fixtures-container" style="display:none;">
                 <div class="import-fixtures-header">
                     <h3 id="import-team-name"></h3>
-                    <button class="btn btn-secondary btn-sm" id="sync-fixtures-btn" onclick="syncFixtureUpdates()" style="display:none;">Check for updates</button>
+                    <button class="btn btn-secondary btn-sm" id="sync-fixtures-btn" onclick="syncFixtureUpdates()" style="display:none;">{{ t('admin.check_updates') }}</button>
                 </div>
                 <div id="import-fixtures-list" class="import-fixtures-list"></div>
                 <div id="sync-fixtures-result"></div>
             </div>
 
             <div class="header-actions" style="margin-top:1rem;">
-                <button class="btn btn-secondary" onclick="toggleImportSection()">Close</button>
+                <button class="btn btn-secondary" onclick="toggleImportSection()">{{ t('common.close') }}</button>
             </div>
         </section>
 
@@ -116,22 +118,22 @@
 
         <!-- Create Match Day Section -->
         <section class="create-section" id="create-section">
-            <h2>Create New Match Day</h2>
+            <h2>{{ t('admin.create_title') }}</h2>
 
             <div class="form-group">
-                <label>Format</label>
+                <label>{{ t('admin.format') }}</label>
                 <div class="toggle-group">
                     <button type="button" class="toggle-btn active" data-format="6_person" onclick="selectFormat('6_person')">
-                        6 per Team<br><small>6 singles + 3 doubles</small>
+                        {{ t('admin.per_team_6') }}<br><small>{{ t('admin.format6_small') }}</small>
                     </button>
                     <button type="button" class="toggle-btn" data-format="4_person" onclick="selectFormat('4_person')">
-                        4 per Team<br><small>4 singles + 2 doubles</small>
+                        {{ t('admin.per_team_4') }}<br><small>{{ t('admin.format4_small') }}</small>
                     </button>
                 </div>
             </div>
 
             <div class="form-group">
-                <label for="category-select">Team Category</label>
+                <label for="category-select">{{ t('admin.category') }}</label>
                 <select id="category-select" class="category-select" onchange="selectCategory(this.value)">
                     <option value="Herren">Herren (Men)</option>
                     <option value="Damen">Damen (Women)</option>
@@ -150,46 +152,46 @@
             <div class="teams-container">
                 <div class="team-input">
                     <h3>Team A</h3>
-                    <input type="text" id="team-a-name" placeholder="Search club or type team name" autocomplete="off">
-                    <span class="club-search-hint">Type to search WTB clubs &mdash; then click players to select them</span>
+                    <input type="text" id="team-a-name" placeholder="{{ t('admin.club_search_placeholder') }}" autocomplete="off">
+                    <span class="club-search-hint">{{ t('admin.club_search_hint') }}</span>
                     <div id="team-a-players"></div>
                 </div>
                 <div class="vs">VS</div>
                 <div class="team-input">
                     <h3>Team B</h3>
-                    <input type="text" id="team-b-name" placeholder="Search club or type team name" autocomplete="off">
-                    <span class="club-search-hint">Type to search WTB clubs &mdash; then click players to select them</span>
+                    <input type="text" id="team-b-name" placeholder="{{ t('admin.club_search_placeholder') }}" autocomplete="off">
+                    <span class="club-search-hint">{{ t('admin.club_search_hint') }}</span>
                     <div id="team-b-players"></div>
                 </div>
             </div>
 
             <div class="form-group">
-                <label>Visibility</label>
+                <label>{{ t('admin.visibility') }}</label>
                 <div class="toggle-group">
                     <button type="button" class="toggle-btn active" data-visibility="public" onclick="selectVisibility('public', this)">
-                        Public
+                        {{ t('admin.public') }}
                     </button>
                     <button type="button" class="toggle-btn" data-visibility="private" onclick="selectVisibility('private', this)">
-                        Private
+                        {{ t('admin.private') }}
                     </button>
                 </div>
-                <span class="form-hint" id="visibility-hint">Visible to everyone on the archive page</span>
+                <span class="form-hint" id="visibility-hint">{{ t('admin.visibility_public_hint') }}</span>
             </div>
 
             <div class="matchday-name-preview" id="matchday-name-preview">
-                <span class="name-preview-label">Match Day Name:</span>
+                <span class="name-preview-label">{{ t('admin.name_preview') }}:</span>
                 <span class="name-preview-value" id="name-preview-value">—</span>
             </div>
 
             <div class="header-actions">
-                <button class="btn btn-primary" onclick="createMatchDay()">Create Match Day</button>
-                <button class="btn btn-secondary" onclick="toggleCreateSection()">Cancel</button>
+                <button class="btn btn-primary" onclick="createMatchDay()">{{ t('admin.create_btn') }}</button>
+                <button class="btn btn-secondary" onclick="toggleCreateSection()">{{ t('matchday.cancel') }}</button>
             </div>
         </section>
 
         <!-- Match Days List -->
         <section class="match-days-section">
-            <h2>Match Days</h2>
+            <h2>{{ t('admin.your_matchdays') }}</h2>
 
             {% if match_days %}
             {% for md in match_days %}
@@ -197,13 +199,13 @@
                 <div class="match-day-info">
                     <h3>{{ md.name }}</h3>
                     <div class="match-day-meta">
-                        <span>{{ md.format | replace('_', ' ') | title }}</span>
+                        <span>{{ t('archive.format6') if md.format == '6_person' else t('archive.format4') }}</span>
                         {% if md.category %}<span class="category-badge">{{ md.category }}</span>{% endif %}
-                        {% if md.is_public is defined and not md.is_public %}<span class="visibility-badge private">Private</span>{% endif %}
+                        {% if md.is_public is defined and not md.is_public %}<span class="visibility-badge private">{{ t('admin.private') }}</span>{% endif %}
                         {% if md.total_matches > 0 %}
-                        <span>{{ md.completed_matches }}/{{ md.total_matches }} matches</span>
+                        <span>{{ md.completed_matches }}/{{ md.total_matches }} {{ t('archive.matches') }}</span>
                         {% else %}
-                        <span class="shell-badge">Imported — needs setup</span>
+                        <span class="shell-badge">{{ t('admin.needs_setup') }}</span>
                         {% endif %}
                         <span>{{ md.scheduled_date[:10] if md.scheduled_date else (md.created_at[:10] if md.created_at else '') }}</span>
                         {% if md.venue %}<span>📍 {{ md.venue }}</span>{% endif %}
@@ -215,21 +217,21 @@
                     </div>
                     <div class="link-group">
                         {% if md.total_matches == 0 and md.wtb_meeting_id %}
-                        <button class="link-btn btn-setup-players" onclick="openPlayerSetup('{{ md.id }}', '{{ md.format }}', '{{ md.team_a_name | replace("'", "\\'") }}', '{{ md.team_b_name | replace("'", "\\'") }}')">Set up Players</button>
+                        <button class="link-btn btn-setup-players" onclick="openPlayerSetup('{{ md.id }}', '{{ md.format }}', '{{ md.team_a_name | replace("'", "\\'") }}', '{{ md.team_b_name | replace("'", "\\'") }}')">{{ t('admin.setup_players') }}</button>
                         {% else %}
-                        <a href="/matchday/{{ md.id }}" class="link-btn">Open</a>
+                        <a href="/matchday/{{ md.id }}" class="link-btn">{{ t('admin.open') }}</a>
                         {% endif %}
-                        <button class="link-btn" onclick="copyToClipboard('{{ request.url_for('scorer_match_day_page', scorer_token=md.scorer_token) }}', this)">Copy Scorer Link</button>
-                        <button class="link-btn" onclick="copyToClipboard('{{ request.url_for('spectator_match_day_page', share_code=md.share_code) }}', this)">Copy Spectator Link</button>
+                        <button class="link-btn" onclick="copyToClipboard('{{ request.url_for('scorer_match_day_page', scorer_token=md.scorer_token) }}', this)">{{ t('admin.copy_scorer') }}</button>
+                        <button class="link-btn" onclick="copyToClipboard('{{ request.url_for('spectator_match_day_page', share_code=md.share_code) }}', this)">{{ t('admin.copy_spectator') }}</button>
 
                         {% if not md.has_doubles %}
                         {% if md.singles_completed == md.singles_total and md.singles_total > 0 %}
-                        <button class="link-btn btn-setup-doubles" onclick="openDoublesSetup('{{ md.id }}', '{{ md.format }}', {{ md.team_a_players | tojson }}, {{ md.team_b_players | tojson }}, '{{ md.team_a_name }}', '{{ md.team_b_name }}')">Set up Doubles</button>
+                        <button class="link-btn btn-setup-doubles" onclick="openDoublesSetup('{{ md.id }}', '{{ md.format }}', {{ md.team_a_players | tojson }}, {{ md.team_b_players | tojson }}, '{{ md.team_a_name }}', '{{ md.team_b_name }}')">{{ t('admin.setup_doubles') }}</button>
                         {% else %}
-                        <button class="link-btn" disabled title="{{ md.singles_completed }}/{{ md.singles_total }} singles done">Doubles ({{ md.singles_completed }}/{{ md.singles_total }} singles)</button>
+                        <button class="link-btn" disabled title="{{ md.singles_completed }}/{{ md.singles_total }}">{{ t('admin.doubles_progress', done=md.singles_completed, total=md.singles_total) }}</button>
                         {% endif %}
                         {% endif %}
-                        <button class="link-btn btn-delete" onclick="deleteMatchDay('{{ md.id }}', '{{ md.name }}', this)">Delete</button>
+                        <button class="link-btn btn-delete" onclick="deleteMatchDay('{{ md.id }}', '{{ md.name }}', this)">{{ t('admin.delete') }}</button>
                     </div>
                 </div>
                 <div class="doubles-setup-panel" id="doubles-panel-{{ md.id }}" style="display:none;"></div>
@@ -238,8 +240,8 @@
             {% endfor %}
             {% else %}
             <div class="empty-state">
-                <p>No match days yet.</p>
-                <button class="btn btn-primary" onclick="toggleCreateSection()">Create Your First Match Day</button>
+                <p>{{ t('admin.no_matchdays') }}</p>
+                <button class="btn btn-primary" onclick="toggleCreateSection()">{{ t('admin.create_first') }}</button>
             </div>
             {% endif %}
         </section>
@@ -433,12 +435,12 @@
             if (team === 'A') teamASelectedPlayers = [];
             else teamBSelectedPlayers = [];
 
-            container.innerHTML = '<div class="picker-loading">Loading players\u2026</div>';
+            container.innerHTML = `<div class="picker-loading">${t('admin.loading_players')}</div>`;
 
             const players = await fetchAllClubPlayers(clubId, currentCategory, forceRefresh);
 
             if (!players.length) {
-                container.innerHTML = '<p class="picker-empty">No players found for this club.</p>';
+                container.innerHTML = `<p class="picker-empty">${t('admin.no_players')}</p>`;
                 return;
             }
 
@@ -458,7 +460,7 @@
             // Selected lineup \u2014 compact chip bar on top
             const selPanel = document.createElement('div');
             selPanel.className = 'player-picker-selected';
-            selPanel.innerHTML = '<div class="picker-panel-label">Selected (by Rang)</div>';
+            selPanel.innerHTML = `<div class="picker-panel-label">${t('admin.selected_by_rang')}</div>`;
             selPanel.id = `picker-selected-${team}`;
 
             // Available players \u2014 responsive card grid below
@@ -540,7 +542,7 @@
             if (!arr.length) {
                 const empty = document.createElement('p');
                 empty.className = 'picker-slots-empty';
-                empty.textContent = 'Click players to add them';
+                empty.textContent = t('admin.click_players');
                 panel.appendChild(empty);
                 return;
             }
@@ -698,11 +700,11 @@
                     const result = await response.json();
                     window.location.href = `/matchday/${result.match_day.id}`;
                 } else {
-                    showToast('Failed to create match day', 'error');
+                    showToast(t('admin.create_failed'), 'error');
                 }
             } catch (error) {
                 console.error('Error:', error);
-                showToast('Failed to create match day', 'error');
+                showToast(t('admin.create_failed'), 'error');
             }
         }
 
@@ -773,7 +775,7 @@
                 const b1 = document.getElementById(`d${matchDayId}-b1-${i}`)?.value;
                 const b2 = document.getElementById(`d${matchDayId}-b2-${i}`)?.value;
                 if (!a1 || !a2 || !b1 || !b2) {
-                    showToast(`Please fill in all players for Double ${i + 1}`, 'error');
+                    showToast(t('matchday.select_all_players', {n: i + 1}), 'error');
                     return;
                 }
                 pairings.push({ player_a1: a1, player_a2: a2, player_b1: b1, player_b2: b2 });
@@ -789,26 +791,26 @@
                     window.location.reload();
                 } else {
                     const data = await response.json();
-                    showToast(data.detail || 'Failed to create doubles', 'error');
+                    showToast(data.detail || t('matchday.create_doubles_failed'), 'error');
                 }
             } catch (error) {
                 console.error('Error:', error);
-                showToast('Failed to create doubles', 'error');
+                showToast(t('matchday.create_doubles_failed'), 'error');
             }
         }
 
         async function copyMatchdayLink(text, btn) {
             const ok = await copyToClipboard(text);
-            if (!ok) { showToast('Could not copy link', 'error'); return; }
+            if (!ok) { showToast(t('common.error_copy'), 'error'); return; }
             const originalText = btn.textContent;
-            btn.textContent = 'Copied!';
+            btn.textContent = t('archive.copied');
             setTimeout(() => btn.textContent = originalText, 2000);
         }
 
         async function deleteMatchDay(matchDayId, matchDayName, btn) {
-            if (!confirm(`Delete "${matchDayName}" and all its matches? This cannot be undone.`)) return;
+            if (!confirm(t('admin.delete_confirm2', {name: matchDayName}))) return;
             btn.disabled = true;
-            btn.textContent = 'Deleting...';
+            btn.textContent = t('admin.deleting');
             try {
                 const response = await fetch(`/api/matchdays/${matchDayId}`, {
                     method: 'DELETE',
@@ -822,15 +824,15 @@
                     setTimeout(() => card.remove(), 300);
                 } else {
                     const data = await response.json();
-                    showToast(data.detail || 'Failed to delete match day', 'error');
+                    showToast(data.detail || t('admin.delete_failed'), 'error');
                     btn.disabled = false;
-                    btn.textContent = 'Delete';
+                    btn.textContent = t('admin.delete');
                 }
             } catch (error) {
                 console.error('Error:', error);
-                showToast('Failed to delete match day', 'error');
+                showToast(t('admin.delete_failed'), 'error');
                 btn.disabled = false;
-                btn.textContent = 'Delete';
+                btn.textContent = t('admin.delete');
             }
         }
 
@@ -869,7 +871,7 @@
             }
             if (!importClubId) return;
             const list = document.getElementById('import-teams-list');
-            list.innerHTML = '<div class="picker-loading">Loading teams\u2026</div>';
+            list.innerHTML = `<div class="picker-loading">${t('admin.loading_teams')}</div>`;
 
             try {
                 const res = await fetch(`/api/clubs/${importClubId}/teams?category=${encodeURIComponent(category)}`);
@@ -921,7 +923,7 @@
 
             container.style.display = 'block';
             header.textContent = teamName;
-            list.innerHTML = '<div class="picker-loading">Loading fixtures\u2026</div>';
+            list.innerHTML = `<div class="picker-loading">${t('admin.loading_fixtures')}</div>`;
             syncBtn.style.display = 'none';
             document.getElementById('sync-fixtures-result').textContent = '';
 
@@ -953,8 +955,8 @@
                             <td>${f.is_played ? escHtml(f.score_matches) : '<span class="fixture-upcoming">Upcoming</span>'}</td>
                             <td>
                                 ${f.imported
-                                    ? '<span class="fixture-imported-badge">Imported</span>'
-                                    : `<button class="btn btn-primary btn-sm" onclick="importFixture(this, '${f.meeting_id}', '${f.scheduled_date || ''}', '${escHtml(f.home_team)}', '${escHtml(f.away_team)}', '${escHtml(f.venue || '')}', ${f.is_played}, '${escHtml(f.spielbericht_url || '')}')">${f.is_played ? 'Import with scores' : 'Import'}</button>`
+                                    ? `<span class="fixture-imported-badge">${t('admin.imported')}</span>`
+                                    : `<button class="btn btn-primary btn-sm" onclick="importFixture(this, '${f.meeting_id}', '${f.scheduled_date || ''}', '${escHtml(f.home_team)}', '${escHtml(f.away_team)}', '${escHtml(f.venue || '')}', ${f.is_played}, '${escHtml(f.spielbericht_url || '')}')">${f.is_played ? t('admin.import_with_scores') : t('admin.import')}</button>`
                                 }
                             </td>
                         </tr>
@@ -968,7 +970,7 @@
 
         async function importFixture(btn, meetingId, scheduledDate, homeTeam, awayTeam, venue, isPlayed, spielberichtUrl) {
             btn.disabled = true;
-            btn.textContent = isPlayed ? 'Importing scores...' : 'Importing...';
+            btn.textContent = isPlayed ? t('admin.importing_scores') : t('admin.importing');
 
             try {
                 const res = await fetch('/api/admin/import-fixture', {
@@ -989,7 +991,7 @@
                 });
 
                 if (res.status === 409) {
-                    btn.textContent = 'Already imported';
+                    btn.textContent = t('admin.already_imported');
                     btn.classList.add('btn-disabled');
                     return;
                 }
@@ -1002,20 +1004,20 @@
                         window.location.reload();
                         return;
                     }
-                    const label = count > 0 ? `Imported (${count} matches)` : 'Imported';
+                    const label = count > 0 ? t('admin.imported_n', {n: count}) : t('admin.imported');
                     btn.outerHTML = `<span class="fixture-imported-badge">${label}</span>`;
                     // Show sync button
                     document.getElementById('sync-fixtures-btn').style.display = 'inline-block';
                 } else {
                     const data = await res.json();
-                    alert(data.detail || 'Import failed');
+                    alert(data.detail || t('admin.import_failed'));
                     btn.disabled = false;
-                    btn.textContent = isPlayed ? 'Import with scores' : 'Import';
+                    btn.textContent = isPlayed ? t('admin.import_with_scores') : t('admin.import');
                 }
             } catch (err) {
-                alert('Import failed: ' + err.message);
+                alert(t('admin.import_failed') + ': ' + err.message);
                 btn.disabled = false;
-                btn.textContent = 'Import';
+                btn.textContent = t('admin.import');
             }
         }
 
@@ -1024,7 +1026,7 @@
             const resultDiv = document.getElementById('sync-fixtures-result');
             const btn = document.getElementById('sync-fixtures-btn');
             btn.disabled = true;
-            btn.textContent = 'Checking...';
+            btn.textContent = t('admin.checking');
             resultDiv.textContent = '';
 
             try {
@@ -1039,15 +1041,15 @@
                         '</ul>';
                     resultDiv.style.color = '#ed8936';
                 } else {
-                    resultDiv.textContent = 'All fixtures are up to date.';
+                    resultDiv.textContent = t('admin.fixtures_up_to_date');
                     resultDiv.style.color = '#48bb78';
                 }
             } catch (err) {
-                resultDiv.textContent = 'Error: ' + err.message;
+                resultDiv.textContent = t('matchday.error', {msg: err.message});
                 resultDiv.style.color = '#f56565';
             } finally {
                 btn.disabled = false;
-                btn.textContent = 'Check for updates';
+                btn.textContent = t('admin.check_updates');
             }
         }
 
@@ -1064,7 +1066,7 @@
                 <div class="doubles-setup-content">
                     <h4>Set up Players for ${escHtml(teamAName)} vs ${escHtml(teamBName)}</h4>
                     <div class="form-group">
-                        <label>Format</label>
+                        <label>{{ t('admin.format') }}</label>
                         <div class="toggle-group">
                             <button type="button" class="toggle-btn ${format === '6_person' ? 'active' : ''}" onclick="setSetupFormat('${matchDayId}', '6_person', this)">6 per Team</button>
                             <button type="button" class="toggle-btn ${format === '4_person' ? 'active' : ''}" onclick="setSetupFormat('${matchDayId}', '4_person', this)">4 per Team</button>
@@ -1148,10 +1150,10 @@
             if (team === 'A') panel._teamAPlayers = [];
             else panel._teamBPlayers = [];
 
-            container.innerHTML = '<div class="picker-loading">Loading players\u2026</div>';
+            container.innerHTML = `<div class="picker-loading">${t('admin.loading_players')}</div>`;
             const players = await fetchAllClubPlayers(clubId);
             if (!players.length) {
-                container.innerHTML = '<p class="picker-empty">No players found.</p>';
+                container.innerHTML = `<p class="picker-empty">${t('admin.no_players')}</p>`;
                 return;
             }
 
@@ -1173,12 +1175,12 @@
 
             const selPanel = document.createElement('div');
             selPanel.className = 'player-picker-selected';
-            selPanel.innerHTML = '<div class="picker-panel-label">Selected (by Rang)</div>';
+            selPanel.innerHTML = `<div class="picker-panel-label">${t('admin.selected_by_rang')}</div>`;
             selPanel.id = `setup-selected-${matchDayId}-${team}`;
 
             const availPanel = document.createElement('div');
             availPanel.className = 'player-picker-available';
-            availPanel.innerHTML = '<div class="picker-panel-label">Available players — tap to add</div>';
+            availPanel.innerHTML = `<div class="picker-panel-label">${t('admin.available_players')}</div>`;
             const grid = document.createElement('div');
             grid.className = 'player-chip-grid';
 
@@ -1241,7 +1243,7 @@
             if (!arr.length) {
                 const empty = document.createElement('p');
                 empty.className = 'picker-slots-empty';
-                empty.textContent = 'Click players to add them';
+                empty.textContent = t('admin.click_players');
                 selPanel.appendChild(empty);
                 return;
             }
@@ -1321,10 +1323,10 @@
                     window.location.href = `/matchday/${data.match_day.id}`;
                 } else {
                     const data = await res.json();
-                    alert(data.detail || 'Setup failed');
+                    alert(data.detail || t('admin.setup_failed'));
                 }
             } catch (err) {
-                alert('Setup failed: ' + err.message);
+                alert(t('admin.setup_failed') + ': ' + err.message);
             }
         }
 
@@ -1333,18 +1335,18 @@
             const btn = document.getElementById('sync-clubs-btn');
             const statusDiv = document.getElementById('sync-status');
             btn.disabled = true;
-            btn.textContent = 'Syncing...';
-            statusDiv.textContent = 'Starting sync...';
+            btn.textContent = t('admin.syncing');
+            statusDiv.textContent = t('admin.starting_sync');
             statusDiv.style.color = '';
 
             try {
                 const response = await fetch('/api/admin/sync-clubs-stream', { method: 'POST' });
 
                 if (response.status === 409) {
-                    statusDiv.textContent = 'Sync already in progress';
+                    statusDiv.textContent = t('admin.sync_in_progress');
                     statusDiv.style.color = '#ed8936';
                     btn.disabled = false;
-                    btn.textContent = 'Sync All Clubs from WTB';
+                    btn.textContent = t('admin.sync_clubs');
                     return;
                 }
 
@@ -1354,7 +1356,7 @@
                     statusDiv.textContent = `✗ Error: ${detail}`;
                     statusDiv.style.color = '#f56565';
                     btn.disabled = false;
-                    btn.textContent = 'Sync All Clubs from WTB';
+                    btn.textContent = t('admin.sync_clubs');
                     return;
                 }
 
@@ -1378,23 +1380,23 @@
 
                         if (event.type === 'progress') {
                             const pageInfo = event.total_pages ? ` of ${event.total_pages}` : '';
-                            statusDiv.textContent = `Fetching page ${event.page}${pageInfo}... ${event.clubs_so_far} clubs found`;
+                            statusDiv.textContent = t('admin.sync_fetching', {page: event.page + pageInfo, n: event.clubs_so_far});
                             statusDiv.style.color = '';
                         } else if (event.type === 'saving') {
-                            statusDiv.textContent = `Saving ${event.total_clubs} clubs to database...`;
+                            statusDiv.textContent = t('admin.sync_saving', {n: event.total_clubs});
                             statusDiv.style.color = '';
                         } else if (event.type === 'done') {
-                            statusDiv.textContent = `✓ Synced ${event.synced} clubs (${event.total_in_db} total in database)`;
+                            statusDiv.textContent = t('admin.sync_done', {n: event.synced, total: event.total_in_db});
                             statusDiv.style.color = '#48bb78';
                             document.getElementById('club-selector-wtb').style.display = 'block';
                             updateLastSyncTime(event.last_synced);
                             btn.disabled = false;
-                            btn.textContent = 'Sync All Clubs from WTB';
+                            btn.textContent = t('admin.sync_clubs');
                         } else if (event.type === 'error') {
                             statusDiv.textContent = `✗ Error: ${event.message}`;
                             statusDiv.style.color = '#f56565';
                             btn.disabled = false;
-                            btn.textContent = 'Sync All Clubs from WTB';
+                            btn.textContent = t('admin.sync_clubs');
                         }
                     }
                 }
@@ -1402,7 +1404,7 @@
                 statusDiv.textContent = `✗ Error: ${error.message}`;
                 statusDiv.style.color = '#f56565';
                 btn.disabled = false;
-                btn.textContent = 'Sync All Clubs from WTB';
+                btn.textContent = t('admin.sync_clubs');
             }
         }
 
@@ -1410,7 +1412,7 @@
             const meta = document.getElementById('sync-meta');
             if (meta && isoString) {
                 const d = new Date(isoString);
-                meta.innerHTML = 'Last synced: <time id="last-sync-time">' + d.toLocaleString() + '</time>';
+                meta.innerHTML = t('admin.last_synced') + ': <time id="last-sync-time">' + d.toLocaleString() + '</time>';
             }
         }
 
@@ -1433,7 +1435,7 @@
                     `).join('');
                     dropdown.style.display = 'block';
                 } else {
-                    dropdown.innerHTML = '<div class="autocomplete-item" style="color: #999;">No clubs found</div>';
+                    dropdown.innerHTML = `<div class="autocomplete-item" style="color: #999;">${t('admin.no_clubs')}</div>`;
                     dropdown.style.display = 'block';
                 }
             } catch (error) {
@@ -1446,7 +1448,7 @@
             const statusDiv = document.getElementById('sync-status');
             dropdown.innerHTML = '';
             dropdown.style.display = 'none';
-            statusDiv.textContent = `Syncing players for ${clubName}...`;
+            statusDiv.textContent = t('admin.syncing_players', {club: clubName});
             statusDiv.style.color = '#3182ce';
             try {
                 const response = await fetch(`/api/admin/sync-club-players/${clubId}`, {
@@ -1455,7 +1457,7 @@
                 });
                 const data = await response.json();
                 if (response.ok) {
-                    statusDiv.textContent = `✓ Successfully synced ${data.synced} players for ${clubName}!`;
+                    statusDiv.textContent = t('admin.synced_players', {n: data.synced, club: clubName});
                     statusDiv.style.color = '#48bb78';
                 } else {
                     statusDiv.textContent = `✗ Error: ${data.detail || 'Unknown error'}`;

@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en" data-theme="light">
+<html lang="{{ lang }}" data-theme="light">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
@@ -9,33 +9,35 @@
     <title>{{ match.player_a1 or match.team_a_name }} vs {{ match.player_b1 or match.team_b_name }} - Tennis Scoring</title>
     <link rel="stylesheet" href="/static/css/style.css">
     <link rel="icon" type="image/svg+xml" href="/static/favicon.svg">
+    <script src="/i18n.js"></script>
     <script src="/static/js/common.js"></script>
 </head>
 <body class="match-page">
+    <button class="lang-toggle" id="lang-toggle" aria-label="Switch language"></button>
     <button class="theme-toggle" id="theme-toggle" aria-label="Toggle theme"></button>
     <div class="match-container">
         <!-- Match Navigation -->
         <div class="match-nav">
             {% if match.match_day_id %}
                 {% if is_scorer %}
-                <a href="/matchday/{{ match.match_day_id }}" class="match-nav-back">← Match Day</a>
+                <a href="/matchday/{{ match.match_day_id }}" class="match-nav-back">{{ t('match.back_matchday') }}</a>
                 {% else %}
-                <a href="/watchday/{{ match_day_share_code }}" class="match-nav-back">← Match Day</a>
+                <a href="/watchday/{{ match_day_share_code }}" class="match-nav-back">{{ t('match.back_matchday') }}</a>
                 {% endif %}
                 {% if match.match_number %}
-                <span class="match-nav-badge">Match {{ match.match_number }}</span>
+                <span class="match-nav-badge">{{ t('match.match_n', n=match.match_number) }}</span>
                 {% endif %}
             {% else %}
-            <a href="/archive" class="match-nav-back">← Archive</a>
+            <a href="/archive" class="match-nav-back">{{ t('match.back_archive_short') }}</a>
             {% endif %}
         </div>
 
         <!-- TV-Style Scoreboard -->
         <div class="scoreboard">
             <div class="scoreboard-header">
-                <span class="match-status" id="match-status">LIVE</span>
+                <span class="match-status" id="match-status">{{ t('match.live') }}</span>
                 <span class="connection-status" id="connection-status" title="Connection status">●</span>
-                <span class="match-type">{{ match.match_type | upper }}</span>
+                <span class="match-type">{{ t('match.doubles') if match.match_type == 'doubles' else t('match.singles') }}</span>
             </div>
 
             <div class="score-table">
@@ -103,14 +105,14 @@
         <!-- Winner Banner -->
         <div class="winner-banner" id="winner-banner" style="display: none;">
             <div class="winner-text">
-                <span id="winner-name"></span> WINS!
+                <span id="winner-name"></span> {{ t('match.wins') }}
             </div>
         </div>
 
         <!-- Match Statistics Panel (live for scorer, final summary for everyone) -->
         <div class="stats-panel" id="stats-panel" style="display: none;">
             <div class="stats-panel-header">
-                <span class="stats-panel-title" id="stats-panel-title">Live Stats</span>
+                <span class="stats-panel-title" id="stats-panel-title">{{ t('stats.title_live') }}</span>
                 <span class="stats-panel-coverage" id="stats-coverage"></span>
             </div>
             <table class="stats-table">
@@ -122,12 +124,12 @@
                     </tr>
                 </thead>
                 <tbody>
-                    <tr><td>Points won</td><td id="st-points-a">0</td><td id="st-points-b">0</td></tr>
-                    <tr><td>Aces</td><td id="st-aces-a">0</td><td id="st-aces-b">0</td></tr>
-                    <tr><td>Double faults</td><td id="st-df-a">0</td><td id="st-df-b">0</td></tr>
-                    <tr><td>Winners</td><td id="st-win-a">0</td><td id="st-win-b">0</td></tr>
-                    <tr><td>Unforced errors</td><td id="st-ue-a">0</td><td id="st-ue-b">0</td></tr>
-                    <tr><td>Forced errors</td><td id="st-fe-a">0</td><td id="st-fe-b">0</td></tr>
+                    <tr><td>{{ t('stats.points_won') }}</td><td id="st-points-a">0</td><td id="st-points-b">0</td></tr>
+                    <tr><td>{{ t('stats.aces') }}</td><td id="st-aces-a">0</td><td id="st-aces-b">0</td></tr>
+                    <tr><td>{{ t('stats.double_faults') }}</td><td id="st-df-a">0</td><td id="st-df-b">0</td></tr>
+                    <tr><td>{{ t('stats.winners') }}</td><td id="st-win-a">0</td><td id="st-win-b">0</td></tr>
+                    <tr><td>{{ t('stats.unforced_errors') }}</td><td id="st-ue-a">0</td><td id="st-ue-b">0</td></tr>
+                    <tr><td>{{ t('stats.forced_errors') }}</td><td id="st-fe-a">0</td><td id="st-fe-b">0</td></tr>
                 </tbody>
             </table>
         </div>
@@ -135,7 +137,7 @@
         <!-- Point by Point timeline (public, updates live) -->
         <div class="pbp-section" id="pbp-section" style="display: none;">
             <div class="pbp-header">
-                <span class="pbp-title">Point by Point</span>
+                <span class="pbp-title">{{ t('pbp.title') }}</span>
                 <span class="pbp-legend" id="pbp-legend"></span>
             </div>
             <div class="pbp-set-tabs" id="pbp-set-tabs"></div>
@@ -146,7 +148,7 @@
         <!-- Serve Selection Overlay -->
         <div class="serve-overlay" id="serve-overlay" style="display: none;">
             <div class="serve-overlay-content">
-                <h3>Who serves first?</h3>
+                <h3>{{ t('match.serve_question') }}</h3>
                 <div class="serve-overlay-buttons">
                     <button class="serve-pick-btn team-a-btn" onclick="setInitialServer(0)">
                         {% if match.match_type == 'doubles' %}
@@ -171,7 +173,7 @@
             <!-- Point Buttons -->
             <div class="score-buttons">
                 <button class="score-btn team-a-btn" id="score-a" onclick="scorePoint(0)">
-                    <span class="btn-label">Point</span>
+                    <span class="btn-label">{{ t('match.point_btn') }}</span>
                     <span class="btn-team" id="btn-team-a">
                         {% if match.match_type == 'doubles' %}
                             {{ (match.player_a1 or 'A')[:10] }} / {{ (match.player_a2 or 'A')[:10] }}
@@ -181,7 +183,7 @@
                     </span>
                 </button>
                 <button class="score-btn team-b-btn" id="score-b" onclick="scorePoint(1)">
-                    <span class="btn-label">Point</span>
+                    <span class="btn-label">{{ t('match.point_btn') }}</span>
                     <span class="btn-team" id="btn-team-b">
                         {% if match.match_type == 'doubles' %}
                             {{ (match.player_b1 or 'B')[:10] }} / {{ (match.player_b2 or 'B')[:10] }}
@@ -195,7 +197,7 @@
             <!-- Game Buttons -->
             <div class="score-buttons game-buttons" id="game-buttons">
                 <button class="score-btn game-btn team-a-btn" id="game-a" onclick="scoreGame(0)">
-                    <span class="btn-label">Game</span>
+                    <span class="btn-label">{{ t('match.game_btn') }}</span>
                     <span class="btn-team">
                         {% if match.match_type == 'doubles' %}
                             {{ (match.player_a1 or 'A')[:10] }} / {{ (match.player_a2 or 'A')[:10] }}
@@ -205,7 +207,7 @@
                     </span>
                 </button>
                 <button class="score-btn game-btn team-b-btn" id="game-b" onclick="scoreGame(1)">
-                    <span class="btn-label">Game</span>
+                    <span class="btn-label">{{ t('match.game_btn') }}</span>
                     <span class="btn-team">
                         {% if match.match_type == 'doubles' %}
                             {{ (match.player_b1 or 'B')[:10] }} / {{ (match.player_b2 or 'B')[:10] }}
@@ -217,15 +219,15 @@
             </div>
 
             <div class="action-buttons">
-                <button class="btn btn-secondary" onclick="undoPoint()">Undo</button>
-                <button class="btn btn-danger" onclick="resetMatch()">Reset</button>
+                <button class="btn btn-secondary" onclick="undoPoint()">{{ t('match.undo') }}</button>
+                <button class="btn btn-danger" onclick="resetMatch()">{{ t('match.reset') }}</button>
             </div>
 
             <!-- Point Outcome Tag Sheet (optional, appears after each point) -->
             <div class="tag-sheet" id="tag-sheet" style="display: none;">
                 <div class="tag-sheet-header">
                     <span id="tag-sheet-title">Last point</span>
-                    <button class="tag-sheet-skip" onclick="dismissTagSheet()" aria-label="Skip tagging">Skip</button>
+                    <button class="tag-sheet-skip" onclick="dismissTagSheet()" aria-label="Skip tagging">{{ t('tag.skip') }}</button>
                 </div>
                 <div class="tag-sheet-buttons" id="tag-sheet-buttons"></div>
             </div>
@@ -233,7 +235,7 @@
         {% else %}
         <!-- Spectator View -->
         <div class="spectator-notice">
-            <p>You are watching this match in real-time</p>
+            <p>{{ t('match.watching_notice') }}</p>
             <p class="share-hint">Scores update automatically</p>
         </div>
         {% endif %}
@@ -242,14 +244,14 @@
         <div class="share-section collapsed" id="share-section">
             <button class="share-toggle" onclick="toggleShareSection()">
                 <span class="share-toggle-icon">+</span>
-                <span>Share This Match</span>
+                <span>{{ t('match.share_title') }}</span>
             </button>
             <div class="share-content" id="share-content">
                 <div class="share-link">
                     <input type="text" id="share-url" readonly>
-                    <button class="btn btn-secondary" onclick="copyShareLink(event)">Copy Link</button>
+                    <button class="btn btn-secondary" onclick="copyShareLink(event)">{{ t('match.copy_link') }}</button>
                 </div>
-                <p class="share-code">Share Code: <strong>{{ match.share_code }}</strong></p>
+                <p class="share-code">{{ t('match.share_code') }}: <strong>{{ match.share_code }}</strong></p>
             </div>
         </div>
 
@@ -281,11 +283,11 @@
         let latestStats = (matchData && matchData.stats) || null;
         let tagSheetTimer = null;
         const OUTCOME_LABELS = {
-            ace: 'Ace',
-            winner: 'Winner',
-            unforced_error: 'Unforced error',
-            forced_error: 'Forced error',
-            double_fault: 'Double fault',
+            ace: t('tag.ace'),
+            winner: t('tag.winner'),
+            unforced_error: t('tag.unforced_error'),
+            forced_error: t('tag.forced_error'),
+            double_fault: t('tag.double_fault'),
         };
 
         // parseLK / stripLK / formatPlayerNameHTML / formatElapsed live in common.js
@@ -387,7 +389,7 @@
             const btn = event && event.currentTarget;
             if (btn) {
                 const originalText = btn.textContent;
-                btn.textContent = ok ? '✓ Copied!' : 'Copy failed';
+                btn.textContent = ok ? t('match.copied') : t('match.copy_failed');
                 setTimeout(() => btn.textContent = originalText, 2000);
             } else {
                 showToast(ok ? 'Link copied' : 'Could not copy link', ok ? 'success' : 'error');
@@ -432,15 +434,15 @@
             if (status === 'connected') {
                 indicator.textContent = '●';
                 indicator.style.color = '#48bb78';
-                indicator.title = 'Connected - Live updates';
+                indicator.title = t('conn.connected');
             } else if (status === 'reconnecting') {
                 indicator.textContent = '●';
                 indicator.classList.add('reconnecting');
-                indicator.title = 'Reconnecting...';
+                indicator.title = t('conn.reconnecting');
             } else {
                 indicator.textContent = '●';
                 indicator.classList.add('disconnected');
-                indicator.title = 'Disconnected - Trying to reconnect';
+                indicator.title = t('conn.disconnected');
             }
         }
 
@@ -507,11 +509,11 @@
             // Update game state text
             let gameStateText = '';
             if (state.is_super_tiebreak) {
-                gameStateText = 'SUPER TIEBREAK (First to 10)';
+                gameStateText = t('match.super_tiebreak');
             } else if (state.is_tiebreak) {
-                gameStateText = 'TIEBREAK';
+                gameStateText = t('match.tiebreak');
             } else if (state.points[0] >= 3 && state.points[1] >= 3) {
-                gameStateText = state.deuce_advantage !== null ? 'ADVANTAGE' : 'DEUCE';
+                gameStateText = state.deuce_advantage !== null ? t('match.advantage') : t('match.deuce');
             }
             document.getElementById('game-state').textContent = gameStateText;
 
@@ -533,7 +535,7 @@
             // Update match status
             const statusEl = document.getElementById('match-status');
             if (state.winner !== null) {
-                statusEl.textContent = 'FINAL';
+                statusEl.textContent = t('match.final');
                 statusEl.classList.add('finished');
 
                 // Show winner banner
@@ -550,7 +552,7 @@
                     document.getElementById('game-b').disabled = true;
                 }
             } else {
-                statusEl.textContent = 'LIVE';
+                statusEl.textContent = t('match.live');
                 statusEl.classList.remove('finished');
                 document.getElementById('winner-banner').style.display = 'none';
 
@@ -612,7 +614,7 @@
                 const b = document.createElement('button');
                 b.type = 'button';
                 b.className = 'pbp-set-tab' + (s.set === pbpSelectedSet ? ' active' : '');
-                b.textContent = `Set ${s.set}`;
+                b.textContent = t('pbp.set', {n: s.set});
                 b.onclick = () => { pbpSelectedSet = s.set; pbpUserPicked = true; renderPointByPoint(); };
                 tabs.appendChild(b);
             });
@@ -627,9 +629,9 @@
                 const ball = '<span class="pbp-ball" title="Server">🎾</span>';
                 const scoreCls = g.winner === 0 ? 'win-a' : g.winner === 1 ? 'win-b' : '';
                 let tag = '';
-                if (g.winner === null) tag = '<span class="pbp-tag live">live</span>';
-                else if (g.super_tiebreak) tag = '<span class="pbp-tag">Match TB</span>';
-                else if (g.tiebreak) tag = '<span class="pbp-tag">TB</span>';
+                if (g.winner === null) tag = `<span class="pbp-tag live">${t('pbp.live')}</span>`;
+                else if (g.super_tiebreak) tag = `<span class="pbp-tag">${t('pbp.match_tb')}</span>`;
+                else if (g.tiebreak) tag = `<span class="pbp-tag">${t('pbp.tb')}</span>`;
 
                 const header = `
                     <div class="pbp-game-header">
@@ -642,10 +644,10 @@
                 let chipsHtml;
                 if (g.chips && g.chips.length) {
                     chipsHtml = g.chips.map(c =>
-                        `<span class="pbp-chip">${c.a}:${c.b}${c.badge ? `<span class="pbp-badge">${c.badge}</span>` : ''}</span>`
+                        `<span class="pbp-chip">${c.a}:${c.b}${c.badge ? `<span class="pbp-badge">${t('pbp.badge.' + c.badge)}</span>` : ''}</span>`
                     ).join('');
                 } else {
-                    chipsHtml = '<span class="pbp-no-detail">game entered without point detail</span>';
+                    chipsHtml = `<span class="pbp-no-detail">${t('pbp.no_detail')}</span>`;
                 }
 
                 div.innerHTML = header + `<div class="pbp-chips">${chipsHtml}</div>`;
@@ -716,13 +718,13 @@
             const finished = ss.winner !== null && ss.winner !== undefined;
 
             // Finished → public stats summary (everyone). Live → scorer-only running stats.
-            let stats = null, title = 'Live Stats';
+            let stats = null, title = t('stats.title_live');
             if (finished && matchData.stats) {
                 stats = matchData.stats;
-                title = 'Match Statistics';
+                title = t('stats.title_final');
             } else if (isScorer && latestStats) {
                 stats = latestStats;
-                title = 'Live Stats';
+                title = t('stats.title_live');
             }
 
             if (!stats) { panel.style.display = 'none'; return; }
@@ -743,7 +745,7 @@
             const cov = document.getElementById('stats-coverage');
             if (cov) {
                 cov.textContent = (typeof stats.tagged === 'number' && typeof stats.total === 'number')
-                    ? `${stats.tagged}/${stats.total} points tagged` : '';
+                    ? t('stats.tagged', {tagged: stats.tagged, total: stats.total}) : '';
             }
             panel.style.display = 'block';
         }
@@ -754,7 +756,7 @@
             if (!last || last.winner === null || last.winner === undefined) return;
 
             document.getElementById('tag-sheet-title').textContent =
-                `Point to ${getWinnerDisplayName(last.winner)} — how?`;
+                t('tag.title', {name: getWinnerDisplayName(last.winner)});
 
             // Context-aware outcomes: ace only if server won; double fault only if receiver won.
             const outcomes = (last.server === last.winner)
@@ -869,7 +871,7 @@
         }
 
         async function undoPoint() {
-            if (!confirm('Undo the last action?')) return;
+            if (!confirm(t('match.undo_confirm'))) return;
             vibrate([40, 30, 40]);  // double pulse for undo
             dismissTagSheet();
 
@@ -895,7 +897,7 @@
         }
 
         async function resetMatch() {
-            if (!confirm('Are you sure you want to reset the entire match? This cannot be undone.')) return;
+            if (!confirm(t('match.reset_confirm'))) return;
             vibrate([100, 50, 100, 50, 100]);  // strong warning pattern
             dismissTagSheet();
 

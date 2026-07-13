@@ -1,16 +1,137 @@
 <!DOCTYPE html>
-<html lang="en" data-theme="light">
+<html lang="{{ lang }}" data-theme="light">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>FAQ - Tennis Scoring</title>
     <link rel="stylesheet" href="/static/css/style.css">
     <link rel="icon" type="image/svg+xml" href="/static/favicon.svg">
+    <script src="/i18n.js"></script>
     <script src="/static/js/common.js"></script>
 </head>
 <body class="matchday-page">
+    <button class="lang-toggle" id="lang-toggle" aria-label="Switch language"></button>
     <button class="theme-toggle" id="theme-toggle" aria-label="Toggle theme"></button>
     <div class="faq-container">
+        {% if lang == 'de' %}
+        <header class="faq-header">
+            <h1>FAQ</h1>
+            <p>So läuft ein Spieltag mit dieser App.</p>
+        </header>
+
+        <details class="faq-item">
+            <summary>Wie funktioniert das Live-Zählen?</summary>
+            <div class="faq-answer">
+                <p>Öffne deinen <strong>Scorer-Link</strong> (<code>/scoreday/…</code>) auf dem
+                Handy am Platz. Tippe bei jedem Ballwechsel auf <strong>Punkt</strong> für den
+                Gewinner — Spiele, Sätze, Tiebreaks und Einstand werden automatisch gezählt. Mit
+                <strong>Spiel</strong> trägst du ein ganzes Spiel auf einmal ein, mit
+                <strong>Rückgängig</strong> nimmst du Fehler zurück.</p>
+            </div>
+        </details>
+
+        <details class="faq-item">
+            <summary>Wie schauen Zuschauer live zu?</summary>
+            <div class="faq-answer">
+                <p>Teile den <strong>Zuschauer-Link</strong> (<code>/watchday/…</code>) aus dem
+                Teilen-Bereich des Spieltags. Alles aktualisiert sich automatisch in Echtzeit —
+                die Spielkarten, der Teamstand und die Satz-/Spielsummen. Kein Konto nötig.</p>
+            </div>
+        </details>
+
+        <details class="faq-item">
+            <summary>Was ist der Unterschied zwischen Scorer-Link und Zuschauer-Link?</summary>
+            <div class="faq-answer">
+                <p>Der <strong>Scorer-Link</strong> kann Ergebnisse eintragen, Doppel aufstellen
+                und Matches zurücksetzen — behandle ihn wie einen Schlüssel und gib ihn nur der
+                Person, die zählt. Der <strong>Zuschauer-Link</strong> ist nur zum Ansehen und
+                kann bedenkenlos an alle geteilt werden.</p>
+            </div>
+        </details>
+
+        <details class="faq-item">
+            <summary>Wie lege ich die Doppel-Paarungen fest?</summary>
+            <div class="faq-answer">
+                <p>Sobald <strong>alle Einzel beendet sind</strong>, erscheint auf der
+                Spieltag-Seite des Scorers automatisch das Formular „Doppel-Paarungen festlegen".
+                Spieler für jedes Doppel auswählen und auf <strong>Doppel anlegen</strong>
+                tippen. Danach schließt sich das Formular; ein kleiner Button
+                <strong>Doppel-Paarungen bearbeiten</strong> bleibt im Doppel-Bereich, bis das
+                erste Doppel beginnt.</p>
+            </div>
+        </details>
+
+        <details class="faq-item">
+            <summary>Ein Doppel läuft schon — wie ändere ich eine falsche Aufstellung?</summary>
+            <div class="faq-answer">
+                <p>Sobald ein Doppel gestartet ist, sind die Paarungen fixiert und der
+                Bearbeiten-Button verschwindet. So änderst du die Namen trotzdem:</p>
+                <ol>
+                    <li>Öffne dieses Doppel von der Spieltag-Seite aus (als Scorer).</li>
+                    <li>Tippe auf <strong>Zurücksetzen</strong> — das löscht den Spielstand
+                        (nur dieses eine Match).</li>
+                    <li>Zurück auf der Spieltag-Seite ist der Button
+                        <strong>Doppel-Paarungen bearbeiten</strong> wieder da. Namen
+                        korrigieren und speichern.</li>
+                    <li>Bereits gespielte Punkte ggf. neu eintragen.</li>
+                </ol>
+                <p><em>Hinweis:</em> Zurücksetzen löscht den Spielstand wirklich — deshalb ist
+                das Ändern einer laufenden Paarung bewusst kein Ein-Klick-Vorgang.</p>
+            </div>
+        </details>
+
+        <details class="faq-item">
+            <summary>Ich habe einen Punkt dem falschen Spieler gegeben — was jetzt?</summary>
+            <div class="faq-answer">
+                <p>Tippe auf der Match-Seite auf <strong>Rückgängig</strong>. Das nimmt die
+                letzte Aktion zurück (Punkt oder Spiel), Schritt für Schritt, und korrigiert
+                auch die Punkt-Statistik.</p>
+            </div>
+        </details>
+
+        <details class="faq-item">
+            <summary>Ein Match wurde nicht live gezählt — kann ich das Endergebnis eintragen?</summary>
+            <div class="faq-answer">
+                <p>Ja. Auf der Spieltag-Seite des Scorers hat jede Spielkarte einen Button
+                <strong>Ergebnis eintragen</strong>, in dem du die Satzergebnisse direkt
+                eingibst (z.&nbsp;B. 6:4, 3:6, 10:7).</p>
+            </div>
+        </details>
+
+        <details class="faq-item">
+            <summary>Was sind die Punkt-Markierungen (Ass, Winner, …)?</summary>
+            <div class="faq-answer">
+                <p>Nach jedem Punkt kann der Scorer optional markieren, wie er endete — Ass,
+                Winner, unerzwungener Fehler, erzwungener Fehler oder Doppelfehler. Die
+                Markierungen speisen die Statistik. Sie sind optional und können übersprungen
+                werden; das Fenster schließt sich von selbst. Zuschauer sehen die Statistik,
+                sobald das Match beendet ist.</p>
+            </div>
+        </details>
+
+        <details class="faq-item">
+            <summary>Brauche ich ein Konto?</summary>
+            <div class="faq-answer">
+                <p>Nur zum <strong>Erstellen</strong> von Spieltagen. Registriere dich unter
+                <a href="/register">/register</a> und nutze dann „Neuer Spieltag" in deinem
+                Dashboard. Zählen und Zuschauen funktionieren allein über die geteilten Links.</p>
+            </div>
+        </details>
+
+        <details class="faq-item">
+            <summary>Woher kommen die Vereinsspieler und LK-Werte?</summary>
+            <div class="faq-answer">
+                <p>Von der WTB-Website. Beim Erstellen eines Spieltags suchst du einen Verein,
+                und die Spielerliste (mit Rang und LK) lädt automatisch. Die Spielerdaten werden
+                aktualisiert, wenn sie älter als eine Woche sind; ein Admin kann die
+                Synchronisierung auch manuell anstoßen.</p>
+            </div>
+        </details>
+
+        <div class="faq-footer">
+            <a href="/archive">&larr; Zurück zum Archiv</a>
+        </div>
+        {% else %}
         <header class="faq-header">
             <h1>FAQ</h1>
             <p>How to run a match day with this app.</p>
@@ -123,6 +244,7 @@
         <div class="faq-footer">
             <a href="/archive">&larr; Back to the archive</a>
         </div>
+        {% endif %}
     </div>
 <a href="/faq" class="faq-link">FAQ</a>
 <div class="version-label">v{{ app_version }}</div>

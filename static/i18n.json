@@ -1,0 +1,878 @@
+{
+  "app.title": {
+    "en": "Tennis Scoring",
+    "de": "Tennis Scoring"
+  },
+  "nav.archive": {
+    "en": "View Archive",
+    "de": "Zum Archiv"
+  },
+  "nav.back_archive": {
+    "en": "← View Archive",
+    "de": "← Zum Archiv"
+  },
+  "nav.admin_login": {
+    "en": "Admin Login",
+    "de": "Anmelden"
+  },
+  "nav.dashboard": {
+    "en": "My Dashboard",
+    "de": "Mein Dashboard"
+  },
+  "nav.logout": {
+    "en": "Log Out",
+    "de": "Abmelden"
+  },
+  "nav.register": {
+    "en": "Register",
+    "de": "Registrieren"
+  },
+  "nav.faq": {
+    "en": "FAQ",
+    "de": "FAQ"
+  },
+  "archive.title": {
+    "en": "Match Archive",
+    "de": "Spieltag-Archiv"
+  },
+  "archive.subtitle": {
+    "en": "All match days",
+    "de": "Alle Spieltage"
+  },
+  "archive.empty": {
+    "en": "No match days yet.",
+    "de": "Noch keine Spieltage."
+  },
+  "archive.share": {
+    "en": "Share",
+    "de": "Teilen"
+  },
+  "archive.copied": {
+    "en": "Copied!",
+    "de": "Kopiert!"
+  },
+  "archive.matches": {
+    "en": "matches",
+    "de": "Spiele"
+  },
+  "login.title": {
+    "en": "Log in to your account",
+    "de": "Melde dich an"
+  },
+  "login.email": {
+    "en": "Email",
+    "de": "E-Mail"
+  },
+  "login.password": {
+    "en": "Password",
+    "de": "Passwort"
+  },
+  "login.submit": {
+    "en": "Log In",
+    "de": "Anmelden"
+  },
+  "login.create_account": {
+    "en": "Create an account",
+    "de": "Konto erstellen"
+  },
+  "login.error_invalid": {
+    "en": "Invalid email or password",
+    "de": "E-Mail oder Passwort falsch"
+  },
+  "register.title": {
+    "en": "Create your account",
+    "de": "Konto erstellen"
+  },
+  "register.display_name": {
+    "en": "Display name (optional)",
+    "de": "Anzeigename (optional)"
+  },
+  "register.submit": {
+    "en": "Register",
+    "de": "Registrieren"
+  },
+  "register.have_account": {
+    "en": "Already have an account? Log in",
+    "de": "Schon ein Konto? Anmelden"
+  },
+  "match.singles": {
+    "en": "SINGLES",
+    "de": "EINZEL"
+  },
+  "match.doubles": {
+    "en": "DOUBLES",
+    "de": "DOPPEL"
+  },
+  "match.live": {
+    "en": "LIVE",
+    "de": "LIVE"
+  },
+  "match.final": {
+    "en": "FINAL",
+    "de": "ENDE"
+  },
+  "match.upcoming": {
+    "en": "UPCOMING",
+    "de": "AUSSTEHEND"
+  },
+  "match.wins": {
+    "en": "WINS!",
+    "de": "GEWINNT!"
+  },
+  "match.deuce": {
+    "en": "DEUCE",
+    "de": "EINSTAND"
+  },
+  "match.advantage": {
+    "en": "ADVANTAGE",
+    "de": "VORTEIL"
+  },
+  "match.tiebreak": {
+    "en": "TIEBREAK",
+    "de": "TIEBREAK"
+  },
+  "match.super_tiebreak": {
+    "en": "SUPER TIEBREAK (First to 10)",
+    "de": "MATCH-TIEBREAK (bis 10)"
+  },
+  "match.set": {
+    "en": "Set",
+    "de": "Satz"
+  },
+  "match.points": {
+    "en": "Points",
+    "de": "Punkte"
+  },
+  "match.point_btn": {
+    "en": "POINT",
+    "de": "PUNKT"
+  },
+  "match.game_btn": {
+    "en": "GAME",
+    "de": "SPIEL"
+  },
+  "match.undo": {
+    "en": "Undo",
+    "de": "Rückgängig"
+  },
+  "match.reset": {
+    "en": "Reset",
+    "de": "Zurücksetzen"
+  },
+  "match.reset_confirm": {
+    "en": "Reset the entire match? All points will be lost.",
+    "de": "Das ganze Match zurücksetzen? Alle Punkte gehen verloren."
+  },
+  "match.undo_confirm": {
+    "en": "Undo the last action?",
+    "de": "Letzte Aktion rückgängig machen?"
+  },
+  "match.serve_question": {
+    "en": "Who serves first?",
+    "de": "Wer schlägt zuerst auf?"
+  },
+  "match.watching_notice": {
+    "en": "You are watching this match in real-time",
+    "de": "Du schaust dieses Match live"
+  },
+  "match.watching_sub": {
+    "en": "Scores update automatically",
+    "de": "Der Spielstand aktualisiert sich automatisch"
+  },
+  "match.share_title": {
+    "en": "Share Match",
+    "de": "Match teilen"
+  },
+  "match.copy": {
+    "en": "Copy",
+    "de": "Kopieren"
+  },
+  "match.copied": {
+    "en": "✓ Copied!",
+    "de": "✓ Kopiert!"
+  },
+  "match.copy_failed": {
+    "en": "Copy failed",
+    "de": "Kopieren fehlgeschlagen"
+  },
+  "match.duration": {
+    "en": "Duration",
+    "de": "Dauer"
+  },
+  "stats.title_live": {
+    "en": "Live Stats",
+    "de": "Live-Statistik"
+  },
+  "stats.title_final": {
+    "en": "Match Stats",
+    "de": "Match-Statistik"
+  },
+  "stats.points_won": {
+    "en": "Points won",
+    "de": "Gewonnene Punkte"
+  },
+  "stats.aces": {
+    "en": "Aces",
+    "de": "Asse"
+  },
+  "stats.double_faults": {
+    "en": "Double faults",
+    "de": "Doppelfehler"
+  },
+  "stats.winners": {
+    "en": "Winners",
+    "de": "Winner"
+  },
+  "stats.unforced_errors": {
+    "en": "Unforced errors",
+    "de": "Unerzwungene Fehler"
+  },
+  "stats.forced_errors": {
+    "en": "Forced errors",
+    "de": "Erzwungene Fehler"
+  },
+  "stats.tagged": {
+    "en": "{tagged}/{total} points tagged",
+    "de": "{tagged}/{total} Punkte erfasst"
+  },
+  "tag.title": {
+    "en": "Point to {name} — how?",
+    "de": "Punkt für {name} — wie?"
+  },
+  "tag.ace": {
+    "en": "Ace",
+    "de": "Ass"
+  },
+  "tag.winner": {
+    "en": "Winner",
+    "de": "Winner"
+  },
+  "tag.unforced_error": {
+    "en": "Unforced Error",
+    "de": "Unerzwungener Fehler"
+  },
+  "tag.forced_error": {
+    "en": "Forced Error",
+    "de": "Erzwungener Fehler"
+  },
+  "tag.double_fault": {
+    "en": "Double Fault",
+    "de": "Doppelfehler"
+  },
+  "tag.skip": {
+    "en": "Skip",
+    "de": "Überspringen"
+  },
+  "pbp.title": {
+    "en": "Point by Point",
+    "de": "Punkt für Punkt"
+  },
+  "pbp.set": {
+    "en": "Set {n}",
+    "de": "Satz {n}"
+  },
+  "pbp.live": {
+    "en": "live",
+    "de": "live"
+  },
+  "pbp.tb": {
+    "en": "TB",
+    "de": "TB"
+  },
+  "pbp.match_tb": {
+    "en": "Match TB",
+    "de": "Match-TB"
+  },
+  "pbp.no_detail": {
+    "en": "game entered without point detail",
+    "de": "Spiel ohne Punktdetails eingetragen"
+  },
+  "pbp.badge.BP": {
+    "en": "BP",
+    "de": "BB"
+  },
+  "pbp.badge.SP": {
+    "en": "SP",
+    "de": "SB"
+  },
+  "pbp.badge.MP": {
+    "en": "MP",
+    "de": "MB"
+  },
+  "matchday.singles": {
+    "en": "Singles",
+    "de": "Einzel"
+  },
+  "matchday.doubles": {
+    "en": "Doubles",
+    "de": "Doppel"
+  },
+  "matchday.live_updates": {
+    "en": "Live updates",
+    "de": "Live-Updates"
+  },
+  "matchday.sets_total": {
+    "en": "Sets",
+    "de": "Sätze"
+  },
+  "matchday.games_total": {
+    "en": "Games",
+    "de": "Spiele"
+  },
+  "matchday.enter_score": {
+    "en": "Enter Score",
+    "de": "Ergebnis eintragen"
+  },
+  "matchday.pairing_setup_title": {
+    "en": "Set up Doubles Pairings",
+    "de": "Doppel-Paarungen festlegen"
+  },
+  "matchday.pairing_edit_title": {
+    "en": "Edit Doubles Pairings",
+    "de": "Doppel-Paarungen bearbeiten"
+  },
+  "matchday.pairing_edit_btn": {
+    "en": "Edit Doubles Pairings",
+    "de": "Doppel-Paarungen bearbeiten"
+  },
+  "matchday.edit_names": {
+    "en": "Edit Player Names",
+    "de": "Spielernamen bearbeiten"
+  },
+  "matchday.save_pairings": {
+    "en": "Save Pairings",
+    "de": "Paarungen speichern"
+  },
+  "matchday.create_doubles": {
+    "en": "Create Doubles",
+    "de": "Doppel anlegen"
+  },
+  "matchday.cancel": {
+    "en": "Cancel",
+    "de": "Abbrechen"
+  },
+  "matchday.saving": {
+    "en": "Saving...",
+    "de": "Speichern..."
+  },
+  "matchday.saved_refresh": {
+    "en": "Saved! Refreshing...",
+    "de": "Gespeichert! Aktualisiere..."
+  },
+  "matchday.error": {
+    "en": "Error: {msg}",
+    "de": "Fehler: {msg}"
+  },
+  "matchday.double_n": {
+    "en": "Double {n}",
+    "de": "Doppel {n}"
+  },
+  "matchday.share_title": {
+    "en": "Share Match Day",
+    "de": "Spieltag teilen"
+  },
+  "matchday.spectator_link": {
+    "en": "Spectator link (view only)",
+    "de": "Zuschauer-Link (nur ansehen)"
+  },
+  "matchday.scorer_link": {
+    "en": "Scorer link (can edit)",
+    "de": "Scorer-Link (kann eintragen)"
+  },
+  "matchday.scorer_warning": {
+    "en": "Only share this with the person scoring!",
+    "de": "Nur an die Person geben, die zählt!"
+  },
+  "matchday.select_player": {
+    "en": "Select player",
+    "de": "Spieler wählen"
+  },
+  "score_modal.title": {
+    "en": "Enter final score",
+    "de": "Endergebnis eintragen"
+  },
+  "score_modal.save": {
+    "en": "Save",
+    "de": "Speichern"
+  },
+  "common.close": {
+    "en": "Close",
+    "de": "Schließen"
+  },
+  "common.loading": {
+    "en": "Loading...",
+    "de": "Lädt..."
+  },
+  "common.error_copy": {
+    "en": "Could not copy link",
+    "de": "Link konnte nicht kopiert werden"
+  },
+  "common.link_copied": {
+    "en": "Link copied",
+    "de": "Link kopiert"
+  },
+  "common.vs": {
+    "en": "vs",
+    "de": "vs"
+  },
+  "admin.title": {
+    "en": "Admin Dashboard",
+    "de": "Admin-Dashboard"
+  },
+  "admin.new_matchday": {
+    "en": "+ New Match Day",
+    "de": "+ Neuer Spieltag"
+  },
+  "admin.import_fixtures": {
+    "en": "Import Fixtures",
+    "de": "Begegnungen importieren"
+  },
+  "admin.create_title": {
+    "en": "Create New Match Day",
+    "de": "Neuen Spieltag erstellen"
+  },
+  "admin.create_first": {
+    "en": "Create Your First Match Day",
+    "de": "Ersten Spieltag erstellen"
+  },
+  "admin.create_btn": {
+    "en": "Create Match Day",
+    "de": "Spieltag erstellen"
+  },
+  "admin.format": {
+    "en": "Format",
+    "de": "Format"
+  },
+  "admin.format_6": {
+    "en": "6 per Team (6 singles + 3 doubles)",
+    "de": "6 pro Team (6 Einzel + 3 Doppel)"
+  },
+  "admin.format_4": {
+    "en": "4 per Team (4 singles + 2 doubles)",
+    "de": "4 pro Team (4 Einzel + 2 Doppel)"
+  },
+  "admin.category": {
+    "en": "Team Category",
+    "de": "Mannschafts-Kategorie"
+  },
+  "admin.team_a": {
+    "en": "Team A",
+    "de": "Team A"
+  },
+  "admin.team_b": {
+    "en": "Team B",
+    "de": "Team B"
+  },
+  "admin.club_search_hint": {
+    "en": "Type to search WTB clubs — then click players to select them",
+    "de": "WTB-Verein suchen — dann Spieler anklicken, um sie auszuwählen"
+  },
+  "admin.club_search_placeholder": {
+    "en": "Search club or type team name",
+    "de": "Verein suchen oder Teamnamen eingeben"
+  },
+  "admin.available_players": {
+    "en": "Available players — tap to add",
+    "de": "Verfügbare Spieler — antippen zum Hinzufügen"
+  },
+  "admin.selected_by_rang": {
+    "en": "Selected (by Rang)",
+    "de": "Ausgewählt (nach Rang)"
+  },
+  "admin.click_players": {
+    "en": "Click players to add them",
+    "de": "Spieler anklicken, um sie hinzuzufügen"
+  },
+  "admin.no_players": {
+    "en": "No players found for this club.",
+    "de": "Keine Spieler für diesen Verein gefunden."
+  },
+  "admin.visibility": {
+    "en": "Visibility",
+    "de": "Sichtbarkeit"
+  },
+  "admin.public": {
+    "en": "Public",
+    "de": "Öffentlich"
+  },
+  "admin.private": {
+    "en": "Private",
+    "de": "Privat"
+  },
+  "admin.visibility_public_hint": {
+    "en": "Visible to everyone on the archive page",
+    "de": "Für alle im Archiv sichtbar"
+  },
+  "admin.visibility_private_hint": {
+    "en": "Only visible to you",
+    "de": "Nur für dich sichtbar"
+  },
+  "admin.open": {
+    "en": "Open",
+    "de": "Öffnen"
+  },
+  "admin.delete": {
+    "en": "Delete",
+    "de": "Löschen"
+  },
+  "admin.delete_confirm": {
+    "en": "Delete this match day and all its matches?",
+    "de": "Diesen Spieltag und alle Spiele löschen?"
+  },
+  "admin.copy_scorer": {
+    "en": "Copy Scorer Link",
+    "de": "Scorer-Link kopieren"
+  },
+  "admin.copy_spectator": {
+    "en": "Copy Spectator Link",
+    "de": "Zuschauer-Link kopieren"
+  },
+  "admin.setup_doubles": {
+    "en": "Set up Doubles",
+    "de": "Doppel einrichten"
+  },
+  "admin.needs_setup": {
+    "en": "Imported — needs setup",
+    "de": "Importiert — Einrichtung nötig"
+  },
+  "admin.your_matchdays": {
+    "en": "Your Match Days",
+    "de": "Deine Spieltage"
+  },
+  "admin.no_matchdays": {
+    "en": "No match days yet.",
+    "de": "Noch keine Spieltage."
+  },
+  "admin.sync_clubs": {
+    "en": "Sync All Clubs from WTB",
+    "de": "Alle Vereine von WTB synchronisieren"
+  },
+  "admin.last_sync": {
+    "en": "Last sync",
+    "de": "Letzte Synchronisierung"
+  },
+  "admin.never_synced": {
+    "en": "Never synced",
+    "de": "Noch nie synchronisiert"
+  },
+  "admin.wtb_title": {
+    "en": "WTB Player Database",
+    "de": "WTB-Spielerdatenbank"
+  },
+  "admin.stats_users": {
+    "en": "Users",
+    "de": "Benutzer"
+  },
+  "admin.stats_matchdays": {
+    "en": "Match days",
+    "de": "Spieltage"
+  },
+  "admin.stats_matches": {
+    "en": "Matches",
+    "de": "Spiele"
+  },
+  "lang.switch_title": {
+    "en": "Sprache: Deutsch",
+    "de": "Language: English"
+  },
+  "login.page_title": {
+    "en": "Login - Tennis Scoring",
+    "de": "Anmelden - Tennis Scoring"
+  },
+  "login.admin_title": {
+    "en": "Admin Login",
+    "de": "Admin-Anmeldung"
+  },
+  "register.page_title": {
+    "en": "Register - Tennis Scoring",
+    "de": "Registrieren - Tennis Scoring"
+  },
+  "register.min_chars": {
+    "en": "At least 6 characters",
+    "de": "Mindestens 6 Zeichen"
+  },
+  "register.submit_btn": {
+    "en": "Create Account",
+    "de": "Konto erstellen"
+  },
+  "archive.subtitle2": {
+    "en": "View past match days and results",
+    "de": "Vergangene Spieltage und Ergebnisse ansehen"
+  },
+  "archive.format6": {
+    "en": "6-person",
+    "de": "6er-Team"
+  },
+  "archive.format4": {
+    "en": "4-person",
+    "de": "4er-Team"
+  },
+  "archive.share_title": {
+    "en": "Copy spectator link",
+    "de": "Zuschauer-Link kopieren"
+  },
+  "archive.create_first": {
+    "en": "Create a Match Day",
+    "de": "Spieltag erstellen"
+  },
+  "archive.signup_cta": {
+    "en": "Sign Up to Create Match Days",
+    "de": "Registrieren und Spieltage erstellen"
+  },
+  "matchday.spectator_notice": {
+    "en": "You are viewing as a spectator",
+    "de": "Du schaust als Zuschauer zu"
+  },
+  "matchday.select_player_opt": {
+    "en": "-- Select Player --",
+    "de": "-- Spieler wählen --"
+  },
+  "matchday.no_players_opt": {
+    "en": "-- No players available --",
+    "de": "-- Keine Spieler verfügbar --"
+  },
+  "matchday.doubles_header": {
+    "en": "Doubles #{n} (Match #{m})",
+    "de": "Doppel {n} (Spiel {m})"
+  },
+  "matchday.use_dropdowns": {
+    "en": "Use Dropdowns",
+    "de": "Auswahllisten verwenden"
+  },
+  "matchday.update_failed": {
+    "en": "Failed to update match {m}",
+    "de": "Spiel {m} konnte nicht aktualisiert werden"
+  },
+  "matchday.select_all_players": {
+    "en": "Please select all players for Double {n}",
+    "de": "Bitte alle Spieler für Doppel {n} auswählen"
+  },
+  "matchday.creating_doubles": {
+    "en": "Creating doubles...",
+    "de": "Doppel werden angelegt..."
+  },
+  "matchday.create_doubles_failed": {
+    "en": "Failed to create doubles",
+    "de": "Doppel konnten nicht angelegt werden"
+  },
+  "matchday.save_score_failed": {
+    "en": "Failed to save score",
+    "de": "Ergebnis konnte nicht gespeichert werden"
+  },
+  "score_modal.set3_optional": {
+    "en": "Set 3 (optional)",
+    "de": "Satz 3 (optional)"
+  },
+  "score_modal.winner": {
+    "en": "Winner",
+    "de": "Sieger"
+  },
+  "score_modal.save_score": {
+    "en": "Save Score",
+    "de": "Ergebnis speichern"
+  },
+  "match.copy_link": {
+    "en": "Copy Link",
+    "de": "Link kopieren"
+  },
+  "match.share_code": {
+    "en": "Share Code",
+    "de": "Teilen-Code"
+  },
+  "match.back_archive_short": {
+    "en": "← Archive",
+    "de": "← Archiv"
+  },
+  "conn.connected": {
+    "en": "Connected — live updates",
+    "de": "Verbunden — Live-Updates"
+  },
+  "conn.reconnecting": {
+    "en": "Reconnecting...",
+    "de": "Verbinde neu..."
+  },
+  "conn.disconnected": {
+    "en": "Disconnected — trying to reconnect",
+    "de": "Getrennt — versuche neu zu verbinden"
+  },
+  "match.back_matchday": {
+    "en": "← Match Day",
+    "de": "← Spieltag"
+  },
+  "match.match_n": {
+    "en": "Match {n}",
+    "de": "Spiel {n}"
+  },
+  "admin.platform_stats": {
+    "en": "Platform Stats",
+    "de": "Plattform-Statistik"
+  },
+  "admin.last_synced": {
+    "en": "Last synced",
+    "de": "Zuletzt synchronisiert"
+  },
+  "admin.sync_players_for_club": {
+    "en": "Sync Players for Club",
+    "de": "Spieler eines Vereins synchronisieren"
+  },
+  "admin.search_club_ph": {
+    "en": "Search for a club...",
+    "de": "Verein suchen..."
+  },
+  "admin.import_title": {
+    "en": "Import WTB Fixtures",
+    "de": "WTB-Begegnungen importieren"
+  },
+  "admin.search_club": {
+    "en": "Search Club",
+    "de": "Verein suchen"
+  },
+  "admin.category_label": {
+    "en": "Category",
+    "de": "Kategorie"
+  },
+  "admin.all": {
+    "en": "All",
+    "de": "Alle"
+  },
+  "admin.check_updates": {
+    "en": "Check for updates",
+    "de": "Auf Änderungen prüfen"
+  },
+  "admin.per_team_6": {
+    "en": "6 per Team",
+    "de": "6 pro Team"
+  },
+  "admin.per_team_4": {
+    "en": "4 per Team",
+    "de": "4 pro Team"
+  },
+  "admin.format6_small": {
+    "en": "6 singles + 3 doubles",
+    "de": "6 Einzel + 3 Doppel"
+  },
+  "admin.format4_small": {
+    "en": "4 singles + 2 doubles",
+    "de": "4 Einzel + 2 Doppel"
+  },
+  "admin.name_preview": {
+    "en": "Match Day Name",
+    "de": "Spieltag-Name"
+  },
+  "admin.setup_players": {
+    "en": "Set up Players",
+    "de": "Spieler einrichten"
+  },
+  "admin.doubles_progress": {
+    "en": "Doubles ({done}/{total} singles)",
+    "de": "Doppel ({done}/{total} Einzel)"
+  },
+  "admin.create_failed": {
+    "en": "Failed to create match day",
+    "de": "Spieltag konnte nicht erstellt werden"
+  },
+  "admin.delete_confirm2": {
+    "en": "Delete \"{name}\" and all its matches? This cannot be undone.",
+    "de": "\"{name}\" und alle Spiele löschen? Das kann nicht rückgängig gemacht werden."
+  },
+  "admin.deleting": {
+    "en": "Deleting...",
+    "de": "Löschen..."
+  },
+  "admin.delete_failed": {
+    "en": "Failed to delete match day",
+    "de": "Spieltag konnte nicht gelöscht werden"
+  },
+  "admin.loading_teams": {
+    "en": "Loading teams…",
+    "de": "Mannschaften laden…"
+  },
+  "admin.loading_fixtures": {
+    "en": "Loading fixtures…",
+    "de": "Begegnungen laden…"
+  },
+  "admin.loading_players": {
+    "en": "Loading players…",
+    "de": "Spieler laden…"
+  },
+  "admin.imported": {
+    "en": "Imported",
+    "de": "Importiert"
+  },
+  "admin.imported_n": {
+    "en": "Imported ({n} matches)",
+    "de": "Importiert ({n} Spiele)"
+  },
+  "admin.import": {
+    "en": "Import",
+    "de": "Importieren"
+  },
+  "admin.import_with_scores": {
+    "en": "Import with scores",
+    "de": "Mit Ergebnissen importieren"
+  },
+  "admin.importing": {
+    "en": "Importing...",
+    "de": "Importiere..."
+  },
+  "admin.importing_scores": {
+    "en": "Importing scores...",
+    "de": "Importiere Ergebnisse..."
+  },
+  "admin.already_imported": {
+    "en": "Already imported",
+    "de": "Bereits importiert"
+  },
+  "admin.import_failed": {
+    "en": "Import failed",
+    "de": "Import fehlgeschlagen"
+  },
+  "admin.checking": {
+    "en": "Checking...",
+    "de": "Prüfe..."
+  },
+  "admin.fixtures_up_to_date": {
+    "en": "All fixtures are up to date.",
+    "de": "Alle Begegnungen sind aktuell."
+  },
+  "admin.setup_failed": {
+    "en": "Setup failed",
+    "de": "Einrichtung fehlgeschlagen"
+  },
+  "admin.syncing": {
+    "en": "Syncing...",
+    "de": "Synchronisiere..."
+  },
+  "admin.starting_sync": {
+    "en": "Starting sync...",
+    "de": "Synchronisierung startet..."
+  },
+  "admin.sync_in_progress": {
+    "en": "Sync already in progress",
+    "de": "Synchronisierung läuft bereits"
+  },
+  "admin.sync_fetching": {
+    "en": "Fetching page {page}... {n} clubs found",
+    "de": "Lade Seite {page}... {n} Vereine gefunden"
+  },
+  "admin.sync_saving": {
+    "en": "Saving {n} clubs to database...",
+    "de": "Speichere {n} Vereine in der Datenbank..."
+  },
+  "admin.sync_done": {
+    "en": "✓ Synced {n} clubs ({total} total in database)",
+    "de": "✓ {n} Vereine synchronisiert ({total} insgesamt)"
+  },
+  "admin.no_clubs": {
+    "en": "No clubs found",
+    "de": "Keine Vereine gefunden"
+  },
+  "admin.syncing_players": {
+    "en": "Syncing players for {club}...",
+    "de": "Synchronisiere Spieler von {club}..."
+  },
+  "admin.synced_players": {
+    "en": "✓ Synced {n} players for {club}!",
+    "de": "✓ {n} Spieler von {club} synchronisiert!"
+  }
+}

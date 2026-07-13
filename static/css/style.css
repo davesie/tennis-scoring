@@ -3152,6 +3152,36 @@ a:focus {
     color: var(--text-color);
 }
 
+/* Language toggle — sits left of the theme toggle */
+.lang-toggle {
+    position: fixed;
+    top: 12px;
+    right: 56px;
+    z-index: 999;
+    background: var(--card-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 50%;
+    width: 36px;
+    height: 36px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    font-family: var(--font-score);
+    font-size: 0.68rem;
+    font-weight: 700;
+    letter-spacing: 0.03em;
+    transition: all 0.2s;
+    box-shadow: var(--shadow-sm);
+    padding: 0;
+    color: var(--text-muted);
+}
+
+.lang-toggle:hover {
+    box-shadow: var(--shadow-md);
+    color: var(--text-color);
+}
+
 /* ==================== UI Enhancements ==================== */
 
 /* Score cell flash on value change */

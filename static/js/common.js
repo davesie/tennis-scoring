@@ -23,6 +23,33 @@
     });
 })();
 
+/* ---- i18n ----
+ * window.T (current-language strings) and window.LANG are provided by the
+ * synchronously loaded /i18n.js, so t() is safe from the first render. */
+function t(key, vars) {
+    let s = (window.T && window.T[key]) || key;
+    if (vars) {
+        for (const k in vars) {
+            s = s.split('{' + k + '}').join(vars[k]);
+        }
+    }
+    return s;
+}
+
+function toggleLang() {
+    const next = (window.LANG === 'de') ? 'en' : 'de';
+    document.cookie = 'lang=' + next + ';path=/;max-age=31536000;samesite=lax';
+    location.reload();
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+    const btn = document.getElementById('lang-toggle');
+    if (!btn) return;
+    btn.textContent = (window.LANG === 'de') ? 'EN' : 'DE';
+    btn.title = t('lang.switch_title');
+    btn.addEventListener('click', toggleLang);
+});
+
 /* ---- Player name / LK (Leistungsklasse) helpers ---- */
 function parseLK(fullName) {
     if (!fullName) return { name: fullName || '', lk: null };

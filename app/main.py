@@ -9,7 +9,7 @@ from pathlib import Path
 from typing import Dict, Set
 
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect, Depends, HTTPException, Request, Form
-from fastapi.responses import HTMLResponse, RedirectResponse, StreamingResponse
+from fastapi.responses import HTMLResponse, RedirectResponse, StreamingResponse, Response
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from starlette.exceptions import HTTPException as StarletteHTTPException
@@ -33,6 +33,7 @@ from .auth import (
     is_owner_or_superadmin,
 )
 from .wtb_scraper import scrape_all_clubs, scrape_all_clubs_with_progress, scrape_club_players, scrape_club_teams, scrape_team_fixtures, scrape_spielbericht
+from .i18n import i18n_context, get_lang, strings_for
 
 # Make app INFO logs (superadmin bootstrap, sync progress) visible in
 # container logs; uvicorn only configures its own loggers.
@@ -177,7 +178,7 @@ app = FastAPI(title="Tennis Scoring", lifespan=lifespan)
 
 # Mount static files and templates
 app.mount("/static", StaticFiles(directory="static"), name="static")
-templates = Jinja2Templates(directory="templates")
+templates = Jinja2Templates(directory="templates", context_processors=[i18n_context])
 
 
 class SPAStaticFiles(StaticFiles):
@@ -867,6 +868,23 @@ async def score_game_endpoint(match_id: str, score_data: ScoreGame, request: Req
 async def faq_page(request: Request):
     """Public FAQ — how to score, share links, doubles pairings, etc."""
     return templates.TemplateResponse("faq.html", {"request": request})
+
+
+@app.get("/i18n.js")
+async def i18n_js(request: Request):
+    """Current-language strings for the browser (window.T / window.LANG).
+
+    Loaded synchronously before common.js so dynamic JS renders never race
+    the catalog. Vary on the cookie, so switching languages busts caches.
+    """
+    lang = get_lang(request)
+    payload = json.dumps(strings_for(lang), ensure_ascii=False)
+    body = f"window.LANG={json.dumps(lang)};window.T={payload};"
+    return Response(
+        content=body,
+        media_type="application/javascript; charset=utf-8",
+        headers={"Cache-Control": "no-cache"},
+    )
 
 
 # Match Day routes

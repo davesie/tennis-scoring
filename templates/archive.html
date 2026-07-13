@@ -1,32 +1,34 @@
 <!DOCTYPE html>
-<html lang="en" data-theme="light">
+<html lang="{{ lang }}" data-theme="light">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Match Day Archive - Tennis Scoring</title>
     <link rel="stylesheet" href="/static/css/style.css">
     <link rel="icon" type="image/svg+xml" href="/static/favicon.svg">
+    <script src="/i18n.js"></script>
     <script src="/static/js/common.js"></script>
 </head>
 <body class="matchday-page">
+    <button class="lang-toggle" id="lang-toggle" aria-label="Switch language"></button>
     <button class="theme-toggle" id="theme-toggle" aria-label="Toggle theme"></button>
     <div class="matchday-container">
         <header class="matchday-header archive-page-header">
             <div class="archive-header-top">
-                <h1><img src="/static/logo.svg" alt="Tennis Scoring" class="header-logo">Match Day Archive</h1>
+                <h1><img src="/static/logo.svg" alt="Tennis Scoring" class="header-logo">{{ t('archive.title') }}</h1>
                 <div class="archive-header-actions">
                     {% if user %}
-                    <a href="/admin" class="archive-admin-link">My Dashboard</a>
+                    <a href="/admin" class="archive-admin-link">{{ t('nav.dashboard') }}</a>
                     <form action="/admin/logout" method="POST" style="display:inline;margin:0;">
-                        <button type="submit" class="archive-admin-link archive-logout-btn">Logout</button>
+                        <button type="submit" class="archive-admin-link archive-logout-btn">{{ t('nav.logout') }}</button>
                     </form>
                     {% else %}
-                    <a href="/admin/login" class="archive-admin-link">Login</a>
-                    <a href="/register" class="archive-admin-link">Register</a>
+                    <a href="/admin/login" class="archive-admin-link">{{ t('login.submit') }}</a>
+                    <a href="/register" class="archive-admin-link">{{ t('nav.register') }}</a>
                     {% endif %}
                 </div>
             </div>
-            <p class="archive-subtitle">View past match days and results</p>
+            <p class="archive-subtitle">{{ t('archive.subtitle2') }}</p>
         </header>
 
         {% if match_days %}
@@ -36,7 +38,7 @@
                 <a href="/watchday/{{ md.share_code }}" class="archive-card">
                     <div class="fixture-meta">
                         <span class="fixture-date">{{ (md.scheduled_date[:10] if md.scheduled_date else md.created_at[:10]) if (md.scheduled_date or md.created_at) else '' }}</span>
-                        <span class="fixture-format">{{ '6-person' if md.format == '6_person' else '4-person' }}</span>
+                        <span class="fixture-format">{{ t('archive.format6') if md.format == '6_person' else t('archive.format4') }}</span>
                         {% if md.category %}<span class="fixture-category">{{ md.category }}</span>{% endif %}
                     </div>
                     <div class="fixture-name">{{ md.name }}</div>
@@ -57,17 +59,17 @@
                         {% endif %}
                     </div>
                 </a>
-                <button class="fixture-share-btn" onclick="copyArchiveLink(this, '{{ request.url_for('spectator_match_day_page', share_code=md.share_code) }}')" title="Copy spectator link">Share</button>
+                <button class="fixture-share-btn" onclick="copyArchiveLink(this, '{{ request.url_for('spectator_match_day_page', share_code=md.share_code) }}')" title="{{ t('archive.share_title') }}">{{ t('archive.share') }}</button>
             </div>
             {% endfor %}
         </section>
         {% else %}
         <div class="empty-archive">
-            <p>No match days yet.</p>
+            <p>{{ t('archive.empty') }}</p>
             {% if user %}
-            <a href="/admin" class="btn btn-primary">Create a Match Day</a>
+            <a href="/admin" class="btn btn-primary">{{ t('archive.create_first') }}</a>
             {% else %}
-            <a href="/register" class="btn btn-primary">Sign Up to Create Match Days</a>
+            <a href="/register" class="btn btn-primary">{{ t('archive.signup_cta') }}</a>
             {% endif %}
         </div>
         {% endif %}
@@ -75,9 +77,9 @@
     <script>
         async function copyArchiveLink(btn, url) {
             const ok = await copyToClipboard(url);
-            if (!ok) { showToast('Could not copy link', 'error'); return; }
+            if (!ok) { showToast(t('common.error_copy'), 'error'); return; }
             const orig = btn.textContent;
-            btn.textContent = 'Copied!';
+            btn.textContent = t('archive.copied');
             btn.classList.add('copied');
             setTimeout(() => { btn.textContent = orig; btn.classList.remove('copied'); }, 2000);
         }
