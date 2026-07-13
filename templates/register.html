@@ -19,6 +19,10 @@
                 <p>{{ t('register.title') }}</p>
             </div>
 
+            {% if registration_mode == 'closed' %}
+            <div class="error-message">{{ t('register.closed') }}</div>
+            {% endif %}
+
             {% if error %}
             <div class="error-message">
                 {{ error }}
@@ -44,7 +48,17 @@
                 <span class="form-hint">{{ t('register.min_chars') }}</span>
             </div>
 
+            {% if registration_mode == 'code' %}
+            <div class="form-group">
+                <label for="invite_code">{{ t('register.invite_code') }}</label>
+                <input type="text" id="invite_code" name="invite_code" required autocomplete="off">
+                <span class="form-hint">{{ t('register.invite_hint') }}</span>
+            </div>
+            {% endif %}
+
+            {% if registration_mode != 'closed' %}
             <button type="submit" class="btn-login">{{ t('register.submit_btn') }}</button>
+            {% endif %}
         </form>
 
         <div class="login-footer-links">

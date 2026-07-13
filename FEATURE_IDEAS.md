@@ -23,3 +23,15 @@ Match day name is now auto-generated as "Team A vs Team B" from the selected tea
 
 ## ~~Team category selection for match days~~ ✓ Done
 Category dropdown added to the Create Match Day form (Herren, Damen, Herren 30–70, Damen 30–50). The selected category filters the WTB player picker to only show players from that category (auto-scraping for non-Herren categories on first load). Category is stored on the match day and displayed as a badge in the admin list, archive, and matchday header.
+
+## User accounts — for later (post test phase)
+Current pilot setup: registration gated by a shared invite code
+(`REGISTRATION_MODE=code` + `REGISTRATION_CODE`), no email infrastructure.
+Revisit when opening up beyond ~15 users:
+- **Password reset via email** — needs SMTP access (e.g. a transactional mail
+  service); token link flow. Until then: the superadmin resets by env-sync
+  (own account) or edits the DB; testers can simply register a fresh account.
+- **Email verification** on signup (same SMTP dependency).
+- **Admin user management UI** — list users, deactivate, reset password,
+  promote; today only the superadmin exists as a special role.
+- **Per-invite links** instead of one shared code (single-use, auditable).

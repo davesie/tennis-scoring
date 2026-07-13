@@ -36,6 +36,7 @@ class UserRegister(BaseModel):
     email: str
     password: str
     display_name: Optional[str] = None
+    invite_code: Optional[str] = None
 
 
 class UserLogin(BaseModel):

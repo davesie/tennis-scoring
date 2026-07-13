@@ -878,5 +878,29 @@
   "match.back_matchday_long": {
     "en": "← Back to Match Day",
     "de": "← Zurück zum Spieltag"
+  },
+  "register.invite_code": {
+    "en": "Invite code",
+    "de": "Einladungscode"
+  },
+  "register.invite_hint": {
+    "en": "You got this code from the organizer",
+    "de": "Den Code bekommst du vom Organisator"
+  },
+  "register.invite_invalid": {
+    "en": "Invalid invite code",
+    "de": "Ungültiger Einladungscode"
+  },
+  "register.closed": {
+    "en": "Registration is currently closed.",
+    "de": "Die Registrierung ist derzeit geschlossen."
+  },
+  "register.password_short": {
+    "en": "Password must be at least 6 characters",
+    "de": "Das Passwort muss mindestens 6 Zeichen haben"
+  },
+  "register.email_exists": {
+    "en": "An account with this email already exists",
+    "de": "Es gibt bereits ein Konto mit dieser E-Mail"
   }
 }

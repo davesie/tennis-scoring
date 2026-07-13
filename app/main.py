@@ -6,7 +6,8 @@ import subprocess
 from contextlib import asynccontextmanager
 from datetime import datetime
 from pathlib import Path
-from typing import Dict, Set
+import os
+from typing import Dict, Optional, Set
 
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect, Depends, HTTPException, Request, Form
 from fastapi.responses import HTMLResponse, RedirectResponse, StreamingResponse, Response
@@ -33,7 +34,7 @@ from .auth import (
     is_owner_or_superadmin,
 )
 from .wtb_scraper import scrape_all_clubs, scrape_all_clubs_with_progress, scrape_club_players, scrape_club_teams, scrape_team_fixtures, scrape_spielbericht
-from .i18n import i18n_context, get_lang, strings_for
+from .i18n import i18n_context, get_lang, make_t, strings_for
 
 # Make app INFO logs (superadmin bootstrap, sync progress) visible in
 # container logs; uvicorn only configures its own loggers.
@@ -333,7 +334,28 @@ async def register_page(request: Request, db: AsyncSession = Depends(get_db)):
     user = await get_current_user(request, db)
     if user:
         return RedirectResponse(url="/admin", status_code=302)
-    return templates.TemplateResponse("register.html", {"request": request})
+    return templates.TemplateResponse("register.html", {
+        "request": request,
+        "registration_mode": REGISTRATION_MODE,
+    })
+
+
+# Registration gating: "open" (anyone), "code" (shared invite code required),
+# "closed" (no self-registration). Set in the environment, e.g. via Coolify.
+REGISTRATION_MODE = os.getenv("REGISTRATION_MODE", "open").strip().lower()
+REGISTRATION_CODE = os.getenv("REGISTRATION_CODE", "")
+
+
+def _check_invite(invite_code: str) -> Optional[str]:
+    """Return an i18n error key if registration is not allowed, else None."""
+    if REGISTRATION_MODE == "closed":
+        return "register.closed"
+    if REGISTRATION_MODE == "code":
+        if not REGISTRATION_CODE:
+            return "register.closed"  # misconfigured: fail safe
+        if not secrets.compare_digest(invite_code.strip(), REGISTRATION_CODE):
+            return "register.invite_invalid"
+    return None
 
 
 @app.post("/register")
@@ -342,24 +364,30 @@ async def register(
     email: str = Form(...),
     password: str = Form(...),
     display_name: str = Form(""),
+    invite_code: str = Form(""),
     db: AsyncSession = Depends(get_db)
 ):
-    if len(password) < 6:
+    t = make_t(get_lang(request))
+
+    def form_error(message: str):
         return templates.TemplateResponse("register.html", {
             "request": request,
-            "error": "Password must be at least 6 characters",
+            "error": message,
             "email": email,
             "display_name": display_name,
+            "registration_mode": REGISTRATION_MODE,
         })
+
+    invite_error = _check_invite(invite_code)
+    if invite_error:
+        return form_error(t(invite_error))
+
+    if len(password) < 6:
+        return form_error(t("register.password_short"))
 
     existing = await db.execute(select(User).where(User.email == email))
     if existing.scalar_one_or_none():
-        return templates.TemplateResponse("register.html", {
-            "request": request,
-            "error": "An account with this email already exists",
-            "email": email,
-            "display_name": display_name,
-        })
+        return form_error(t("register.email_exists"))
 
     user = User(
         email=email,
@@ -464,6 +492,10 @@ async def logout(request: Request, db: AsyncSession = Depends(get_db)):
 
 @app.post("/api/auth/register")
 async def api_register(payload: UserRegister, db: AsyncSession = Depends(get_db)):
+    invite_error = _check_invite(payload.invite_code or "")
+    if invite_error:
+        status = 403 if invite_error == "register.closed" else 401
+        raise HTTPException(status_code=status, detail="Registration not allowed (invite code required or registration closed)")
     if len(payload.password) < 6:
         raise HTTPException(status_code=400, detail="Password must be at least 6 characters")
 

@@ -48,6 +48,8 @@ Then **Restart** the app in Coolify and check the site shows the old match days.
 
 - `ADMIN_EMAIL` = your admin login email
 - `ADMIN_PASSWORD` = your admin password
+- `REGISTRATION_MODE` = `code` and `REGISTRATION_CODE` = your invite code
+  (so only invited people can create accounts)
 
 (Old main only used `ADMIN_PASSWORD`; the new code syncs the superadmin
 account from both vars on every boot — also works as a password reset.)

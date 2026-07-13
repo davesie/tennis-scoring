@@ -145,6 +145,8 @@ tennis_scoring/
 | `ADMIN_EMAIL` | `admin@localhost` | Superadmin login email (synced on every boot) |
 | `ADMIN_PASSWORD` | (required) | Superadmin password (synced on every boot) |
 | `DB_BACKUP_KEEP` | `5` | Startup database backups to keep (oldest pruned) |
+| `REGISTRATION_MODE` | `open` | `open`, `code` (invite code required) or `closed` |
+| `REGISTRATION_CODE` | (empty) | The shared invite code when mode is `code` |
 
 ## Accounts & Testing
 
@@ -156,7 +158,9 @@ forgotten password): set both vars in Coolify → redeploy → log in at
 ("Superadmin created/updated: …").
 
 **Normal user:** open `/register` and create an account with any email (no
-verification). Registered users get their own dashboard at `/admin` and own the
+verification). With `REGISTRATION_MODE=code`, new users must also enter the
+shared `REGISTRATION_CODE` (hand it out privately); `closed` disables
+self-registration entirely. Registered users get their own dashboard at `/admin` and own the
 match days they create; the superadmin sees everything.
 
 **Testing both roles side by side:** log in as admin in your normal browser
