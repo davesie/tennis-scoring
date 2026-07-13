@@ -109,41 +109,6 @@
             </div>
         </div>
 
-        <!-- Match Statistics Panel (live for scorer, final summary for everyone) -->
-        <div class="stats-panel" id="stats-panel" style="display: none;">
-            <div class="stats-panel-header">
-                <span class="stats-panel-title" id="stats-panel-title">{{ t('stats.title_live') }}</span>
-                <span class="stats-panel-coverage" id="stats-coverage"></span>
-            </div>
-            <table class="stats-table">
-                <thead>
-                    <tr>
-                        <th class="stat-label-col"></th>
-                        <th class="stat-team-a" id="stats-name-a">A</th>
-                        <th class="stat-team-b" id="stats-name-b">B</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <tr><td>{{ t('stats.points_won') }}</td><td id="st-points-a">0</td><td id="st-points-b">0</td></tr>
-                    <tr><td>{{ t('stats.aces') }}</td><td id="st-aces-a">0</td><td id="st-aces-b">0</td></tr>
-                    <tr><td>{{ t('stats.double_faults') }}</td><td id="st-df-a">0</td><td id="st-df-b">0</td></tr>
-                    <tr><td>{{ t('stats.winners') }}</td><td id="st-win-a">0</td><td id="st-win-b">0</td></tr>
-                    <tr><td>{{ t('stats.unforced_errors') }}</td><td id="st-ue-a">0</td><td id="st-ue-b">0</td></tr>
-                    <tr><td>{{ t('stats.forced_errors') }}</td><td id="st-fe-a">0</td><td id="st-fe-b">0</td></tr>
-                </tbody>
-            </table>
-        </div>
-
-        <!-- Point by Point timeline (public, updates live) -->
-        <div class="pbp-section" id="pbp-section" style="display: none;">
-            <div class="pbp-header">
-                <span class="pbp-title">{{ t('pbp.title') }}</span>
-                <span class="pbp-legend" id="pbp-legend"></span>
-            </div>
-            <div class="pbp-set-tabs" id="pbp-set-tabs"></div>
-            <div class="pbp-games" id="pbp-games"></div>
-        </div>
-
         {% if is_scorer %}
         <!-- Serve Selection Overlay -->
         <div class="serve-overlay" id="serve-overlay" style="display: none;">
@@ -236,9 +201,44 @@
         <!-- Spectator View -->
         <div class="spectator-notice">
             <p>{{ t('match.watching_notice') }}</p>
-            <p class="share-hint">Scores update automatically</p>
+            <p class="share-hint">{{ t('match.watching_sub') }}</p>
         </div>
         {% endif %}
+
+        <!-- Match Statistics Panel (live for scorer, final summary for everyone) -->
+        <div class="stats-panel" id="stats-panel" style="display: none;">
+            <div class="stats-panel-header">
+                <span class="stats-panel-title" id="stats-panel-title">{{ t('stats.title_live') }}</span>
+                <span class="stats-panel-coverage" id="stats-coverage"></span>
+            </div>
+            <table class="stats-table">
+                <thead>
+                    <tr>
+                        <th class="stat-label-col"></th>
+                        <th class="stat-team-a" id="stats-name-a">A</th>
+                        <th class="stat-team-b" id="stats-name-b">B</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr><td>{{ t('stats.points_won') }}</td><td id="st-points-a">0</td><td id="st-points-b">0</td></tr>
+                    <tr><td>{{ t('stats.aces') }}</td><td id="st-aces-a">0</td><td id="st-aces-b">0</td></tr>
+                    <tr><td>{{ t('stats.double_faults') }}</td><td id="st-df-a">0</td><td id="st-df-b">0</td></tr>
+                    <tr><td>{{ t('stats.winners') }}</td><td id="st-win-a">0</td><td id="st-win-b">0</td></tr>
+                    <tr><td>{{ t('stats.unforced_errors') }}</td><td id="st-ue-a">0</td><td id="st-ue-b">0</td></tr>
+                    <tr><td>{{ t('stats.forced_errors') }}</td><td id="st-fe-a">0</td><td id="st-fe-b">0</td></tr>
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Point by Point timeline (public, updates live) -->
+        <div class="pbp-section" id="pbp-section" style="display: none;">
+            <div class="pbp-header">
+                <span class="pbp-title">{{ t('pbp.title') }}</span>
+                <span class="pbp-legend" id="pbp-legend"></span>
+            </div>
+            <div class="pbp-set-tabs" id="pbp-set-tabs"></div>
+            <div class="pbp-games" id="pbp-games"></div>
+        </div>
 
         <!-- Share Section (Collapsible) -->
         <div class="share-section collapsed" id="share-section">
