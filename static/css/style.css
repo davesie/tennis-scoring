@@ -2476,6 +2476,28 @@ a:focus {
     background: var(--primary-dark);
 }
 
+/* Button-styled links must not look like links */
+a.btn { text-decoration: none; }
+
+/* Footer links under the login/register card */
+.login-footer-links {
+    text-align: center;
+    margin-top: 16px;
+    font-size: 0.9rem;
+}
+.login-footer-links a {
+    color: var(--bc-muted);
+    text-decoration: none;
+}
+.login-footer-links a:hover {
+    color: var(--bc-text);
+    text-decoration: underline;
+}
+.login-link-sep {
+    color: var(--bc-muted);
+    margin: 0 6px;
+}
+
 .archive-link-login {
     text-align: center;
     margin-top: var(--space-6);
