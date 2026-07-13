@@ -707,6 +707,66 @@
     "en": "Platform Stats",
     "de": "Plattform-Statistik"
   },
+  "admin.users_title": {
+    "en": "User Management",
+    "de": "Nutzerverwaltung"
+  },
+  "admin.users_hint": {
+    "en": "All registered accounts. There is exactly one admin account — its password is managed via the server configuration (ADMIN_PASSWORD).",
+    "de": "Alle registrierten Konten. Es gibt genau ein Admin-Konto — dessen Passwort wird über die Server-Konfiguration (ADMIN_PASSWORD) verwaltet."
+  },
+  "admin.users_user": {
+    "en": "User",
+    "de": "Nutzer"
+  },
+  "admin.users_registered": {
+    "en": "Registered",
+    "de": "Registriert"
+  },
+  "admin.users_last_login": {
+    "en": "Last login",
+    "de": "Letzter Login"
+  },
+  "admin.users_matchdays": {
+    "en": "Match days",
+    "de": "Spieltage"
+  },
+  "admin.users_load_error": {
+    "en": "Could not load users.",
+    "de": "Nutzer konnten nicht geladen werden."
+  },
+  "admin.users_env_managed": {
+    "en": "Managed via server config",
+    "de": "Über Server-Konfiguration verwaltet"
+  },
+  "admin.users_reset_pw": {
+    "en": "Reset password",
+    "de": "Passwort zurücksetzen"
+  },
+  "admin.users_reset_prompt": {
+    "en": "New password for {email} (at least 6 characters):",
+    "de": "Neues Passwort für {email} (mindestens 6 Zeichen):"
+  },
+  "admin.users_pw_too_short": {
+    "en": "Password must be at least 6 characters.",
+    "de": "Das Passwort muss mindestens 6 Zeichen lang sein."
+  },
+  "admin.users_reset_done": {
+    "en": "Password for {email} has been reset.",
+    "de": "Passwort für {email} wurde zurückgesetzt."
+  },
+  "admin.users_delete_confirm": {
+    "en": "Delete {email}? This cannot be undone.",
+    "de": "{email} löschen? Das kann nicht rückgängig gemacht werden."
+  },
+  "admin.users_delete_confirm_md": {
+    "en": "Delete {email}? Their {n} match day(s) will be transferred to you. This cannot be undone.",
+    "de": "{email} löschen? Die {n} Spieltage werden auf dich übertragen. Das kann nicht rückgängig gemacht werden."
+  },
+  "admin.users_deleted": {
+    "en": "{email} has been deleted.",
+    "de": "{email} wurde gelöscht."
+  },
   "admin.last_synced": {
     "en": "Last synced",
     "de": "Zuletzt synchronisiert"

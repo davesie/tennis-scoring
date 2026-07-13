@@ -51,6 +51,28 @@
         {% endif %}
 
         {% if is_superadmin %}
+        <!-- User Management Section -->
+        <section class="users-section">
+            <h2>{{ t('admin.users_title') }}</h2>
+            <p class="users-hint">{{ t('admin.users_hint') }}</p>
+            <div class="users-table-wrap">
+                <table class="users-table">
+                    <thead>
+                        <tr>
+                            <th>{{ t('admin.users_user') }}</th>
+                            <th>{{ t('admin.users_registered') }}</th>
+                            <th>{{ t('admin.users_last_login') }}</th>
+                            <th>{{ t('admin.users_matchdays') }}</th>
+                            <th></th>
+                        </tr>
+                    </thead>
+                    <tbody id="users-tbody">
+                        <tr><td colspan="5" class="users-empty">{{ t('common.loading') }}</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
         <!-- WTB Data Management Section -->
         <section class="wtb-section">
             <h2>{{ t('admin.wtb_title') }}</h2>
@@ -1468,6 +1490,138 @@
                 statusDiv.style.color = '#f56565';
             }
         }
+        // ==================== User Management (superadmin) ====================
+
+        function formatUserDate(iso) {
+            if (!iso) return '—';
+            const d = new Date(iso.endsWith('Z') || iso.includes('+') ? iso : iso + 'Z');
+            if (isNaN(d)) return '—';
+            return d.toLocaleDateString(window.LANG === 'de' ? 'de-DE' : 'en-GB',
+                { year: 'numeric', month: 'short', day: 'numeric' });
+        }
+
+        async function loadUsers() {
+            const tbody = document.getElementById('users-tbody');
+            if (!tbody) return;
+            try {
+                const resp = await fetch('/api/admin/users');
+                if (!resp.ok) throw new Error('HTTP ' + resp.status);
+                const data = await resp.json();
+                renderUsers(data.users || []);
+            } catch (e) {
+                tbody.innerHTML = '';
+                const tr = document.createElement('tr');
+                const td = document.createElement('td');
+                td.colSpan = 5;
+                td.className = 'users-empty';
+                td.textContent = t('admin.users_load_error');
+                tr.appendChild(td);
+                tbody.appendChild(tr);
+            }
+        }
+
+        function renderUsers(users) {
+            const tbody = document.getElementById('users-tbody');
+            tbody.innerHTML = '';
+            users.forEach(u => {
+                const tr = document.createElement('tr');
+
+                const tdUser = document.createElement('td');
+                const nameDiv = document.createElement('div');
+                nameDiv.className = 'user-cell-name';
+                nameDiv.textContent = u.display_name || u.email;
+                if (u.is_superadmin) {
+                    const badge = document.createElement('span');
+                    badge.className = 'superadmin-badge';
+                    badge.textContent = 'Superadmin';
+                    nameDiv.appendChild(badge);
+                }
+                tdUser.appendChild(nameDiv);
+                if (u.display_name) {
+                    const emailDiv = document.createElement('div');
+                    emailDiv.className = 'user-cell-email';
+                    emailDiv.textContent = u.email;
+                    tdUser.appendChild(emailDiv);
+                }
+                tr.appendChild(tdUser);
+
+                const tdCreated = document.createElement('td');
+                tdCreated.textContent = formatUserDate(u.created_at);
+                tr.appendChild(tdCreated);
+
+                const tdLogin = document.createElement('td');
+                tdLogin.textContent = formatUserDate(u.last_login_at);
+                tr.appendChild(tdLogin);
+
+                const tdMd = document.createElement('td');
+                tdMd.className = 'user-cell-count';
+                tdMd.textContent = u.match_days;
+                tr.appendChild(tdMd);
+
+                const tdActions = document.createElement('td');
+                tdActions.className = 'user-cell-actions';
+                if (u.is_superadmin) {
+                    const note = document.createElement('span');
+                    note.className = 'user-env-note';
+                    note.textContent = t('admin.users_env_managed');
+                    tdActions.appendChild(note);
+                } else {
+                    const resetBtn = document.createElement('button');
+                    resetBtn.className = 'link-btn';
+                    resetBtn.textContent = t('admin.users_reset_pw');
+                    resetBtn.onclick = () => resetUserPassword(u.id, u.email);
+                    tdActions.appendChild(resetBtn);
+
+                    const delBtn = document.createElement('button');
+                    delBtn.className = 'link-btn btn-delete';
+                    delBtn.textContent = t('admin.delete');
+                    delBtn.onclick = () => deleteUser(u.id, u.email, u.match_days);
+                    tdActions.appendChild(delBtn);
+                }
+                tr.appendChild(tdActions);
+
+                tbody.appendChild(tr);
+            });
+        }
+
+        async function resetUserPassword(userId, email) {
+            const pw = prompt(t('admin.users_reset_prompt', {email: email}));
+            if (pw === null) return;
+            if (pw.length < 6) {
+                showToast(t('admin.users_pw_too_short'), 'error');
+                return;
+            }
+            try {
+                const resp = await fetch(`/api/admin/users/${userId}/reset-password`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ password: pw })
+                });
+                const data = await resp.json();
+                if (!resp.ok) throw new Error(data.detail || 'Error');
+                showToast(t('admin.users_reset_done', {email: email}), 'success');
+            } catch (e) {
+                showToast(e.message, 'error');
+            }
+        }
+
+        async function deleteUser(userId, email, matchDays) {
+            const msg = matchDays > 0
+                ? t('admin.users_delete_confirm_md', {email: email, n: matchDays})
+                : t('admin.users_delete_confirm', {email: email});
+            if (!confirm(msg)) return;
+            try {
+                const resp = await fetch(`/api/admin/users/${userId}`, { method: 'DELETE' });
+                const data = await resp.json();
+                if (!resp.ok) throw new Error(data.detail || 'Error');
+                showToast(t('admin.users_deleted', {email: email}), 'success');
+                loadUsers();
+            } catch (e) {
+                showToast(e.message, 'error');
+            }
+        }
+
+        loadUsers();
     </script>
     <script>
         // Format ISO timestamp to locale string on page load

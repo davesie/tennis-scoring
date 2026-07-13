@@ -18,11 +18,12 @@ from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from .database import get_db, init_db, async_session_maker, ensure_superadmin
-from .models import Match, MatchDay, Club, Player, User
-from .schemas import MatchCreate, ScorePoint, MatchResponse, MatchDayCreate, ScoreGame, MatchPlayersUpdate, MatchScoreSet, DoublesCreate, SetInitialServer, FixtureImport, MatchDaySetup, UserRegister, UserLogin, PointOutcome
+from .models import Match, MatchDay, Club, Player, User, AdminSession
+from .schemas import MatchCreate, ScorePoint, MatchResponse, MatchDayCreate, ScoreGame, MatchPlayersUpdate, MatchScoreSet, DoublesCreate, SetInitialServer, FixtureImport, MatchDaySetup, UserRegister, UserLogin, PointOutcome, AdminPasswordReset
 from .scoring import score_point, score_game, create_initial_state, get_score_summary
 from .auth import (
     SESSION_COOKIE,
+    require_superadmin,
     hash_password,
     verify_password,
     create_session,
@@ -1241,6 +1242,81 @@ async def delete_match_day(match_day_id: str, request: Request, db: AsyncSession
     await db.commit()
 
     return {"success": True, "message": f"Match day '{match_day.name}' and {len(matches)} matches deleted"}
+
+
+# ==================== User Management (superadmin only) ====================
+
+@app.get("/api/admin/users")
+async def admin_list_users(request: Request, db: AsyncSession = Depends(get_db)):
+    await require_superadmin(request, db)
+
+    users_result = await db.execute(select(User).order_by(User.created_at))
+    users = users_result.scalars().all()
+
+    counts_result = await db.execute(
+        select(MatchDay.owner_id, func.count()).group_by(MatchDay.owner_id)
+    )
+    md_counts = dict(counts_result.all())
+
+    return {"users": [
+        {**u.to_dict(), "match_days": md_counts.get(u.id, 0)} for u in users
+    ]}
+
+
+@app.post("/api/admin/users/{user_id}/reset-password")
+async def admin_reset_password(user_id: str, payload: AdminPasswordReset, request: Request, db: AsyncSession = Depends(get_db)):
+    await require_superadmin(request, db)
+
+    if len(payload.password) < 6:
+        raise HTTPException(status_code=400, detail="Password must be at least 6 characters")
+
+    result = await db.execute(select(User).where(User.id == user_id))
+    target = result.scalar_one_or_none()
+    if not target:
+        raise HTTPException(status_code=404, detail="User not found")
+    if target.is_superadmin:
+        # The superadmin password is env-synced (ADMIN_PASSWORD) — keep one source of truth.
+        raise HTTPException(status_code=400, detail="Superadmin password is managed via ADMIN_PASSWORD")
+
+    target.password_hash = hash_password(payload.password)
+    # Force re-login everywhere with the new password
+    sessions = await db.execute(select(AdminSession).where(AdminSession.user_id == target.id))
+    for sess in sessions.scalars().all():
+        await db.delete(sess)
+    await db.commit()
+
+    return {"success": True}
+
+
+@app.delete("/api/admin/users/{user_id}")
+async def admin_delete_user(user_id: str, request: Request, db: AsyncSession = Depends(get_db)):
+    admin = await require_superadmin(request, db)
+
+    if user_id == admin.id:
+        raise HTTPException(status_code=400, detail="You cannot delete your own account")
+
+    result = await db.execute(select(User).where(User.id == user_id))
+    target = result.scalar_one_or_none()
+    if not target:
+        raise HTTPException(status_code=404, detail="User not found")
+    if target.is_superadmin:
+        raise HTTPException(status_code=400, detail="The superadmin account cannot be deleted")
+
+    # Hand the user's match days over to the superadmin instead of deleting data
+    mds = await db.execute(select(MatchDay).where(MatchDay.owner_id == target.id))
+    reassigned = 0
+    for md in mds.scalars().all():
+        md.owner_id = admin.id
+        reassigned += 1
+
+    sessions = await db.execute(select(AdminSession).where(AdminSession.user_id == target.id))
+    for sess in sessions.scalars().all():
+        await db.delete(sess)
+
+    await db.delete(target)
+    await db.commit()
+
+    return {"success": True, "match_days_reassigned": reassigned}
 
 
 # ==================== WTB Club & Player Integration ====================

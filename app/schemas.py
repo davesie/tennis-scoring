@@ -39,6 +39,10 @@ class UserRegister(BaseModel):
     invite_code: Optional[str] = None
 
 
+class AdminPasswordReset(BaseModel):
+    password: str
+
+
 class UserLogin(BaseModel):
     email: str
     password: str

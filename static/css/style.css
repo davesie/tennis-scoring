@@ -2611,6 +2611,99 @@ a.btn { text-decoration: none; }
     margin-top: var(--space-1, 4px);
 }
 
+/* User management */
+.users-section {
+    margin-bottom: var(--space-8);
+}
+
+.users-section h2 {
+    font-size: 1.1rem;
+    margin-bottom: var(--space-2);
+    color: var(--text-primary);
+}
+
+.users-hint {
+    font-family: var(--font-body);
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+    margin-bottom: var(--space-4);
+}
+
+.users-table-wrap {
+    background: var(--card-bg);
+    border-radius: var(--radius-md);
+    box-shadow: var(--shadow-sm);
+    overflow-x: auto;
+}
+
+.users-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-family: var(--font-body);
+    font-size: 0.9rem;
+}
+
+.users-table th {
+    text-align: left;
+    font-size: 0.7rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--text-secondary);
+    padding: var(--space-3) var(--space-4);
+    border-bottom: 1px solid var(--bc-border, rgba(0,0,0,0.1));
+    white-space: nowrap;
+}
+
+.users-table td {
+    padding: var(--space-3) var(--space-4);
+    border-bottom: 1px solid var(--bc-border, rgba(0,0,0,0.06));
+    color: var(--text-primary);
+    vertical-align: middle;
+}
+
+.users-table tr:last-child td {
+    border-bottom: none;
+}
+
+.user-cell-name {
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    flex-wrap: wrap;
+}
+
+.user-cell-email {
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+}
+
+.user-cell-count {
+    font-family: var(--font-score);
+    font-weight: 600;
+}
+
+.user-cell-actions {
+    text-align: right;
+    white-space: nowrap;
+}
+
+.user-cell-actions .link-btn {
+    margin-left: var(--space-2);
+}
+
+.user-env-note {
+    font-size: 0.75rem;
+    color: var(--text-secondary);
+    font-style: italic;
+}
+
+.users-empty {
+    color: var(--text-secondary);
+    text-align: center;
+}
+
 /* Visibility badge */
 .visibility-badge {
     font-family: var(--font-score);
