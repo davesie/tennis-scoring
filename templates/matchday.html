@@ -78,7 +78,7 @@
                         {% endif %}
                     </a>
                     {% if is_scorer %}
-                    <button class="enter-score-btn" onclick="openScoreModal('{{ match.id }}', '{{ match.player_a1 or match.team_a_name }}', '{{ match.player_b1 or match.team_b_name }}')">{{ t('matchday.enter_score') }}</button>
+                    <button class="enter-score-btn" data-action="openScoreModal" data-match-id="{{ match.id }}" data-player-a="{{ match.player_a1 or match.team_a_name }}" data-player-b="{{ match.player_b1 or match.team_b_name }}">{{ t('matchday.enter_score') }}</button>
                     {% endif %}
                 </div>
                 {% endif %}
@@ -90,18 +90,18 @@
             {% if is_scorer %}
             <!-- Reopen button: visible only while pairings are set but no doubles match has started -->
             <div class="pairing-edit-row">
-                <button id="edit-pairings-btn" class="btn btn-secondary btn-small" style="display: none;" onclick="openPairingPanel()">{{ t('matchday.pairing_edit_btn') }}</button>
+                <button id="edit-pairings-btn" class="btn btn-secondary btn-small" style="display: none;" data-action="openPairingPanel">{{ t('matchday.pairing_edit_btn') }}</button>
             </div>
             <!-- Doubles Pairing Setup Section (auto-shown once after all singles finish, until pairings are set) -->
             <div id="doubles-pairing-section" class="doubles-pairing-section" style="display: none;">
                 <div class="pairing-header">
                     <h3>{{ t('matchday.pairing_setup_title') }}</h3>
-                    <button id="edit-mode-btn" class="btn btn-secondary btn-small" onclick="toggleEditMode()">{{ t('matchday.edit_names') }}</button>
+                    <button id="edit-mode-btn" class="btn btn-secondary btn-small" data-action="toggleEditMode">{{ t('matchday.edit_names') }}</button>
                 </div>
                 <div id="pairing-form"></div>
                 <div class="pairing-actions">
-                    <button id="save-pairings-btn" class="btn btn-primary" onclick="savePairings()">{{ t('matchday.save_pairings') }}</button>
-                    <button id="cancel-pairings-btn" class="btn btn-secondary" style="display: none;" onclick="closePairingPanel()">{{ t('matchday.cancel') }}</button>
+                    <button id="save-pairings-btn" class="btn btn-primary">{{ t('matchday.save_pairings') }}</button>
+                    <button id="cancel-pairings-btn" class="btn btn-secondary" style="display: none;" data-action="closePairingPanel">{{ t('matchday.cancel') }}</button>
                     <span id="pairing-status" class="pairing-status"></span>
                 </div>
             </div>
@@ -133,7 +133,7 @@
                         {% endif %}
                     </a>
                     {% if is_scorer %}
-                    <button class="enter-score-btn" onclick="openScoreModal('{{ match.id }}', '{{ (match.player_a1 or 'A') ~ '/' ~ (match.player_a2 or 'A') }}', '{{ (match.player_b1 or 'B') ~ '/' ~ (match.player_b2 or 'B') }}')">{{ t('matchday.enter_score') }}</button>
+                    <button class="enter-score-btn" data-action="openScoreModal" data-match-id="{{ match.id }}" data-player-a="{{ (match.player_a1 or 'A') ~ '/' ~ (match.player_a2 or 'A') }}" data-player-b="{{ (match.player_b1 or 'B') ~ '/' ~ (match.player_b2 or 'B') }}">{{ t('matchday.enter_score') }}</button>
                     {% endif %}
                 </div>
                 {% endif %}
@@ -142,7 +142,7 @@
         </section>
 
         <div class="share-section" id="share-section">
-            <button class="share-toggle" onclick="toggleShareSection()">
+            <button class="share-toggle" data-action="toggleShareSection">
                 <span class="share-toggle-icon">–</span>
                 <span>{{ t('matchday.share_title') }}</span>
             </button>
@@ -152,21 +152,21 @@
                     <label>{{ t('matchday.spectator_link') }}</label>
                     <div class="share-link">
                         <input type="text" id="spectator-url" readonly value="{{ request.url_for('spectator_match_day_page', share_code=match_day.share_code) }}">
-                        <button class="btn btn-secondary" onclick="copyLink('spectator-url')">{{ t('match.copy') }}</button>
+                        <button class="btn btn-secondary" data-action="copyLink" data-target="spectator-url">{{ t('match.copy') }}</button>
                     </div>
                 </div>
                 <div class="share-option">
                     <label>{{ t('matchday.scorer_link') }}</label>
                     <div class="share-link">
                         <input type="text" id="scorer-url" readonly value="{{ request.url_for('scorer_match_day_page', scorer_token=match_day.scorer_token) }}">
-                        <button class="btn btn-secondary" onclick="copyLink('scorer-url')">{{ t('match.copy') }}</button>
+                        <button class="btn btn-secondary" data-action="copyLink" data-target="scorer-url">{{ t('match.copy') }}</button>
                     </div>
                     <p class="share-warning">{{ t('matchday.scorer_warning') }}</p>
                 </div>
                 {% else %}
                 <div class="share-link">
                     <input type="text" id="share-url" readonly value="{{ request.url_for('spectator_match_day_page', share_code=match_day.share_code) }}">
-                    <button class="btn btn-secondary" onclick="copyLink('share-url')">{{ t('match.copy') }}</button>
+                    <button class="btn btn-secondary" data-action="copyLink" data-target="share-url">{{ t('match.copy') }}</button>
                 </div>
                 <p class="spectator-notice-text">{{ t('matchday.spectator_notice') }}</p>
                 {% endif %}
@@ -183,7 +183,7 @@
             <div class="modal-content">
                 <div class="modal-header">
                     <h3 id="modal-title">{{ t('matchday.enter_score') }}</h3>
-                    <button class="modal-close" onclick="closeScoreModal()">&times;</button>
+                    <button class="modal-close" data-action="closeScoreModal">&times;</button>
                 </div>
                 <div class="modal-body">
                     <div class="score-entry-form">
@@ -214,10 +214,10 @@
                         <div class="winner-selection">
                             <label>{{ t('score_modal.winner') }}</label>
                             <div class="winner-buttons">
-                                <button type="button" id="winner-a-btn" class="winner-btn" onclick="selectWinner(0)">
+                                <button type="button" id="winner-a-btn" class="winner-btn" data-action="selectWinner" data-team="0">
                                     <span id="winner-a-name">Team A</span>
                                 </button>
-                                <button type="button" id="winner-b-btn" class="winner-btn" onclick="selectWinner(1)">
+                                <button type="button" id="winner-b-btn" class="winner-btn" data-action="selectWinner" data-team="1">
                                     <span id="winner-b-name">Team B</span>
                                 </button>
                             </div>
@@ -225,15 +225,15 @@
                     </div>
                 </div>
                 <div class="modal-footer">
-                    <button class="btn btn-secondary" onclick="closeScoreModal()">{{ t('matchday.cancel') }}</button>
-                    <button class="btn btn-primary" onclick="saveMatchScore()">{{ t('score_modal.save_score') }}</button>
+                    <button class="btn btn-secondary" data-action="closeScoreModal">{{ t('matchday.cancel') }}</button>
+                    <button class="btn btn-primary" data-action="saveMatchScore">{{ t('score_modal.save_score') }}</button>
                 </div>
             </div>
         </div>
         {% endif %}
     </div>
 
-    <script>
+    <script nonce="{{ csp_nonce }}">
         const matches = {{ matches | tojson }};
         const matchDay = {{ match_day | tojson }};
         const isScorer = {{ is_scorer | tojson }};
@@ -823,6 +823,19 @@
         }
 
         // Add listeners to set inputs for auto-calculation
+        // Delegated actions (CSP: no inline handlers)
+        registerActions({
+            openScoreModal: (el) => openScoreModal(el.dataset.matchId, el.dataset.playerA, el.dataset.playerB),
+            closeScoreModal: () => closeScoreModal(),
+            selectWinner: (el) => selectWinner(+el.dataset.team),
+            saveMatchScore: () => saveMatchScore(),
+            openPairingPanel: () => openPairingPanel(),
+            closePairingPanel: () => closePairingPanel(),
+            toggleEditMode: () => toggleEditMode(),
+            toggleShareSection: () => toggleShareSection(),
+            copyLink: (el) => copyLink(el.dataset.target),
+        });
+
         document.addEventListener('DOMContentLoaded', function() {
             // Format server-rendered player names: extract LK into sub-line
             document.querySelectorAll('.scoreboard-table .player-name').forEach(td => {

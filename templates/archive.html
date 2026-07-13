@@ -59,7 +59,7 @@
                         {% endif %}
                     </div>
                 </a>
-                <button class="fixture-share-btn" onclick="copyArchiveLink(this, '{{ request.url_for('spectator_match_day_page', share_code=md.share_code) }}')" title="{{ t('archive.share_title') }}">{{ t('archive.share') }}</button>
+                <button class="fixture-share-btn" data-action="copyArchiveLink" data-url="{{ request.url_for('spectator_match_day_page', share_code=md.share_code) }}" title="{{ t('archive.share_title') }}">{{ t('archive.share') }}</button>
             </div>
             {% endfor %}
         </section>
@@ -74,15 +74,16 @@
         </div>
         {% endif %}
     </div>
-    <script>
-        async function copyArchiveLink(btn, url) {
-            const ok = await copyToClipboard(url);
+    <script nonce="{{ csp_nonce }}">
+        async function copyArchiveLink(btn) {
+            const ok = await copyToClipboard(btn.dataset.url);
             if (!ok) { showToast(t('common.error_copy'), 'error'); return; }
             const orig = btn.textContent;
             btn.textContent = t('archive.copied');
             btn.classList.add('copied');
             setTimeout(() => { btn.textContent = orig; btn.classList.remove('copied'); }, 2000);
         }
+        registerActions({ copyArchiveLink });
     </script>
 <a href="/faq" class="faq-link">FAQ</a>
 <div class="version-label">v{{ app_version }}</div>

@@ -66,6 +66,9 @@ def strings_for(lang: str) -> dict:
 
 
 def i18n_context(request: Request) -> dict:
-    """Jinja context processor: every template gets `lang` and `t`."""
+    """Jinja context processor: every template gets `lang`, `t`, `csp_nonce`."""
     lang = get_lang(request)
-    return {"lang": lang, "t": make_t(lang)}
+    # The security middleware stashes a per-request nonce here; fall back to ""
+    # so templates render even outside the middleware (e.g. in tests).
+    nonce = getattr(request.state, "csp_nonce", "")
+    return {"lang": lang, "t": make_t(lang), "csp_nonce": nonce}

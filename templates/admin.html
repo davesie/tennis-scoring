@@ -19,9 +19,9 @@
                 {% if is_superadmin %}<span class="superadmin-badge">Superadmin</span>{% endif %}
             </div>
             <div class="header-actions">
-                <button class="btn btn-primary" onclick="toggleCreateSection()">{{ t('admin.new_matchday') }}</button>
+                <button class="btn btn-primary" data-action="toggleCreateSection">{{ t('admin.new_matchday') }}</button>
                 {% if is_superadmin %}
-                <button class="btn btn-secondary" onclick="toggleImportSection()">{{ t('admin.import_fixtures') }}</button>
+                <button class="btn btn-secondary" data-action="toggleImportSection">{{ t('admin.import_fixtures') }}</button>
                 {% endif %}
                 <a href="/archive" class="btn btn-secondary">{{ t('nav.archive') }}</a>
                 <form action="/admin/logout" method="POST" style="margin: 0;">
@@ -77,7 +77,7 @@
         <section class="wtb-section">
             <h2>{{ t('admin.wtb_title') }}</h2>
             <div class="wtb-actions">
-                <button class="btn btn-secondary" id="sync-clubs-btn" onclick="syncClubs()">
+                <button class="btn btn-secondary" id="sync-clubs-btn" data-action="syncClubs">
                     {{ t('admin.sync_clubs') }}
                 </button>
                 <div class="sync-status" id="sync-status"></div>
@@ -92,7 +92,7 @@
 
             <div class="wtb-club-selector" id="club-selector-wtb" style="display: none;">
                 <label>{{ t('admin.sync_players_for_club') }}</label>
-                <input type="text" id="wtb-club-search" placeholder="{{ t('admin.search_club_ph') }}" onkeyup="searchWTBClubs(this.value)">
+                <input type="text" id="wtb-club-search" placeholder="{{ t('admin.search_club_ph') }}" data-action-keyup="searchWTBClubs">
                 <div class="autocomplete-dropdown" id="wtb-club-dropdown"></div>
             </div>
         </section>
@@ -114,9 +114,9 @@
                 <div class="form-group">
                     <label>{{ t('admin.category_label') }}</label>
                     <div class="toggle-group">
-                        <button type="button" class="toggle-btn active" onclick="loadTeams('Herren', this)">Herren</button>
-                        <button type="button" class="toggle-btn" onclick="loadTeams('Damen', this)">Damen</button>
-                        <button type="button" class="toggle-btn" onclick="loadTeams('', this)">{{ t('admin.all') }}</button>
+                        <button type="button" class="toggle-btn active" data-action="loadTeams" data-category="Herren">Herren</button>
+                        <button type="button" class="toggle-btn" data-action="loadTeams" data-category="Damen">Damen</button>
+                        <button type="button" class="toggle-btn" data-action="loadTeams" data-category="">{{ t('admin.all') }}</button>
                     </div>
                 </div>
                 <div id="import-teams-list" class="import-teams-list"></div>
@@ -125,14 +125,14 @@
             <div id="import-fixtures-container" style="display:none;">
                 <div class="import-fixtures-header">
                     <h3 id="import-team-name"></h3>
-                    <button class="btn btn-secondary btn-sm" id="sync-fixtures-btn" onclick="syncFixtureUpdates()" style="display:none;">{{ t('admin.check_updates') }}</button>
+                    <button class="btn btn-secondary btn-sm" id="sync-fixtures-btn" data-action="syncFixtureUpdates" style="display:none;">{{ t('admin.check_updates') }}</button>
                 </div>
                 <div id="import-fixtures-list" class="import-fixtures-list"></div>
                 <div id="sync-fixtures-result"></div>
             </div>
 
             <div class="header-actions" style="margin-top:1rem;">
-                <button class="btn btn-secondary" onclick="toggleImportSection()">{{ t('common.close') }}</button>
+                <button class="btn btn-secondary" data-action="toggleImportSection">{{ t('common.close') }}</button>
             </div>
         </section>
 
@@ -145,10 +145,10 @@
             <div class="form-group">
                 <label>{{ t('admin.format') }}</label>
                 <div class="toggle-group">
-                    <button type="button" class="toggle-btn active" data-format="6_person" onclick="selectFormat('6_person')">
+                    <button type="button" class="toggle-btn active" data-format="6_person" data-action="selectFormat">
                         {{ t('admin.per_team_6') }}<br><small>{{ t('admin.format6_small') }}</small>
                     </button>
-                    <button type="button" class="toggle-btn" data-format="4_person" onclick="selectFormat('4_person')">
+                    <button type="button" class="toggle-btn" data-format="4_person" data-action="selectFormat">
                         {{ t('admin.per_team_4') }}<br><small>{{ t('admin.format4_small') }}</small>
                     </button>
                 </div>
@@ -156,7 +156,7 @@
 
             <div class="form-group">
                 <label for="category-select">{{ t('admin.category') }}</label>
-                <select id="category-select" class="category-select" onchange="selectCategory(this.value)">
+                <select id="category-select" class="category-select" data-action-change="selectCategory">
                     <option value="Herren">Herren (Men)</option>
                     <option value="Damen">Damen (Women)</option>
                     <option value="Herren 30">Herren 30 (Men 30+)</option>
@@ -190,10 +190,10 @@
             <div class="form-group">
                 <label>{{ t('admin.visibility') }}</label>
                 <div class="toggle-group">
-                    <button type="button" class="toggle-btn active" data-visibility="public" onclick="selectVisibility('public', this)">
+                    <button type="button" class="toggle-btn active" data-visibility="public" data-action="selectVisibility" data-vis="public">
                         {{ t('admin.public') }}
                     </button>
-                    <button type="button" class="toggle-btn" data-visibility="private" onclick="selectVisibility('private', this)">
+                    <button type="button" class="toggle-btn" data-visibility="private" data-action="selectVisibility" data-vis="private">
                         {{ t('admin.private') }}
                     </button>
                 </div>
@@ -206,8 +206,8 @@
             </div>
 
             <div class="header-actions">
-                <button class="btn btn-primary" onclick="createMatchDay()">{{ t('admin.create_btn') }}</button>
-                <button class="btn btn-secondary" onclick="toggleCreateSection()">{{ t('matchday.cancel') }}</button>
+                <button class="btn btn-primary" data-action="createMatchDay">{{ t('admin.create_btn') }}</button>
+                <button class="btn btn-secondary" data-action="toggleCreateSection">{{ t('matchday.cancel') }}</button>
             </div>
         </section>
 
@@ -239,21 +239,21 @@
                     </div>
                     <div class="link-group">
                         {% if md.total_matches == 0 and md.wtb_meeting_id %}
-                        <button class="link-btn btn-setup-players" onclick="openPlayerSetup('{{ md.id }}', '{{ md.format }}', '{{ md.team_a_name | replace("'", "\\'") }}', '{{ md.team_b_name | replace("'", "\\'") }}')">{{ t('admin.setup_players') }}</button>
+                        <button class="link-btn btn-setup-players" data-action="openPlayerSetup" data-md-id="{{ md.id }}" data-format="{{ md.format }}" data-team-a="{{ md.team_a_name }}" data-team-b="{{ md.team_b_name }}">{{ t('admin.setup_players') }}</button>
                         {% else %}
                         <a href="/matchday/{{ md.id }}" class="link-btn">{{ t('admin.open') }}</a>
                         {% endif %}
-                        <button class="link-btn" onclick="copyToClipboard('{{ request.url_for('scorer_match_day_page', scorer_token=md.scorer_token) }}', this)">{{ t('admin.copy_scorer') }}</button>
-                        <button class="link-btn" onclick="copyToClipboard('{{ request.url_for('spectator_match_day_page', share_code=md.share_code) }}', this)">{{ t('admin.copy_spectator') }}</button>
+                        <button class="link-btn" data-action="copyToClipboard" data-url="{{ request.url_for('scorer_match_day_page', scorer_token=md.scorer_token) }}">{{ t('admin.copy_scorer') }}</button>
+                        <button class="link-btn" data-action="copyToClipboard" data-url="{{ request.url_for('spectator_match_day_page', share_code=md.share_code) }}">{{ t('admin.copy_spectator') }}</button>
 
                         {% if not md.has_doubles %}
                         {% if md.singles_completed == md.singles_total and md.singles_total > 0 %}
-                        <button class="link-btn btn-setup-doubles" onclick="openDoublesSetup('{{ md.id }}', '{{ md.format }}', {{ md.team_a_players | tojson }}, {{ md.team_b_players | tojson }}, '{{ md.team_a_name }}', '{{ md.team_b_name }}')">{{ t('admin.setup_doubles') }}</button>
+                        <button class="link-btn btn-setup-doubles" data-action="openDoublesSetup" data-md-id="{{ md.id }}" data-format="{{ md.format }}" data-team-a-players='{{ md.team_a_players | tojson }}' data-team-b-players='{{ md.team_b_players | tojson }}' data-team-a="{{ md.team_a_name }}" data-team-b="{{ md.team_b_name }}">{{ t('admin.setup_doubles') }}</button>
                         {% else %}
                         <button class="link-btn" disabled title="{{ md.singles_completed }}/{{ md.singles_total }}">{{ t('admin.doubles_progress', done=md.singles_completed, total=md.singles_total) }}</button>
                         {% endif %}
                         {% endif %}
-                        <button class="link-btn btn-delete" onclick="deleteMatchDay('{{ md.id }}', '{{ md.name }}', this)">{{ t('admin.delete') }}</button>
+                        <button class="link-btn btn-delete" data-action="deleteMatchDay" data-md-id="{{ md.id }}" data-md-name="{{ md.name }}">{{ t('admin.delete') }}</button>
                     </div>
                 </div>
                 <div class="doubles-setup-panel" id="doubles-panel-{{ md.id }}" style="display:none;"></div>
@@ -263,13 +263,13 @@
             {% else %}
             <div class="empty-state">
                 <p>{{ t('admin.no_matchdays') }}</p>
-                <button class="btn btn-primary" onclick="toggleCreateSection()">{{ t('admin.create_first') }}</button>
+                <button class="btn btn-primary" data-action="toggleCreateSection">{{ t('admin.create_first') }}</button>
             </div>
             {% endif %}
         </section>
     </div>
 
-    <script>
+    <script nonce="{{ csp_nonce }}">
         let currentFormat = '6_person';
         let currentCategory = 'Herren';
         let currentVisibility = 'public';
@@ -578,7 +578,7 @@
                     <span class="slot-number">${i + 1}</span>
                     <span class="slot-name">${escapeHtml(player.name)}</span>
                     ${rankLabel}${lkSlot}
-                    <button class="slot-remove" title="Remove" onclick="deselectPlayer('${team}', '${player.id}')">&times;</button>
+                    <button class="slot-remove" title="Remove" data-action="deselectPlayer" data-team="${escapeHtml(team)}" data-player-id="${escapeHtml(player.id)}">&times;</button>
                 `;
                 panel.appendChild(slot);
             });
@@ -782,8 +782,8 @@
                     <h4>Set up Doubles Pairings</h4>
                     <div class="doubles-pairings-list">${pairingsHtml}</div>
                     <div class="doubles-setup-actions">
-                        <button class="btn btn-primary" onclick="submitDoubles('${matchDayId}', ${doublesCount})">Create Doubles</button>
-                        <button class="btn btn-secondary" onclick="document.getElementById('doubles-panel-${matchDayId}').style.display='none'">Cancel</button>
+                        <button class="btn btn-primary" data-action="submitDoubles" data-md-id="${escapeHtml(matchDayId)}" data-count="${doublesCount}">Create Doubles</button>
+                        <button class="btn btn-secondary" data-action="hidePanel" data-panel-id="doubles-panel-${escapeHtml(matchDayId)}">Cancel</button>
                     </div>
                 </div>`;
             panel.style.display = 'block';
@@ -917,7 +917,7 @@
                         <div class="import-level-label">${escHtml(level)}</div>
                         <div class="import-level-teams">
                         ${teams.map(team => `
-                            <div class="import-team-card" onclick="loadFixtures('${team.team_id}', '${escHtml(team.team_name)}')">
+                            <div class="import-team-card" data-action="loadFixtures" data-team-id="${escHtml(team.team_id)}" data-team-name="${escHtml(team.team_name)}">
                                 <span class="import-team-name">${escHtml(team.team_name)}</span>
                                 <span class="import-team-league">${escHtml(team.league)}</span>
                                 <span class="import-team-format badge-${team.format}">${team.format === '4_person' ? '4er' : '6er'}</span>
@@ -978,7 +978,7 @@
                             <td>
                                 ${f.imported
                                     ? `<span class="fixture-imported-badge">${t('admin.imported')}</span>`
-                                    : `<button class="btn btn-primary btn-sm" onclick="importFixture(this, '${f.meeting_id}', '${f.scheduled_date || ''}', '${escHtml(f.home_team)}', '${escHtml(f.away_team)}', '${escHtml(f.venue || '')}', ${f.is_played}, '${escHtml(f.spielbericht_url || '')}')">${f.is_played ? t('admin.import_with_scores') : t('admin.import')}</button>`
+                                    : `<button class="btn btn-primary btn-sm" data-action="importFixture" data-meeting-id="${escHtml(f.meeting_id)}" data-scheduled="${escHtml(f.scheduled_date || '')}" data-home="${escHtml(f.home_team)}" data-away="${escHtml(f.away_team)}" data-venue="${escHtml(f.venue || '')}" data-is-played="${f.is_played}" data-report-url="${escHtml(f.spielbericht_url || '')}">${f.is_played ? t('admin.import_with_scores') : t('admin.import')}</button>`
                                 }
                             </td>
                         </tr>
@@ -1090,8 +1090,8 @@
                     <div class="form-group">
                         <label>{{ t('admin.format') }}</label>
                         <div class="toggle-group">
-                            <button type="button" class="toggle-btn ${format === '6_person' ? 'active' : ''}" onclick="setSetupFormat('${matchDayId}', '6_person', this)">6 per Team</button>
-                            <button type="button" class="toggle-btn ${format === '4_person' ? 'active' : ''}" onclick="setSetupFormat('${matchDayId}', '4_person', this)">4 per Team</button>
+                            <button type="button" class="toggle-btn ${format === '6_person' ? 'active' : ''}" data-action="setSetupFormat" data-md-id="${escHtml(matchDayId)}" data-format="6_person">6 per Team</button>
+                            <button type="button" class="toggle-btn ${format === '4_person' ? 'active' : ''}" data-action="setSetupFormat" data-md-id="${escHtml(matchDayId)}" data-format="4_person">4 per Team</button>
                         </div>
                     </div>
                     <div class="teams-container">
@@ -1110,8 +1110,8 @@
                         </div>
                     </div>
                     <div class="header-actions">
-                        <button class="btn btn-primary" onclick="submitPlayerSetup('${matchDayId}')">Create Matches</button>
-                        <button class="btn btn-secondary" onclick="document.getElementById('setup-panel-${matchDayId}').style.display='none'">Cancel</button>
+                        <button class="btn btn-primary" data-action="submitPlayerSetup" data-md-id="${escHtml(matchDayId)}">Create Matches</button>
+                        <button class="btn btn-secondary" data-action="hidePanel" data-panel-id="setup-panel-${escHtml(matchDayId)}">Cancel</button>
                     </div>
                 </div>`;
             panel.style.display = 'block';
@@ -1279,7 +1279,7 @@
                     <span class="slot-number">${i + 1}</span>
                     <span class="slot-name">${escapeHtml(player.name)}</span>
                     ${rankLabel}${lkSlot}
-                    <button class="slot-remove" title="Remove" onclick="removeSetupPlayer('${matchDayId}', '${team}', '${player.id}')">&times;</button>
+                    <button class="slot-remove" title="Remove" data-action="removeSetupPlayer" data-md-id="${escapeHtml(matchDayId)}" data-team="${escapeHtml(team)}" data-player-id="${escapeHtml(player.id)}">&times;</button>
                 `;
                 selPanel.appendChild(slot);
             });
@@ -1450,9 +1450,9 @@
                 const clubs = await fetchClubs(query);
                 if (clubs.length > 0) {
                     dropdown.innerHTML = clubs.map(club => `
-                        <div class="autocomplete-item" onclick="selectWTBClub('${club.id}', '${club.name.replace(/'/g, "\\'")}', '${club.wtb_id}')">
-                            <span class="ac-name">${club.name}</span>
-                            ${club.location ? `<span class="ac-meta">${club.location}</span>` : ''}
+                        <div class="autocomplete-item" data-action="selectWTBClub" data-club-id="${escHtml(club.id)}" data-club-name="${escHtml(club.name)}" data-wtb-id="${escHtml(club.wtb_id)}">
+                            <span class="ac-name">${escHtml(club.name)}</span>
+                            ${club.location ? `<span class="ac-meta">${escHtml(club.location)}</span>` : ''}
                         </div>
                     `).join('');
                     dropdown.style.display = 'block';
@@ -1621,9 +1621,37 @@
             }
         }
 
+        // Delegated actions (CSP: no inline handlers). Function declarations
+        // above are hoisted, so the registry can be wired here.
+        registerActions({
+            toggleCreateSection: () => toggleCreateSection(),
+            toggleImportSection: () => toggleImportSection(),
+            syncClubs: () => syncClubs(),
+            searchWTBClubs: (el) => searchWTBClubs(el.value),
+            loadTeams: (el) => loadTeams(el.dataset.category, el),
+            syncFixtureUpdates: () => syncFixtureUpdates(),
+            selectFormat: (el) => selectFormat(el.dataset.format),
+            selectCategory: (el) => selectCategory(el.value),
+            selectVisibility: (el) => selectVisibility(el.dataset.vis, el),
+            createMatchDay: () => createMatchDay(),
+            openPlayerSetup: (el) => openPlayerSetup(el.dataset.mdId, el.dataset.format, el.dataset.teamA, el.dataset.teamB),
+            copyToClipboard: (el) => copyToClipboard(el.dataset.url),
+            openDoublesSetup: (el) => openDoublesSetup(el.dataset.mdId, el.dataset.format, JSON.parse(el.dataset.teamAPlayers), JSON.parse(el.dataset.teamBPlayers), el.dataset.teamA, el.dataset.teamB),
+            deleteMatchDay: (el) => deleteMatchDay(el.dataset.mdId, el.dataset.mdName, el),
+            deselectPlayer: (el) => deselectPlayer(el.dataset.team, el.dataset.playerId),
+            submitDoubles: (el) => submitDoubles(el.dataset.mdId, +el.dataset.count),
+            hidePanel: (el) => { const p = document.getElementById(el.dataset.panelId); if (p) p.style.display = 'none'; },
+            loadFixtures: (el) => loadFixtures(el.dataset.teamId, el.dataset.teamName),
+            importFixture: (el) => importFixture(el, el.dataset.meetingId, el.dataset.scheduled, el.dataset.home, el.dataset.away, el.dataset.venue, el.dataset.isPlayed === 'true', el.dataset.reportUrl),
+            setSetupFormat: (el) => setSetupFormat(el.dataset.mdId, el.dataset.format, el),
+            submitPlayerSetup: (el) => submitPlayerSetup(el.dataset.mdId),
+            removeSetupPlayer: (el) => removeSetupPlayer(el.dataset.mdId, el.dataset.team, el.dataset.playerId),
+            selectWTBClub: (el) => selectWTBClub(el.dataset.clubId, el.dataset.clubName, el.dataset.wtbId),
+        });
+
         loadUsers();
     </script>
-    <script>
+    <script nonce="{{ csp_nonce }}">
         // Format ISO timestamp to locale string on page load
         (function() {
             const lastSyncEl = document.getElementById('last-sync-time');

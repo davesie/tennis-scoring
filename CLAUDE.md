@@ -146,9 +146,19 @@ editing:
   where possible.
 - **Security headers:** a middleware sets CSP, `X-Content-Type-Options`,
   `X-Frame-Options`, `Referrer-Policy`, `Permissions-Policy`, and HSTS (on
-  HTTPS). CSP still allows `'unsafe-inline'` scripts because the templates use
-  inline handlers/`<script>` blocks — the escaping above is the primary XSS
-  defense; don't rely on CSP alone. `/app` (Flutter) is CSP-exempt.
+  HTTPS). `/app` (Flutter) is CSP-exempt.
+- **CSP script policy (strict — no `'unsafe-inline'`):** `script-src` is
+  `'self' 'nonce-<per-request>'`. The nonce is generated per request in the
+  security middleware (`request.state.csp_nonce`), exposed to templates via the
+  i18n context processor, and stamped on every inline `<script nonce="{{ csp_nonce }}">`.
+  Because of this, **no inline event handlers** (`onclick=`, `onchange=`, …) are
+  allowed anywhere — they're replaced by `data-action="fnName"` (+ `data-*`
+  params) and a single delegated dispatcher in `common.js` (`registerActions({...})`,
+  see `_delegate`). When adding interactive markup: never write `on*=` attributes
+  (static or in JS template strings); use `data-action` and register a handler.
+  JS property assignment (`el.onclick = fn`) and `addEventListener` are fine —
+  CSP only blocks inline HTML handlers. `style-src` keeps `'unsafe-inline'`
+  (inline styles can't execute JS).
 - **Auth brute force:** `enforce_rate_limit()` caps login/register at 10/min
   per IP (in-memory). Login compares against a dummy bcrypt hash for unknown
   emails so timing can't enumerate accounts.

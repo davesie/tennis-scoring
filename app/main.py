@@ -184,34 +184,41 @@ app = FastAPI(title="Tennis Scoring", lifespan=lifespan)
 
 # ==================== Security hardening ====================
 
-# Content-Security-Policy for the server-rendered site. Inline scripts/styles
-# and Google Fonts are part of the current templates, so they stay allowed;
-# everything else (foreign scripts, plugins, framing by other sites) is locked
-# down. The Flutter bundle under /app manages its own loading (CanvasKit from
-# gstatic) and is exempted below.
-_CSP = (
-    "default-src 'self'; "
-    "script-src 'self' 'unsafe-inline'; "
-    "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; "
-    "font-src 'self' https://fonts.gstatic.com; "
-    "img-src 'self' data:; "
-    "connect-src 'self' ws: wss:; "
-    "object-src 'none'; "
-    "base-uri 'self'; "
-    "form-action 'self'; "
-    "frame-ancestors 'self'"
-)
+# Content-Security-Policy for the server-rendered site. Inline scripts are
+# allowed only via a per-request nonce (no 'unsafe-inline' for scripts, and no
+# inline on* handlers — see the data-action delegation in common.js). Inline
+# *styles* stay allowed (style="" attributes can't execute JS; far lower risk).
+# Google Fonts are whitelisted. The Flutter bundle under /app manages its own
+# loading (CanvasKit from gstatic) and is exempted below.
+def _csp(nonce: str) -> str:
+    return (
+        "default-src 'self'; "
+        f"script-src 'self' 'nonce-{nonce}'; "
+        "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; "
+        "font-src 'self' https://fonts.gstatic.com; "
+        "img-src 'self' data:; "
+        "connect-src 'self' ws: wss:; "
+        "object-src 'none'; "
+        "base-uri 'self'; "
+        "form-action 'self'; "
+        "frame-ancestors 'self'"
+    )
 
 
 @app.middleware("http")
 async def security_headers(request: Request, call_next):
+    # Per-request nonce, exposed to templates via the i18n context processor
+    # (request.state.csp_nonce) and echoed in the CSP header below.
+    nonce = secrets.token_urlsafe(16)
+    request.state.csp_nonce = nonce
+
     response = await call_next(request)
     response.headers.setdefault("X-Content-Type-Options", "nosniff")
     response.headers.setdefault("X-Frame-Options", "SAMEORIGIN")
     response.headers.setdefault("Referrer-Policy", "strict-origin-when-cross-origin")
     response.headers.setdefault("Permissions-Policy", "camera=(), microphone=(), geolocation=()")
     if not request.url.path.startswith("/app"):
-        response.headers.setdefault("Content-Security-Policy", _CSP)
+        response.headers.setdefault("Content-Security-Policy", _csp(nonce))
     # Only meaningful over HTTPS (requires uvicorn --proxy-headers behind the
     # reverse proxy so the original scheme is visible).
     if request.url.scheme == "https":

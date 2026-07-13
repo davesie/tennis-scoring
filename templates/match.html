@@ -111,14 +111,14 @@
             <div class="serve-overlay-content">
                 <h3>{{ t('match.serve_question') }}</h3>
                 <div class="serve-overlay-buttons">
-                    <button class="serve-pick-btn team-a-btn" onclick="setInitialServer(0)">
+                    <button class="serve-pick-btn team-a-btn" data-action="setServer" data-team="0">
                         {% if match.match_type == 'doubles' %}
                             {{ (match.player_a1 or 'A')[:12] }} / {{ (match.player_a2 or 'A')[:12] }}
                         {% else %}
                             {{ match.player_a1 or match.team_a_name }}
                         {% endif %}
                     </button>
-                    <button class="serve-pick-btn team-b-btn" onclick="setInitialServer(1)">
+                    <button class="serve-pick-btn team-b-btn" data-action="setServer" data-team="1">
                         {% if match.match_type == 'doubles' %}
                             {{ (match.player_b1 or 'B')[:12] }} / {{ (match.player_b2 or 'B')[:12] }}
                         {% else %}
@@ -133,7 +133,7 @@
         <div class="controls">
             <!-- Point Buttons -->
             <div class="score-buttons">
-                <button class="score-btn team-a-btn" id="score-a" onclick="scorePoint(0)">
+                <button class="score-btn team-a-btn" id="score-a" data-action="scorePoint" data-team="0">
                     <span class="btn-label">{{ t('match.point_btn') }}</span>
                     <span class="btn-team" id="btn-team-a">
                         {% if match.match_type == 'doubles' %}
@@ -143,7 +143,7 @@
                         {% endif %}
                     </span>
                 </button>
-                <button class="score-btn team-b-btn" id="score-b" onclick="scorePoint(1)">
+                <button class="score-btn team-b-btn" id="score-b" data-action="scorePoint" data-team="1">
                     <span class="btn-label">{{ t('match.point_btn') }}</span>
                     <span class="btn-team" id="btn-team-b">
                         {% if match.match_type == 'doubles' %}
@@ -157,7 +157,7 @@
 
             <!-- Game Buttons -->
             <div class="score-buttons game-buttons" id="game-buttons">
-                <button class="score-btn game-btn team-a-btn" id="game-a" onclick="scoreGame(0)">
+                <button class="score-btn game-btn team-a-btn" id="game-a" data-action="scoreGame" data-team="0">
                     <span class="btn-label">{{ t('match.game_btn') }}</span>
                     <span class="btn-team">
                         {% if match.match_type == 'doubles' %}
@@ -167,7 +167,7 @@
                         {% endif %}
                     </span>
                 </button>
-                <button class="score-btn game-btn team-b-btn" id="game-b" onclick="scoreGame(1)">
+                <button class="score-btn game-btn team-b-btn" id="game-b" data-action="scoreGame" data-team="1">
                     <span class="btn-label">{{ t('match.game_btn') }}</span>
                     <span class="btn-team">
                         {% if match.match_type == 'doubles' %}
@@ -180,15 +180,15 @@
             </div>
 
             <div class="action-buttons">
-                <button class="btn btn-secondary" onclick="undoPoint()">{{ t('match.undo') }}</button>
-                <button class="btn btn-danger" onclick="resetMatch()">{{ t('match.reset') }}</button>
+                <button class="btn btn-secondary" data-action="undoPoint">{{ t('match.undo') }}</button>
+                <button class="btn btn-danger" data-action="resetMatch">{{ t('match.reset') }}</button>
             </div>
 
             <!-- Point Outcome Tag Sheet (optional, appears after each point) -->
             <div class="tag-sheet" id="tag-sheet" style="display: none;">
                 <div class="tag-sheet-header">
                     <span id="tag-sheet-title">Last point</span>
-                    <button class="tag-sheet-skip" onclick="dismissTagSheet()" aria-label="Skip tagging">{{ t('tag.skip') }}</button>
+                    <button class="tag-sheet-skip" data-action="dismissTagSheet" aria-label="Skip tagging">{{ t('tag.skip') }}</button>
                 </div>
                 <div class="tag-sheet-buttons" id="tag-sheet-buttons"></div>
             </div>
@@ -238,14 +238,14 @@
 
         <!-- Share Section (Collapsible) -->
         <div class="share-section collapsed" id="share-section">
-            <button class="share-toggle" onclick="toggleShareSection()">
+            <button class="share-toggle" data-action="toggleShareSection">
                 <span class="share-toggle-icon">+</span>
                 <span>{{ t('match.share_title') }}</span>
             </button>
             <div class="share-content" id="share-content">
                 <div class="share-link">
                     <input type="text" id="share-url" readonly>
-                    <button class="btn btn-secondary" onclick="copyShareLink(event)">{{ t('match.copy_link') }}</button>
+                    <button class="btn btn-secondary" data-action="copyShareLink">{{ t('match.copy_link') }}</button>
                 </div>
                 <p class="share-code">{{ t('match.share_code') }}: <strong>{{ match.share_code }}</strong></p>
             </div>
@@ -260,7 +260,7 @@
         </div>
     </div>
 
-    <script>
+    <script nonce="{{ csp_nonce }}">
         const matchId = "{{ match.id }}";
         const shareCode = "{{ match.share_code }}";
         const isScorer = {{ 'true' if is_scorer else 'false' }};
@@ -348,6 +348,18 @@
             });
         }
 
+        // Delegated actions (CSP: no inline handlers)
+        registerActions({
+            setServer: (el) => setInitialServer(+el.dataset.team),
+            scorePoint: (el) => scorePoint(+el.dataset.team),
+            scoreGame: (el) => scoreGame(+el.dataset.team),
+            undoPoint: () => undoPoint(),
+            resetMatch: () => resetMatch(),
+            dismissTagSheet: () => dismissTagSheet(),
+            toggleShareSection: () => toggleShareSection(),
+            copyShareLink: (el) => copyShareLink(el),
+        });
+
         // Initialize
         document.addEventListener('DOMContentLoaded', () => {
             formatPlayerNames();
@@ -375,10 +387,9 @@
             icon.textContent = section.classList.contains('collapsed') ? '+' : '−';
         }
 
-        async function copyShareLink(event) {
+        async function copyShareLink(btn) {
             const shareUrl = document.getElementById('share-url').value;
             const ok = await copyToClipboard(shareUrl);
-            const btn = event && event.currentTarget;
             if (btn) {
                 const originalText = btn.textContent;
                 btn.textContent = ok ? t('match.copied') : t('match.copy_failed');

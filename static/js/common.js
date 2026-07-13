@@ -23,6 +23,28 @@
     });
 })();
 
+/* ---- Event delegation (CSP: no inline on* handlers) ----
+ * The strict Content-Security-Policy forbids inline event handlers, so instead
+ * of onclick="fn()" the markup carries data-action="fn" (+ data-* params) and a
+ * single delegated listener dispatches to a registered handler. Delegation also
+ * covers dynamically-inserted elements automatically. Register handlers with
+ * registerActions({name: (el, event) => ...}); read params from el.dataset. */
+const _actionRegistry = {};
+function registerActions(map) { Object.assign(_actionRegistry, map); }
+
+function _delegate(datasetKey, event) {
+    const el = event.target.closest('[data-' + datasetKey + ']');
+    if (!el) return;
+    const camel = datasetKey.replace(/-([a-z])/g, (_, c) => c.toUpperCase());
+    const fn = _actionRegistry[el.dataset[camel]];
+    if (fn) fn(el, event);
+}
+
+document.addEventListener('click', (e) => _delegate('action', e));
+document.addEventListener('change', (e) => _delegate('action-change', e));
+document.addEventListener('keyup', (e) => _delegate('action-keyup', e));
+document.addEventListener('submit', (e) => _delegate('action-submit', e));
+
 /* ---- i18n ----
  * window.T (current-language strings) and window.LANG are provided by the
  * synchronously loaded /i18n.js, so t() is safe from the first render. */
