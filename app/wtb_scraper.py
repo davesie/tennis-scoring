@@ -5,6 +5,7 @@ import logging
 import re
 from datetime import datetime
 from typing import Dict, List, Optional
+from urllib.parse import urlparse
 
 import httpx
 from bs4 import BeautifulSoup
@@ -609,6 +610,13 @@ async def scrape_spielbericht(spielbericht_url: str) -> Optional[Dict]:
         or None if the page can't be parsed.
     """
     url = spielbericht_url
+
+    # The URL originates from client input (fixture import) — only ever fetch
+    # WTB pages with it, nothing else (SSRF guard).
+    parsed = urlparse(url)
+    if parsed.scheme != "https" or parsed.hostname not in ("www.wtb-tennis.de", "wtb-tennis.de"):
+        logger.warning("Refusing to fetch non-WTB spielbericht URL: %s", url)
+        return None
 
     async with httpx.AsyncClient(timeout=30.0, headers=HEADERS, follow_redirects=True) as client:
         try:

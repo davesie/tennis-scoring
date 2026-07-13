@@ -414,7 +414,7 @@
 
         function renderClub(club) {
             const meta = [club.location, club.district].filter(Boolean).join(' · ');
-            return `<span class="ac-name">${club.name}</span>${meta ? `<span class="ac-meta">${meta}</span>` : ''}`;
+            return `<span class="ac-name">${escapeHtml(club.name)}</span>${meta ? `<span class="ac-meta">${escapeHtml(meta)}</span>` : ''}`;
         }
 
         function setupClubAutocomplete(input, onClubSelect) {
@@ -498,8 +498,8 @@
                 chip.dataset.playerId = player.id;
                 const rankLabel = `<span class="player-chip-rank">${player.ranking != null ? player.ranking : '\u2013'}</span>`;
                 const captainBadge = player.is_captain ? `<span class="player-chip-captain">MF</span>` : '';
-                const lkLabel = player.lk ? `<span class="player-chip-meta">LK\u00a0${player.lk}</span>` : '';
-                chip.innerHTML = `${rankLabel}<span class="player-chip-name">${player.name}</span>${captainBadge}${lkLabel}<span class="player-chip-check">\u2713</span>`;
+                const lkLabel = player.lk ? `<span class="player-chip-meta">LK\u00a0${escapeHtml(player.lk)}</span>` : '';
+                chip.innerHTML = `${rankLabel}<span class="player-chip-name">${escapeHtml(player.name)}</span>${captainBadge}${lkLabel}<span class="player-chip-check">\u2713</span>`;
                 chip.addEventListener('click', () => togglePlayer(team, player, availablePlayers));
                 grid.appendChild(chip);
             });
@@ -573,10 +573,10 @@
                 const slot = document.createElement('div');
                 slot.className = 'player-slot';
                 const rankLabel = '';
-                const lkSlot = player.lk ? `<span class="slot-rank">LK\u00a0${player.lk}</span>` : '';
+                const lkSlot = player.lk ? `<span class="slot-rank">LK\u00a0${escapeHtml(player.lk)}</span>` : '';
                 slot.innerHTML = `
                     <span class="slot-number">${i + 1}</span>
-                    <span class="slot-name">${player.name}</span>
+                    <span class="slot-name">${escapeHtml(player.name)}</span>
                     ${rankLabel}${lkSlot}
                     <button class="slot-remove" title="Remove" onclick="deselectPlayer('${team}', '${player.id}')">&times;</button>
                 `;
@@ -1212,8 +1212,8 @@
                 chip.dataset.playerId = player.id;
                 const rankLabel = `<span class="player-chip-rank">${player.ranking != null ? player.ranking : '–'}</span>`;
                 const captainBadge = player.is_captain ? `<span class="player-chip-captain">MF</span>` : '';
-                const lkLabel = player.lk ? `<span class="player-chip-meta">LK ${player.lk}</span>` : '';
-                chip.innerHTML = `${rankLabel}<span class="player-chip-name">${player.name}</span>${captainBadge}${lkLabel}<span class="player-chip-check">✓</span>`;
+                const lkLabel = player.lk ? `<span class="player-chip-meta">LK ${escapeHtml(player.lk)}</span>` : '';
+                chip.innerHTML = `${rankLabel}<span class="player-chip-name">${escapeHtml(player.name)}</span>${captainBadge}${lkLabel}<span class="player-chip-check">✓</span>`;
                 chip.addEventListener('click', () => toggleSetupPlayer(matchDayId, team, player, availablePlayers));
                 grid.appendChild(chip);
             });
@@ -1274,10 +1274,10 @@
                 const slot = document.createElement('div');
                 slot.className = 'player-slot';
                 const rankLabel = '';
-                const lkSlot = player.lk ? `<span class="slot-rank">LK\u00a0${player.lk}</span>` : '';
+                const lkSlot = player.lk ? `<span class="slot-rank">LK\u00a0${escapeHtml(player.lk)}</span>` : '';
                 slot.innerHTML = `
                     <span class="slot-number">${i + 1}</span>
-                    <span class="slot-name">${player.name}</span>
+                    <span class="slot-name">${escapeHtml(player.name)}</span>
                     ${rankLabel}${lkSlot}
                     <button class="slot-remove" title="Remove" onclick="removeSetupPlayer('${matchDayId}', '${team}', '${player.id}')">&times;</button>
                 `;

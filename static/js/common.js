@@ -50,6 +50,15 @@ document.addEventListener('DOMContentLoaded', () => {
     btn.addEventListener('click', toggleLang);
 });
 
+/* ---- HTML escaping ----
+   Every user-controlled string (player/team/club names) that ends up in an
+   innerHTML template literal MUST pass through escapeHtml first. */
+function escapeHtml(s) {
+    return String(s == null ? '' : s)
+        .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+}
+
 /* ---- Player name / LK (Leistungsklasse) helpers ---- */
 function parseLK(fullName) {
     if (!fullName) return { name: fullName || '', lk: null };
@@ -64,8 +73,8 @@ function stripLK(fullName) {
 
 function formatPlayerNameHTML(fullName) {
     const p = parseLK(fullName);
-    if (p.lk) return `<span class="player-name-text">${p.name}</span><span class="player-lk">LK ${p.lk}</span>`;
-    return p.name;
+    if (p.lk) return `<span class="player-name-text">${escapeHtml(p.name)}</span><span class="player-lk">LK ${escapeHtml(p.lk)}</span>`;
+    return escapeHtml(p.name);
 }
 
 function formatNameForTable(fullName, fallback) {
@@ -77,8 +86,8 @@ function formatDoublesForTable(p1, p2, fb1, fb2) {
     const b = parseLK(p2 || fb2);
     const name = `${a.name} / ${b.name}`;
     const lks = [a.lk, b.lk].filter(Boolean);
-    if (lks.length) return `<span class="player-name-text">${name}</span><span class="player-lk">LK ${lks.join(' / ')}</span>`;
-    return name;
+    if (lks.length) return `<span class="player-name-text">${escapeHtml(name)}</span><span class="player-lk">LK ${escapeHtml(lks.join(' / '))}</span>`;
+    return escapeHtml(name);
 }
 
 /* ---- Scorer authorization ---- */

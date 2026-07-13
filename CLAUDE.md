@@ -131,6 +131,35 @@ the real scoring engine with a fixed RNG seed, so every deploy yields identical 
 
 ---
 
+## Security
+
+Hardening lives in `app/main.py` (middleware + auth routes), `app/auth.py`,
+`app/wtb_scraper.py`, and `static/js/common.js`. Keep these invariants when
+editing:
+
+- **SQL injection:** all DB access goes through SQLAlchemy (parameterized).
+  The only raw `text()` SQL (`app/database.py`) uses `:bound` params — never
+  string-interpolate user input into `text()`.
+- **XSS:** Jinja auto-escapes templates. Any value written to `innerHTML` from
+  JS (player/team/club names — attacker-controllable) MUST pass through
+  `escapeHtml()` (common.js) or `escHtml()` (admin.html). Prefer `.textContent`
+  where possible.
+- **Security headers:** a middleware sets CSP, `X-Content-Type-Options`,
+  `X-Frame-Options`, `Referrer-Policy`, `Permissions-Policy`, and HSTS (on
+  HTTPS). CSP still allows `'unsafe-inline'` scripts because the templates use
+  inline handlers/`<script>` blocks — the escaping above is the primary XSS
+  defense; don't rely on CSP alone. `/app` (Flutter) is CSP-exempt.
+- **Auth brute force:** `enforce_rate_limit()` caps login/register at 10/min
+  per IP (in-memory). Login compares against a dummy bcrypt hash for unknown
+  emails so timing can't enumerate accounts.
+- **SSRF:** `scrape_spielbericht()` only fetches `https://(www.)wtb-tennis.de`
+  — the URL comes from client fixture-import input. Keep the host allowlist.
+- **Tokens:** scorer tokens / share codes use `secrets.token_hex` (48/32 bits).
+- **Behind the proxy:** the Docker `CMD` runs uvicorn with `--proxy-headers`
+  and `FORWARDED_ALLOW_IPS=*` so the app sees the real client IP (rate limit)
+  and the `https` scheme (Secure cookies, HSTS). Only valid because the
+  container is reachable solely through Traefik/Coolify on the Docker network.
+
 ## User Roles & Access
 
 Three roles exist, all fully implemented:

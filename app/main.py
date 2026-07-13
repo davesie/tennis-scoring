@@ -3,6 +3,7 @@ import json
 import logging
 import secrets
 import subprocess
+import time
 from contextlib import asynccontextmanager
 from datetime import datetime
 from pathlib import Path
@@ -180,6 +181,71 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(title="Tennis Scoring", lifespan=lifespan)
 
+
+# ==================== Security hardening ====================
+
+# Content-Security-Policy for the server-rendered site. Inline scripts/styles
+# and Google Fonts are part of the current templates, so they stay allowed;
+# everything else (foreign scripts, plugins, framing by other sites) is locked
+# down. The Flutter bundle under /app manages its own loading (CanvasKit from
+# gstatic) and is exempted below.
+_CSP = (
+    "default-src 'self'; "
+    "script-src 'self' 'unsafe-inline'; "
+    "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; "
+    "font-src 'self' https://fonts.gstatic.com; "
+    "img-src 'self' data:; "
+    "connect-src 'self' ws: wss:; "
+    "object-src 'none'; "
+    "base-uri 'self'; "
+    "form-action 'self'; "
+    "frame-ancestors 'self'"
+)
+
+
+@app.middleware("http")
+async def security_headers(request: Request, call_next):
+    response = await call_next(request)
+    response.headers.setdefault("X-Content-Type-Options", "nosniff")
+    response.headers.setdefault("X-Frame-Options", "SAMEORIGIN")
+    response.headers.setdefault("Referrer-Policy", "strict-origin-when-cross-origin")
+    response.headers.setdefault("Permissions-Policy", "camera=(), microphone=(), geolocation=()")
+    if not request.url.path.startswith("/app"):
+        response.headers.setdefault("Content-Security-Policy", _CSP)
+    # Only meaningful over HTTPS (requires uvicorn --proxy-headers behind the
+    # reverse proxy so the original scheme is visible).
+    if request.url.scheme == "https":
+        response.headers.setdefault("Strict-Transport-Security", "max-age=31536000")
+    return response
+
+
+# Simple in-memory per-IP rate limiter for the auth endpoints (login,
+# register). Good enough for a single-process deployment; state resets on
+# restart, which is fine — its job is to make credential/invite-code
+# brute-forcing impractical, not to be perfect accounting.
+_rate_buckets: Dict[str, list] = {}
+
+
+def enforce_rate_limit(request: Request, key: str, limit: int = 10, window_seconds: int = 60):
+    ip = request.client.host if request.client else "unknown"
+    bucket_key = f"{key}:{ip}"
+    now = time.monotonic()
+    bucket = _rate_buckets.setdefault(bucket_key, [])
+    bucket[:] = [t for t in bucket if now - t < window_seconds]
+    if len(bucket) >= limit:
+        raise HTTPException(status_code=429, detail="Too many attempts. Please wait a minute and try again.")
+    bucket.append(now)
+    # Keep the dict from growing unboundedly under scanning traffic
+    if len(_rate_buckets) > 10000:
+        for k in [k for k, v in _rate_buckets.items() if not v or now - v[-1] > window_seconds]:
+            _rate_buckets.pop(k, None)
+
+
+# A constant bcrypt hash used to equalize login timing when the email is
+# unknown (prevents user enumeration via response-time differences).
+_DUMMY_HASH = hash_password("not-a-real-password")
+
+
 # Mount static files and templates
 app.mount("/static", StaticFiles(directory="static"), name="static")
 templates = Jinja2Templates(directory="templates", context_processors=[i18n_context])
@@ -308,10 +374,13 @@ async def login(
     password: str = Form(...),
     db: AsyncSession = Depends(get_db)
 ):
+    enforce_rate_limit(request, "login")
     result = await db.execute(select(User).where(User.email == email))
     user = result.scalar_one_or_none()
 
-    if not user or not verify_password(password, user.password_hash):
+    # Verify against a dummy hash when the email is unknown so both paths
+    # take the same time (no user enumeration via timing).
+    if not verify_password(password, user.password_hash if user else _DUMMY_HASH) or not user:
         return templates.TemplateResponse("login.html", {
             "request": request,
             "error": "Invalid email or password"
@@ -370,6 +439,7 @@ async def register(
     invite_code: str = Form(""),
     db: AsyncSession = Depends(get_db)
 ):
+    enforce_rate_limit(request, "register")
     t = make_t(get_lang(request))
 
     def form_error(message: str):
@@ -494,7 +564,8 @@ async def logout(request: Request, db: AsyncSession = Depends(get_db)):
 # machinery backs both, so cookie-based web login is unaffected.
 
 @app.post("/api/auth/register")
-async def api_register(payload: UserRegister, db: AsyncSession = Depends(get_db)):
+async def api_register(payload: UserRegister, request: Request, db: AsyncSession = Depends(get_db)):
+    enforce_rate_limit(request, "register")
     invite_error = _check_invite(payload.invite_code or "")
     if invite_error:
         status = 403 if invite_error == "register.closed" else 401
@@ -520,11 +591,13 @@ async def api_register(payload: UserRegister, db: AsyncSession = Depends(get_db)
 
 
 @app.post("/api/auth/login")
-async def api_login(payload: UserLogin, db: AsyncSession = Depends(get_db)):
+async def api_login(payload: UserLogin, request: Request, db: AsyncSession = Depends(get_db)):
+    enforce_rate_limit(request, "login")
     result = await db.execute(select(User).where(User.email == payload.email))
     user = result.scalar_one_or_none()
 
-    if not user or not verify_password(payload.password, user.password_hash):
+    # Dummy-hash comparison keeps timing equal for unknown emails
+    if not verify_password(payload.password, user.password_hash if user else _DUMMY_HASH) or not user:
         raise HTTPException(status_code=401, detail="Invalid email or password")
 
     user.last_login_at = datetime.utcnow()

@@ -37,7 +37,11 @@ RUN mkdir -p /app/data
 
 ENV DATABASE_URL=sqlite+aiosqlite:///./data/tennis.db
 ENV PYTHONUNBUFFERED=1
+# Trust X-Forwarded-* from the reverse proxy (Coolify/Traefik) so the app sees
+# the real client IP (rate limiting) and https scheme (Secure cookies, HSTS).
+# The container is only reachable through the proxy on the Docker network.
+ENV FORWARDED_ALLOW_IPS=*
 
 EXPOSE 8000
 
-CMD ["uv", "run", "uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["uv", "run", "uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--proxy-headers"]

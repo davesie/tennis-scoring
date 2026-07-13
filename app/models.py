@@ -1,6 +1,7 @@
 from sqlalchemy import Column, Integer, String, Boolean, DateTime, JSON, ForeignKey, Index
 from sqlalchemy.orm import relationship
 from datetime import datetime, timedelta
+import secrets
 import uuid
 
 from .database import Base
@@ -12,11 +13,14 @@ def generate_uuid():
 
 
 def generate_share_code():
-    return str(uuid.uuid4())[:8]
+    # 8 hex chars = 32 bits; view-only links, kept short for readability
+    return secrets.token_hex(4)
 
 
 def generate_scorer_token():
-    return str(uuid.uuid4())[:12]
+    # 12 hex chars = 48 bits of entropy (write access — previously a uuid4
+    # prefix whose fixed hyphen cost 4 bits). Existing tokens stay valid.
+    return secrets.token_hex(6)
 
 
 def generate_session_expiry():
