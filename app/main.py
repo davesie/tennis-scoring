@@ -1729,6 +1729,17 @@ async def get_team_fixtures(
     return {"club_id": club_id, "team_id": team_id, "fixtures": fixtures}
 
 
+def _category_from_team_name(team_name: str) -> Optional[str]:
+    """Strip the trailing team number and (4er)/(6er) marker from a WTB team
+    name to get the category. "Herren 2" -> "Herren"; "Herren 30 (4er) 1" ->
+    "Herren 30"; "Damen (4er) 1" -> "Damen"."""
+    import re
+    s = (team_name or "").strip()
+    s = re.sub(r"\s*\(\d?er\)", "", s)   # remove "(4er)" / "(6er)"
+    s = re.sub(r"\s+\d+$", "", s)         # remove trailing team number
+    return s.strip() or None
+
+
 @app.post("/api/admin/import-fixture")
 async def import_fixture(
     data: FixtureImport,
@@ -1759,13 +1770,19 @@ async def import_fixture(
         except ValueError:
             pass
 
+    # The WTB team names already carry each club's team number (e.g.
+    # "TC Hirschlanden 2 vs TC Freiberg 1"), so the name shows which team of
+    # each club plays. Derive the category (Herren/Damen/Herren 30…) from the
+    # selected team's designation so it shows as a badge — same for both sides.
     name = f"{data.home_team} vs {data.away_team}"
+    category = _category_from_team_name(data.team_name) if data.team_name else None
 
     match_day = MatchDay(
         name=name,
         format=data.format,
         team_a_name=data.home_team,
         team_b_name=data.away_team,
+        category=category,
         scheduled_date=scheduled_date,
         venue=data.venue,
         wtb_meeting_id=data.meeting_id,
