@@ -1,6 +1,8 @@
 """Tests for WTB fixture import feature."""
 
 import asyncio
+from unittest.mock import patch, MagicMock
+
 import pytest
 from app.wtb_scraper import scrape_club_teams, scrape_team_fixtures, scrape_spielbericht
 
@@ -15,6 +17,68 @@ def event_loop():
     loop = asyncio.new_event_loop()
     yield loop
     loop.close()
+
+
+# --- Offline regression tests (no network) -------------------------------
+# WTB serves the schedule table in two layouts: with a "Spielort" column
+# (8 cols) and without it (7 cols). A previous version hardcoded 8 columns
+# and dropped every row of 7-column teams — hiding all their upcoming
+# matches. These tests lock the header-based column mapping.
+
+def _schedule_html(with_spielort: bool) -> str:
+    if with_spielort:
+        head = "<tr><th>Datum</th><th>Heimmannschaft</th><th>Gastmannschaft</th><th>Spielort</th><th>Matches</th><th>Sätze</th><th>Games</th><th>Spielbericht</th></tr>"
+        played = "<tr><td>Sa, 10.05.2026 09:00</td><td>TC A 1</td><td>TC B 2</td><td>Platz A</td><td>6:3</td><td>12:7</td><td>80:50</td><td><a href='/x?tx_nuportalrs_meeting%5BmeetingId%5D=111'>anzeigen</a></td></tr>"
+        upcoming = "<tr><td>So, 19.07.2026 09:00</td><td>TC C 1</td><td>TC A 1</td><td>Platz C</td><td>0:0</td><td>0:0</td><td>0:0</td><td><a href='https://wtb.liga.nu/x?meeting=222'>Vorlage</a></td></tr>"
+    else:
+        head = "<tr><th>Datum</th><th>Heimmannschaft</th><th>Gastmannschaft</th><th>Matches</th><th>Sätze</th><th>Games</th><th>Spielbericht</th></tr>"
+        played = "<tr><td>Sa, 10.05.2026 09:00</td><td>TC A 2</td><td>TC B 1</td><td>6:3</td><td>12:7</td><td>80:50</td><td><a href='/x?tx_nuportalrs_meeting%5BmeetingId%5D=333'>anzeigen</a></td></tr>"
+        upcoming = "<tr><td>So, 19.07.2026 09:00</td><td>TC C 1</td><td>TC A 2</td><td>0:0</td><td>0:0</td><td>0:0</td><td><a href='https://wtb.liga.nu/x?meeting=444'>Vorlage</a></td></tr>"
+    return f"<html><body><table>{head}{played}{upcoming}</table></body></html>"
+
+
+def _run_scrape_with_html(html: str):
+    resp = MagicMock()
+    resp.text = html
+    resp.raise_for_status = MagicMock()
+
+    class FakeClient:
+        def __init__(self, *a, **k):
+            pass
+        async def __aenter__(self):
+            return self
+        async def __aexit__(self, *a):
+            return False
+        async def get(self, *a, **k):
+            return resp
+
+    with patch("app.wtb_scraper.httpx.AsyncClient", FakeClient):
+        return asyncio.get_event_loop().run_until_complete(
+            scrape_team_fixtures("20099", "T")
+        )
+
+
+class TestScheduleColumnLayouts:
+    def test_seven_column_layout_returns_upcoming(self, event_loop):
+        asyncio.set_event_loop(event_loop)
+        fx = _run_scrape_with_html(_schedule_html(with_spielort=False))
+        assert len(fx) == 2, f"7-col: expected 2 fixtures, got {len(fx)}"
+        upcoming = [f for f in fx if not f["is_played"]]
+        assert len(upcoming) == 1, "7-col: the upcoming match must be present"
+        assert upcoming[0]["meeting_id"] == "444"
+        assert upcoming[0]["home_team"] == "TC C 1"
+        assert upcoming[0]["away_team"] == "TC A 2"
+        assert upcoming[0]["venue"] == ""  # no Spielort column
+
+    def test_eight_column_layout_still_works(self, event_loop):
+        asyncio.set_event_loop(event_loop)
+        fx = _run_scrape_with_html(_schedule_html(with_spielort=True))
+        assert len(fx) == 2, f"8-col: expected 2 fixtures, got {len(fx)}"
+        played = [f for f in fx if f["is_played"]]
+        assert played[0]["venue"] == "Platz A"  # Spielort parsed
+        assert played[0]["meeting_id"] == "111"
+        upcoming = [f for f in fx if not f["is_played"]]
+        assert upcoming[0]["meeting_id"] == "222"
 
 
 class TestScrapeClubTeams:

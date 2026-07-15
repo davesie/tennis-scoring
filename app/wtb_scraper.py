@@ -435,39 +435,52 @@ async def scrape_team_fixtures(wtb_id: str, team_id: str) -> List[Dict]:
             if not schedule_table:
                 return fixtures
 
-            # Columns: Datum, Heimmannschaft, Gastmannschaft, Spielort,
-            #          Matches, Sätze, Games, Spielbericht
+            # Map columns by their header name. The layout varies between team
+            # pages: some have a "Spielort" column (8 cols), some don't (7 cols).
+            # Hardcoding positions dropped every row of the 7-col teams — and with
+            # them all their upcoming matches. Header-based lookup handles both.
+            header_cells = [th.get_text(strip=True) for th in schedule_table.find_all("th")]
+
+            def col(name):
+                return header_cells.index(name) if name in header_cells else None
+
+            i_date = col("Datum")
+            i_home = col("Heimmannschaft")
+            i_away = col("Gastmannschaft")
+            i_venue = col("Spielort")   # optional — None on the 7-column layout
+            i_score = col("Matches")
+            i_sb = col("Spielbericht")
+
+            def cell_text(cells, i):
+                return cells[i].get_text(strip=True) if (i is not None and i < len(cells)) else ""
+
             rows = schedule_table.find_all("tr")
-            for row in rows[1:]:  # Skip header
+            for row in rows:
                 cells = row.find_all("td")
-                if len(cells) < 8:
+                # Skip the header row (has <th>, no <td>) and malformed rows
+                if not cells or i_home is None or i_away is None:
                     continue
 
                 try:
-                    # Column 0: Date — strip weekday prefix like "Sa, "
-                    date_text = cells[0].get_text(strip=True)
+                    # Date — strip weekday prefix like "Sa, "
+                    date_text = cell_text(cells, i_date)
                     date_text = re.sub(r"^[A-Za-z]{2},?\s*", "", date_text)
                     scheduled_date = None
-                    try:
-                        scheduled_date = datetime.strptime(date_text, "%d.%m.%Y %H:%M")
-                    except ValueError:
+                    for fmt in ("%d.%m.%Y %H:%M", "%d.%m.%Y"):
                         try:
-                            scheduled_date = datetime.strptime(date_text, "%d.%m.%Y")
+                            scheduled_date = datetime.strptime(date_text, fmt)
+                            break
                         except ValueError:
                             pass
 
-                    # Columns 1-3: teams and venue
-                    home_team = cells[1].get_text(strip=True)
-                    away_team = cells[2].get_text(strip=True)
-                    venue = cells[3].get_text(strip=True)
+                    home_team = cell_text(cells, i_home)
+                    away_team = cell_text(cells, i_away)
+                    venue = cell_text(cells, i_venue)
+                    score_matches = cell_text(cells, i_score)
 
-                    # Column 4: Matches score (e.g. "6:0" or "0:0" for unplayed)
-                    score_matches = cells[4].get_text(strip=True)
-
-                    # Determine if played: check Spielbericht column (last cell)
-                    # "anzeigen" link with meetingId = played, "Vorlage" link = unplayed
-                    spielbericht_cell = cells[7]
-                    spielbericht_text = spielbericht_cell.get_text(strip=True)
+                    # Determine if played: the Spielbericht cell (last column)
+                    # reads "anzeigen" (report available) vs "Vorlage" (upcoming).
+                    spielbericht_text = cell_text(cells, i_sb) or cells[-1].get_text(strip=True)
                     is_played = spielbericht_text == "anzeigen"
 
                     # Extract meeting_id and full Spielbericht URL from links
@@ -493,7 +506,7 @@ async def scrape_team_fixtures(wtb_id: str, team_id: str) -> List[Dict]:
                                 meeting_id = m.group(1)
                                 break
 
-                    if not meeting_id:
+                    if not meeting_id or not home_team or not away_team:
                         continue
 
                     # Format match score for display (hide "0:0" for unplayed)
