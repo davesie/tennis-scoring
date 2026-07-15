@@ -19,18 +19,20 @@
                 {% if is_superadmin %}<span class="superadmin-badge">Superadmin</span>{% endif %}
             </div>
             <div class="header-actions">
-                <button class="btn btn-primary" data-action="toggleCreateSection">{{ t('admin.new_matchday') }}</button>
-                {% if is_superadmin %}
+                {% if create_page %}
+                <a href="/admin" class="btn btn-secondary">&larr; {{ t('admin.back_dashboard') }}</a>
+                {% else %}
+                <a href="/admin/new" class="btn btn-primary">{{ t('admin.new_matchday') }}</a>
                 <button class="btn btn-secondary" data-action="toggleImportSection">{{ t('admin.import_fixtures') }}</button>
-                {% endif %}
                 <a href="/archive" class="btn btn-secondary">{{ t('nav.archive') }}</a>
                 <form action="/admin/logout" method="POST" style="margin: 0;">
                     <button type="submit" class="btn btn-outline-danger">{{ t('nav.logout') }}</button>
                 </form>
+                {% endif %}
             </div>
         </header>
 
-        {% if stats %}
+        {% if stats and not create_page %}
         <section class="usage-stats-section">
             <h2>{{ t('admin.platform_stats') }}</h2>
             <div class="stats-grid">
@@ -50,7 +52,7 @@
         </section>
         {% endif %}
 
-        {% if is_superadmin %}
+        {% if is_superadmin and not create_page %}
         <!-- User Management Section -->
         <section class="users-section">
             <h2>{{ t('admin.users_title') }}</h2>
@@ -99,8 +101,8 @@
 
         {% endif %}
 
-        {% if is_superadmin %}
-        <!-- Import WTB Fixtures Section -->
+        {% if not create_page %}
+        <!-- Import WTB Fixtures Section (available to all logged-in users) -->
         <section class="create-section" id="import-section">
             <h2>{{ t('admin.import_title') }}</h2>
 
@@ -138,8 +140,9 @@
 
         {% endif %}
 
-        <!-- Create Match Day Section -->
-        <section class="create-section" id="create-section">
+        {% if create_page %}
+        <!-- Create Match Day Section (own page: /admin/new) -->
+        <section class="create-section active" id="create-section">
             <h2>{{ t('admin.create_title') }}</h2>
 
             <div class="form-group">
@@ -207,10 +210,12 @@
 
             <div class="header-actions">
                 <button class="btn btn-primary" data-action="createMatchDay">{{ t('admin.create_btn') }}</button>
-                <button class="btn btn-secondary" data-action="toggleCreateSection">{{ t('matchday.cancel') }}</button>
+                <a href="/admin" class="btn btn-secondary">{{ t('matchday.cancel') }}</a>
             </div>
         </section>
+        {% endif %}
 
+        {% if not create_page %}
         <!-- Match Days List -->
         <section class="match-days-section">
             <h2>{{ t('admin.your_matchdays') }}</h2>
@@ -263,10 +268,11 @@
             {% else %}
             <div class="empty-state">
                 <p>{{ t('admin.no_matchdays') }}</p>
-                <button class="btn btn-primary" data-action="toggleCreateSection">{{ t('admin.create_first') }}</button>
+                <a href="/admin/new" class="btn btn-primary">{{ t('admin.create_first') }}</a>
             </div>
             {% endif %}
         </section>
+        {% endif %}
     </div>
 
     <script nonce="{{ csp_nonce }}">
@@ -864,6 +870,7 @@
         let importClubWtbId = null;
         let importTeamId = null;
         let importTeamName = null;
+        let importTeamFormat = '6_person';
 
         function toggleImportSection() {
             const section = document.getElementById('import-section');
@@ -917,7 +924,7 @@
                         <div class="import-level-label">${escHtml(level)}</div>
                         <div class="import-level-teams">
                         ${teams.map(team => `
-                            <div class="import-team-card" data-action="loadFixtures" data-team-id="${escHtml(team.team_id)}" data-team-name="${escHtml(team.team_name)}">
+                            <div class="import-team-card" data-action="loadFixtures" data-team-id="${escHtml(team.team_id)}" data-team-name="${escHtml(team.team_name)}" data-team-format="${escHtml(team.format)}">
                                 <span class="import-team-name">${escHtml(team.team_name)}</span>
                                 <span class="import-team-league">${escHtml(team.league)}</span>
                                 <span class="import-team-format badge-${team.format}">${team.format === '4_person' ? '4er' : '6er'}</span>
@@ -935,9 +942,10 @@
             return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
         }
 
-        async function loadFixtures(teamId, teamName) {
+        async function loadFixtures(teamId, teamName, teamFormat) {
             importTeamId = teamId;
             importTeamName = teamName;
+            importTeamFormat = (teamFormat === '4_person' || teamFormat === '6_person') ? teamFormat : '6_person';
             const container = document.getElementById('import-fixtures-container');
             const list = document.getElementById('import-fixtures-list');
             const header = document.getElementById('import-team-name');
@@ -963,12 +971,21 @@
                     syncBtn.style.display = 'inline-block';
                 }
 
+                // Emphasize upcoming matches: not-yet-played fixtures first
+                // (soonest date first), then played ones (most recent first).
+                const fixtures = data.fixtures.slice().sort((a, b) => {
+                    if (a.is_played !== b.is_played) return a.is_played ? 1 : -1;
+                    const da = a.scheduled_date ? new Date(a.scheduled_date) : 0;
+                    const db = b.scheduled_date ? new Date(b.scheduled_date) : 0;
+                    return a.is_played ? (db - da) : (da - db);
+                });
+
                 list.innerHTML = `<table class="import-fixtures-table">
                     <thead><tr>
                         <th>Date</th><th>Home</th><th>Away</th><th>Venue</th><th>Result</th><th></th>
                     </tr></thead>
                     <tbody>
-                    ${data.fixtures.map(f => `
+                    ${fixtures.map(f => `
                         <tr class="${f.imported ? 'fixture-imported' : ''}">
                             <td>${f.scheduled_date ? new Date(f.scheduled_date).toLocaleDateString('de-DE', {day:'2-digit',month:'2-digit',year:'numeric'}) : '—'}</td>
                             <td>${escHtml(f.home_team)}</td>
@@ -1004,7 +1021,7 @@
                         home_team: homeTeam,
                         away_team: awayTeam,
                         venue: venue || null,
-                        format: '6_person',
+                        format: importTeamFormat,
                         wtb_team_id: importTeamId,
                         wtb_club_id: importClubWtbId,
                         is_played: isPlayed,
@@ -1641,7 +1658,7 @@
             deselectPlayer: (el) => deselectPlayer(el.dataset.team, el.dataset.playerId),
             submitDoubles: (el) => submitDoubles(el.dataset.mdId, +el.dataset.count),
             hidePanel: (el) => { const p = document.getElementById(el.dataset.panelId); if (p) p.style.display = 'none'; },
-            loadFixtures: (el) => loadFixtures(el.dataset.teamId, el.dataset.teamName),
+            loadFixtures: (el) => loadFixtures(el.dataset.teamId, el.dataset.teamName, el.dataset.teamFormat),
             importFixture: (el) => importFixture(el, el.dataset.meetingId, el.dataset.scheduled, el.dataset.home, el.dataset.away, el.dataset.venue, el.dataset.isPlayed === 'true', el.dataset.reportUrl),
             setSetupFormat: (el) => setSetupFormat(el.dataset.mdId, el.dataset.format, el),
             submitPlayerSetup: (el) => submitPlayerSetup(el.dataset.mdId),
@@ -1650,6 +1667,11 @@
         });
 
         loadUsers();
+
+        {% if create_page %}
+        // Dedicated create page (/admin/new): initialize the form immediately.
+        initMatchDay();
+        {% endif %}
     </script>
     <script nonce="{{ csp_nonce }}">
         // Format ISO timestamp to locale string on page load

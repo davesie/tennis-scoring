@@ -423,6 +423,10 @@
     "en": "+ New Match Day",
     "de": "+ Neuer Spieltag"
   },
+  "admin.back_dashboard": {
+    "en": "Dashboard",
+    "de": "Übersicht"
+  },
   "admin.import_fixtures": {
     "en": "Import Fixtures",
     "de": "Begegnungen importieren"

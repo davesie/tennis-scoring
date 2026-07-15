@@ -551,6 +551,25 @@ async def admin_dashboard(request: Request, db: AsyncSession = Depends(get_db)):
         "user": user.to_dict(),
         "is_superadmin": user.is_superadmin,
         "stats": stats,
+        "create_page": False,
+    })
+
+
+@app.get("/admin/new", response_class=HTMLResponse)
+async def admin_new_match_day(request: Request, db: AsyncSession = Depends(get_db)):
+    """Dedicated full-page match-day creation form (reuses admin.html)."""
+    user = await get_current_user(request, db)
+    if not user:
+        return RedirectResponse(url="/admin/login", status_code=302)
+
+    return templates.TemplateResponse("admin.html", {
+        "request": request,
+        "match_days": [],
+        "last_club_sync": None,
+        "user": user.to_dict(),
+        "is_superadmin": user.is_superadmin,
+        "stats": None,
+        "create_page": True,
     })
 
 
