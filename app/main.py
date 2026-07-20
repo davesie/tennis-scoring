@@ -358,11 +358,72 @@ class ConnectionManager:
 manager = ConnectionManager()
 
 
+async def _visible_matchdays_with_stats(user, db) -> list:
+    """All match days the requester may see, each with stats + liveness.
+
+    Visibility: superadmin sees everything, logged-in users see public + own,
+    anonymous sees public. Each dict additionally carries `is_live`,
+    `is_finished` and `ref_date` (YYYY-MM-DD of scheduled or created date)
+    for the home/archive split.
+    """
+    from sqlalchemy import or_
+    query = select(MatchDay)
+    if user and user.is_superadmin:
+        pass
+    elif user:
+        query = query.where(or_(MatchDay.is_public == True, MatchDay.owner_id == user.id))
+    else:
+        query = query.where(MatchDay.is_public == True)
+
+    result = await db.execute(query)
+    match_days = result.scalars().all()
+
+    out = []
+    for md in match_days:
+        matches_result = await db.execute(
+            select(Match).where(Match.match_day_id == md.id)
+        )
+        matches = matches_result.scalars().all()
+        stats = compute_matchday_stats(matches)
+        is_live = any(
+            m.started_at is not None and m.score_state.get("winner") is None
+            for m in matches
+        )
+        ref = md.scheduled_date or md.created_at
+        out.append({
+            **md.to_dict(),
+            **stats,
+            "is_live": is_live,
+            "is_finished": stats["total_matches"] > 0 and stats["completed_matches"] == stats["total_matches"],
+            "ref_date": ref.date().isoformat() if ref else None,
+        })
+    return out
+
+
 # Page routes
 @app.get("/", response_class=HTMLResponse)
-async def home(request: Request):
-    """Home page - shows the public archive."""
-    return RedirectResponse(url="/archive", status_code=302)
+async def home(request: Request, db: AsyncSession = Depends(get_db)):
+    """Public landing page: live, today's and upcoming match days."""
+    user = await get_current_user(request, db)
+    all_days = await _visible_matchdays_with_stats(user, db)
+
+    today = datetime.now().date().isoformat()
+    live = [md for md in all_days if md["is_live"]]
+    today_days = [md for md in all_days
+                  if not md["is_live"] and md["ref_date"] == today]
+    upcoming = [md for md in all_days
+                if not md["is_live"] and md["ref_date"] and md["ref_date"] > today]
+
+    today_days.sort(key=lambda m: m["ref_date"] or "")
+    upcoming.sort(key=lambda m: m["ref_date"] or "")
+
+    return templates.TemplateResponse("home.html", {
+        "request": request,
+        "live_days": live,
+        "today_days": today_days,
+        "upcoming_days": upcoming,
+        "user": user.to_dict() if user else None,
+    })
 
 
 # Admin routes
@@ -690,7 +751,7 @@ async def match_page(request: Request, match_id: str, db: AsyncSession = Depends
         else:
             back_url = f"/watchday/{match_day_share_code}"
     else:
-        back_url = "/archive"
+        back_url = "/"
 
     return templates.TemplateResponse("match.html", {
         "request": request,
@@ -1045,27 +1106,19 @@ async def i18n_js(request: Request):
 # Match Day routes
 @app.get("/archive", response_class=HTMLResponse)
 async def archive_page(request: Request, db: AsyncSession = Depends(get_db)):
+    """Past match days only — anything live, today or upcoming lives on `/`.
+
+    A match day finished *today* stays on the home page ("Today", FT badge)
+    and moves here from the next day on. Old never-completed match days land
+    here too, showing their partial n/m state.
+    """
     user = await get_current_user(request, db)
+    all_days = await _visible_matchdays_with_stats(user, db)
 
-    from sqlalchemy import or_
-    query = select(MatchDay).order_by(MatchDay.created_at.desc())
-    if user and user.is_superadmin:
-        pass  # superadmin sees all
-    elif user:
-        query = query.where(or_(MatchDay.is_public == True, MatchDay.owner_id == user.id))
-    else:
-        query = query.where(MatchDay.is_public == True)
-
-    result = await db.execute(query)
-    match_days = result.scalars().all()
-
-    archive = []
-    for md in match_days:
-        matches_result = await db.execute(
-            select(Match).where(Match.match_day_id == md.id)
-        )
-        matches = matches_result.scalars().all()
-        archive.append({**md.to_dict(), **compute_matchday_stats(matches)})
+    today = datetime.now().date().isoformat()
+    archive = [md for md in all_days
+               if not md["is_live"] and md["ref_date"] and md["ref_date"] < today]
+    archive.sort(key=lambda m: m["ref_date"] or "", reverse=True)
 
     return templates.TemplateResponse("archive.html", {
         "request": request,

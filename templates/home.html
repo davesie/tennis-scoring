@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Match Day Archive - Tennis Scoring</title>
+    <title>{{ t('home.title') }} - Tennis Scoring</title>
     <link rel="stylesheet" href="/static/css/style.css?v={{ app_version }}">
     <link rel="icon" type="image/svg+xml" href="/static/favicon.svg">
     <script src="/i18n.js"></script>
@@ -12,33 +12,15 @@
 <body class="matchday-page">
     <button class="lang-toggle" id="lang-toggle" aria-label="Switch language"></button>
     <button class="theme-toggle" id="theme-toggle" aria-label="Toggle theme"></button>
-    <div class="matchday-container">
-        <header class="matchday-header archive-page-header">
-            <div class="archive-header-top">
-                <h1><img src="/static/logo.svg" alt="Tennis Scoring" class="header-logo">{{ t('archive.title') }}</h1>
-                <div class="archive-header-actions">
-                    {% if user %}
-                    <a href="/admin" class="archive-admin-link">{{ t('nav.dashboard') }}</a>
-                    <form action="/admin/logout" method="POST" style="display:inline;margin:0;">
-                        <button type="submit" class="archive-admin-link archive-logout-btn">{{ t('nav.logout') }}</button>
-                    </form>
-                    {% else %}
-                    <a href="/admin/login" class="archive-admin-link">{{ t('login.submit') }}</a>
-                    <a href="/register" class="archive-admin-link">{{ t('nav.register') }}</a>
-                    {% endif %}
-                </div>
-            </div>
-            <p class="archive-subtitle">{{ t('archive.subtitle2') }}</p>
-            <p class="home-archive-link archive-home-link"><a href="/">&larr; {{ t('nav.home') }}</a></p>
-        </header>
-
-        {% if match_days %}
-        <section class="archive-list">
-            {% for md in match_days %}
+{% macro fixture_row(md, live=False) %}
             <div class="archive-row">
                 <a href="/watchday/{{ md.share_code }}" class="archive-card">
                     <div class="fixture-meta">
-                        <span class="fixture-date">{{ (md.scheduled_date[:10] if md.scheduled_date else md.created_at[:10]) if (md.scheduled_date or md.created_at) else '' }}</span>
+                        {% if live %}
+                        <span class="fixture-live"><span class="live-dot"></span>{{ t('match.live') }}</span>
+                        {% else %}
+                        <span class="fixture-date">{{ md.ref_date or '' }}</span>
+                        {% endif %}
                         <span class="fixture-format">{{ t('archive.format6') if md.format == '6_person' else t('archive.format4') }}</span>
                         {% if md.category %}<span class="fixture-category">{{ md.category }}</span>{% endif %}
                     </div>
@@ -53,27 +35,70 @@
                         <span class="fixture-team fixture-team-b">{{ md.team_b_name }}</span>
                     </div>
                     <div class="fixture-status">
-                        {% if md.completed_matches == md.total_matches %}
+                        {% if md.total_matches > 0 and md.completed_matches == md.total_matches %}
                         <span class="fixture-completed">FT</span>
-                        {% else %}
+                        {% elif md.total_matches > 0 %}
                         <span class="fixture-progress">{{ md.completed_matches }}/{{ md.total_matches }}</span>
                         {% endif %}
                     </div>
                 </a>
                 <button class="fixture-share-btn" data-action="copyArchiveLink" data-url="{{ request.url_for('spectator_match_day_page', share_code=md.share_code) }}" title="{{ t('archive.share_title') }}">{{ t('archive.share') }}</button>
             </div>
-            {% endfor %}
+{% endmacro %}
+    <div class="matchday-container">
+        <header class="matchday-header archive-page-header">
+            <div class="archive-header-top">
+                <h1><img src="/static/logo.svg" alt="Tennis Scoring" class="header-logo">{{ t('home.title') }}</h1>
+                <div class="archive-header-actions">
+                    {% if user %}
+                    <a href="/admin" class="archive-admin-link">{{ t('nav.dashboard') }}</a>
+                    <form action="/admin/logout" method="POST" style="display:inline;margin:0;">
+                        <button type="submit" class="archive-admin-link archive-logout-btn">{{ t('nav.logout') }}</button>
+                    </form>
+                    {% else %}
+                    <a href="/admin/login" class="archive-admin-link">{{ t('login.submit') }}</a>
+                    <a href="/register" class="archive-admin-link">{{ t('nav.register') }}</a>
+                    {% endif %}
+                </div>
+            </div>
+            <p class="archive-subtitle">{{ t('home.subtitle') }}</p>
+        </header>
+
+        {% if live_days %}
+        <section class="archive-list home-group">
+            <h2 class="home-section-title home-section-live"><span class="live-dot"></span>{{ t('home.live_now') }}</h2>
+            {% for md in live_days %}{{ fixture_row(md, live=True) }}{% endfor %}
         </section>
-        {% else %}
+        {% endif %}
+
+        {% if today_days %}
+        <section class="archive-list home-group">
+            <h2 class="home-section-title">{{ t('home.today') }}</h2>
+            {% for md in today_days %}{{ fixture_row(md) }}{% endfor %}
+        </section>
+        {% endif %}
+
+        {% if upcoming_days %}
+        <section class="archive-list home-group">
+            <h2 class="home-section-title">{{ t('home.upcoming') }}</h2>
+            {% for md in upcoming_days %}{{ fixture_row(md) }}{% endfor %}
+        </section>
+        {% endif %}
+
+        {% if not live_days and not today_days and not upcoming_days %}
         <div class="empty-archive">
-            <p>{{ t('archive.empty') }}</p>
+            <p>{{ t('home.empty') }}</p>
             {% if user %}
-            <a href="/admin" class="btn btn-primary">{{ t('archive.create_first') }}</a>
+            <a href="/admin/new" class="btn btn-primary">{{ t('archive.create_first') }}</a>
             {% else %}
             <a href="/register" class="btn btn-primary">{{ t('archive.signup_cta') }}</a>
             {% endif %}
         </div>
         {% endif %}
+
+        <div class="home-archive-link">
+            <a href="/archive">{{ t('home.archive_link') }} &rarr;</a>
+        </div>
     </div>
     <script nonce="{{ csp_nonce }}">
         async function copyArchiveLink(btn) {

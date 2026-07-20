@@ -185,11 +185,16 @@ Three roles exist, all fully implemented:
 
 ## Navigation Flow
 
-- `GET /` → redirects to `/archive` (public landing page, no login required)
-- `GET /archive` → public archive of all match days; shows "Admin Login" or "Admin Dashboard" link
-- `GET /admin/login` → login form
-- `GET /admin` → admin dashboard (requires auth)
-- Post-logout → redirects to `/` (archive)
+- `GET /` → public home page (`home.html`): live, today's and upcoming match
+  days in three groups (`_visible_matchdays_with_stats()` classifies via
+  `is_live` / `ref_date`); links to the archive
+- `GET /archive` → past match days only (finished, or date before today and not
+  live; stale unfinished ones show their partial n/m state)
+- A match day finished *today* stays on `/` under "Today" (FT badge) and moves
+  to the archive the next day
+- `GET /admin/login` → login form; `GET /admin` → dashboard (requires auth);
+  `GET /admin/new` → dedicated create-match-day page
+- Post-logout → redirects to `/` (home)
 
 ## Git / Branch State
 

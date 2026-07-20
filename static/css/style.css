@@ -2118,6 +2118,16 @@ a:focus {
 .empty-archive { text-align: center; padding: 64px 24px; color: var(--bc-muted); border-top: 2px solid var(--bc-text); }
 .empty-archive p { font-family: var(--font-display); font-size: 1.1rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 20px; }
 
+/* Home page groups (live / today / upcoming) */
+.home-group { margin-bottom: 8px; }
+.home-section-title { display: flex; align-items: center; gap: 8px; font-family: var(--font-display); font-size: 1rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: var(--bc-muted); padding: 14px 0 8px; }
+.home-section-live { color: var(--bc-team-b); }
+.fixture-live { display: inline-flex; align-items: center; gap: 5px; font-family: var(--font-score); font-size: 0.7rem; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; color: var(--bc-team-b); }
+.home-archive-link { text-align: center; padding: 20px 0 8px; }
+.home-archive-link a { font-family: var(--font-body); font-size: 0.9rem; font-weight: 600; color: var(--bc-muted); text-decoration: none; }
+.home-archive-link a:hover { color: var(--bc-accent); }
+.archive-home-link { text-align: left; padding: 4px 0 0; }
+
 @media (max-width: 600px) {
     .archive-card { grid-template-columns: 1fr auto; grid-template-rows: auto auto; row-gap: 6px; padding: 12px 0; }
     .fixture-meta { grid-column: 1; grid-row: 1; flex-direction: row; gap: 8px; }

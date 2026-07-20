@@ -11,6 +11,42 @@
     "en": "← View Archive",
     "de": "← Zum Archiv"
   },
+  "nav.home": {
+    "en": "Home",
+    "de": "Startseite"
+  },
+  "nav.back_home": {
+    "en": "← Home",
+    "de": "← Zur Startseite"
+  },
+  "home.title": {
+    "en": "Match Days",
+    "de": "Spieltage"
+  },
+  "home.subtitle": {
+    "en": "Live, today's and upcoming match days",
+    "de": "Laufende, heutige und kommende Spieltage"
+  },
+  "home.live_now": {
+    "en": "Live now",
+    "de": "Jetzt live"
+  },
+  "home.today": {
+    "en": "Today",
+    "de": "Heute"
+  },
+  "home.upcoming": {
+    "en": "Upcoming",
+    "de": "Kommende Spieltage"
+  },
+  "home.archive_link": {
+    "en": "Past match days in the archive",
+    "de": "Vergangene Spieltage im Archiv"
+  },
+  "home.empty": {
+    "en": "No match days right now — browse past ones in the archive.",
+    "de": "Gerade keine Spieltage — vergangene findest du im Archiv."
+  },
   "nav.admin_login": {
     "en": "Admin Login",
     "de": "Anmelden"
