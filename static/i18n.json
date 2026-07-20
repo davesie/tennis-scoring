@@ -47,6 +47,26 @@
     "en": "No match days right now — browse past ones in the archive.",
     "de": "Gerade keine Spieltage — vergangene findest du im Archiv."
   },
+  "nav.about": {
+    "en": "What is this?",
+    "de": "Was ist das?"
+  },
+  "about.title": {
+    "en": "What is this?",
+    "de": "Was ist das?"
+  },
+  "home.intro_text": {
+    "en": "Follow club tennis match days live, point by point: one person scores at the court, everyone else watches in real time via a shared link — no account needed. Clubs can import their league ties (WTB) directly, with players, dates and results.",
+    "de": "Verfolge Vereins-Spieltage live, Punkt für Punkt: Eine Person zählt am Platz, alle anderen schauen über einen geteilten Link in Echtzeit zu — ganz ohne Konto. Vereine importieren ihre Verbandsspiele (WTB) direkt, samt Aufstellungen, Terminen und Ergebnissen."
+  },
+  "home.intro_more": {
+    "en": "Learn more",
+    "de": "Mehr erfahren"
+  },
+  "home.intro_dismiss": {
+    "en": "Dismiss",
+    "de": "Ausblenden"
+  },
   "nav.admin_login": {
     "en": "Admin Login",
     "de": "Anmelden"

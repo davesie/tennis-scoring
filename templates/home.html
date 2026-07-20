@@ -61,8 +61,21 @@
                     {% endif %}
                 </div>
             </div>
-            <p class="archive-subtitle">{{ t('home.subtitle') }}</p>
+            <p class="archive-subtitle">{{ t('home.subtitle') }} &middot; <a class="subtitle-about-link" href="/about">{{ t('nav.about') }}</a></p>
         </header>
+
+        <!-- One-time intro: dismissable, remembered in localStorage -->
+        <div class="intro-card" id="intro-card">
+            <button class="intro-dismiss" data-action="dismissIntro" aria-label="{{ t('home.intro_dismiss') }}" title="{{ t('home.intro_dismiss') }}">&times;</button>
+            <p class="intro-text">{{ t('home.intro_text') }}</p>
+            <a class="intro-more" href="/about">{{ t('home.intro_more') }} &rarr;</a>
+        </div>
+        <script nonce="{{ csp_nonce }}">
+            // Hide immediately (before first paint) if previously dismissed
+            if (localStorage.getItem('introDismissed')) {
+                document.getElementById('intro-card').style.display = 'none';
+            }
+        </script>
 
         {% if live_days %}
         <section class="archive-list home-group">
@@ -109,7 +122,14 @@
             btn.classList.add('copied');
             setTimeout(() => { btn.textContent = orig; btn.classList.remove('copied'); }, 2000);
         }
-        registerActions({ copyArchiveLink });
+
+        function dismissIntro() {
+            localStorage.setItem('introDismissed', '1');
+            const card = document.getElementById('intro-card');
+            if (card) card.style.display = 'none';
+        }
+
+        registerActions({ copyArchiveLink, dismissIntro });
     </script>
 <a href="/faq" class="faq-link">FAQ</a>
 <div class="version-label">v{{ app_version }}</div>

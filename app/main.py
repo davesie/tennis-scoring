@@ -1086,6 +1086,12 @@ async def faq_page(request: Request):
     return templates.TemplateResponse("faq.html", {"request": request})
 
 
+@app.get("/about", response_class=HTMLResponse)
+async def about_page(request: Request):
+    """'Was ist das?' — what this site does, in plain words (de/en)."""
+    return templates.TemplateResponse("about.html", {"request": request})
+
+
 @app.get("/i18n.js")
 async def i18n_js(request: Request):
     """Current-language strings for the browser (window.T / window.LANG).

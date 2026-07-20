@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="{{ lang }}" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ t('about.title') }} - Tennis Scoring</title>
+    <link rel="stylesheet" href="/static/css/style.css?v={{ app_version }}">
+    <link rel="icon" type="image/svg+xml" href="/static/favicon.svg">
+    <script src="/i18n.js"></script>
+    <script src="/static/js/common.js?v={{ app_version }}"></script>
+</head>
+<body class="matchday-page">
+    <button class="lang-toggle" id="lang-toggle" aria-label="Switch language"></button>
+    <button class="theme-toggle" id="theme-toggle" aria-label="Toggle theme"></button>
+    <div class="faq-container">
+        {% if lang == 'de' %}
+        <header class="faq-header">
+            <h1>Was ist das?</h1>
+            <p>Live-Ticker für Tennis-Spieltage — vom Platz direkt aufs Handy.</p>
+        </header>
+
+        <div class="about-section">
+            <h2>Worum geht es?</h2>
+            <p>Diese Seite überträgt <strong>Vereins-Spieltage live</strong> — Punkt für Punkt,
+            wie bei den Profis. Eine Person zählt am Platz auf dem Handy mit; alle anderen
+            (Mannschaft, Familie, Vereinskollegen) verfolgen den Spielstand in Echtzeit,
+            egal wo sie gerade sind.</p>
+        </div>
+
+        <div class="about-section">
+            <h2>Wie funktioniert das?</h2>
+            <p>Ein Spieltag besteht aus Einzeln und Doppeln (4er- oder 6er-Mannschaft).
+            Für jeden Spieltag gibt es zwei Links:</p>
+            <ul>
+                <li><strong>Scorer-Link</strong> — für die Person am Platz. Ein Tipp pro
+                Ballwechsel, den Rest (Spiele, Sätze, Tiebreaks, Einstand) rechnet die
+                Seite automatisch.</li>
+                <li><strong>Zuschauer-Link</strong> — zum Teilen mit allen. Nur ansehen,
+                kein Konto nötig, aktualisiert sich von selbst.</li>
+            </ul>
+            <p>Zusätzlich gibt es zu jedem Match einen <strong>Punkt-für-Punkt-Verlauf</strong>
+            wie im Fernsehen und nach Spielende eine <strong>Statistik</strong>
+            (Asse, Doppelfehler, Winner …).</p>
+        </div>
+
+        <div class="about-section">
+            <h2>Für wen ist das?</h2>
+            <p>Für Tennisvereine und Mannschaftsführer, die ihre Verbandsspiele
+            (z.&nbsp;B. WTB) begleiten wollen. Spieltage lassen sich direkt aus dem
+            WTB-Spielplan importieren — inklusive Mannschaften, Terminen und (bei
+            gespielten Begegnungen) aller Ergebnisse. Vereins- und Spielerdaten samt
+            LK kommen automatisch von der WTB-Website.</p>
+        </div>
+
+        <div class="about-section">
+            <h2>Was kostet das? Brauche ich ein Konto?</h2>
+            <p>Zuschauen und Zählen funktionieren komplett ohne Konto — nur über die
+            geteilten Links. Ein (kostenloses) Konto braucht nur, wer Spieltage
+            <strong>anlegen</strong> möchte: <a href="/register">Registrieren</a>,
+            Spieltag erstellen oder importieren, Links teilen — fertig.</p>
+        </div>
+
+        <div class="about-section">
+            <h2>Noch Fragen?</h2>
+            <p>Praktische Anleitungen (Doppel aufstellen, Punkte korrigieren,
+            Ergebnisse nachtragen …) stehen im <a href="/faq">FAQ</a>.</p>
+        </div>
+
+        <div class="faq-footer">
+            <a href="/">&larr; Zur Startseite</a>
+        </div>
+        {% else %}
+        <header class="faq-header">
+            <h1>What is this?</h1>
+            <p>A live ticker for club tennis match days — from the court straight to your phone.</p>
+        </header>
+
+        <div class="about-section">
+            <h2>What is it about?</h2>
+            <p>This site broadcasts <strong>club match days live</strong> — point by point,
+            just like the pros. One person keeps score courtside on their phone; everyone
+            else (team mates, family, club members) follows the score in real time,
+            wherever they are.</p>
+        </div>
+
+        <div class="about-section">
+            <h2>How does it work?</h2>
+            <p>A match day consists of singles and doubles (4- or 6-player teams).
+            Every match day has two links:</p>
+            <ul>
+                <li><strong>Scorer link</strong> — for the person at the court. One tap
+                per rally; games, sets, tiebreaks and deuce are handled automatically.</li>
+                <li><strong>Spectator link</strong> — to share with everyone. View-only,
+                no account needed, updates by itself.</li>
+            </ul>
+            <p>Each match also gets a TV-style <strong>point-by-point timeline</strong>
+            and, once finished, a <strong>statistics panel</strong> (aces, double
+            faults, winners …).</p>
+        </div>
+
+        <div class="about-section">
+            <h2>Who is it for?</h2>
+            <p>Tennis clubs and team captains who want to cover their league ties
+            (e.g. WTB). Match days can be imported straight from the WTB schedule —
+            including teams, dates and (for played ties) full results. Club and player
+            data including LK ratings load automatically from the WTB website.</p>
+        </div>
+
+        <div class="about-section">
+            <h2>Does it cost anything? Do I need an account?</h2>
+            <p>Watching and scoring work entirely without an account — just via the
+            shared links. You only need a (free) account to <strong>create</strong>
+            match days: <a href="/register">register</a>, create or import a match day,
+            share the links — done.</p>
+        </div>
+
+        <div class="about-section">
+            <h2>More questions?</h2>
+            <p>Practical how-tos (setting up doubles, fixing scores, entering results
+            afterwards …) live in the <a href="/faq">FAQ</a>.</p>
+        </div>
+
+        <div class="faq-footer">
+            <a href="/">&larr; Back to the home page</a>
+        </div>
+        {% endif %}
+    </div>
+<a href="/faq" class="faq-link">FAQ</a>
+<div class="version-label">v{{ app_version }}</div>
+</body>
+</html>
