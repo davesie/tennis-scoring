@@ -251,6 +251,10 @@
                         <button class="link-btn" data-action="copyToClipboard" data-url="{{ request.url_for('scorer_match_day_page', scorer_token=md.scorer_token) }}">{{ t('admin.copy_scorer') }}</button>
                         <button class="link-btn" data-action="copyToClipboard" data-url="{{ request.url_for('spectator_match_day_page', share_code=md.share_code) }}">{{ t('admin.copy_spectator') }}</button>
 
+                        {% if md.wtb_meeting_id and (md.total_matches == 0 or md.completed_matches < md.total_matches) %}
+                        <button class="link-btn btn-import-results" data-action="importResults" data-md-id="{{ md.id }}" data-md-name="{{ md.name }}">{{ t('admin.import_results') }}</button>
+                        {% endif %}
+
                         {% if not md.has_doubles %}
                         {% if md.singles_completed == md.singles_total and md.singles_total > 0 %}
                         <button class="link-btn btn-setup-doubles" data-action="openDoublesSetup" data-md-id="{{ md.id }}" data-format="{{ md.format }}" data-team-a-players='{{ md.team_a_players | tojson }}' data-team-b-players='{{ md.team_b_players | tojson }}' data-team-a="{{ md.team_a_name }}" data-team-b="{{ md.team_b_name }}">{{ t('admin.setup_doubles') }}</button>
@@ -861,6 +865,35 @@
                 showToast(t('admin.delete_failed'), 'error');
                 btn.disabled = false;
                 btn.textContent = t('admin.delete');
+            }
+        }
+
+        async function importResults(matchDayId, matchDayName, btn) {
+            if (!confirm(t('admin.import_results_confirm', {name: matchDayName}))) return;
+            btn.disabled = true;
+            btn.textContent = t('admin.importing');
+            try {
+                const res = await fetch(`/api/admin/matchdays/${matchDayId}/import-results`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' }
+                });
+                const data = await res.json();
+                if (res.ok && data.success) {
+                    showToast(t('admin.import_results_done', {n: data.matches_imported}), 'success');
+                    setTimeout(() => window.location.reload(), 900);
+                } else if (res.ok && data.reason === 'no_results_yet') {
+                    showToast(t('admin.import_results_none'), 'info');
+                    btn.disabled = false;
+                    btn.textContent = t('admin.import_results');
+                } else {
+                    showToast(data.detail || t('admin.import_failed'), 'error');
+                    btn.disabled = false;
+                    btn.textContent = t('admin.import_results');
+                }
+            } catch (error) {
+                showToast(t('matchday.error', {msg: error.message}), 'error');
+                btn.disabled = false;
+                btn.textContent = t('admin.import_results');
             }
         }
 
@@ -1656,6 +1689,7 @@
             copyToClipboard: (el) => copyToClipboard(el.dataset.url),
             openDoublesSetup: (el) => openDoublesSetup(el.dataset.mdId, el.dataset.format, JSON.parse(el.dataset.teamAPlayers), JSON.parse(el.dataset.teamBPlayers), el.dataset.teamA, el.dataset.teamB),
             deleteMatchDay: (el) => deleteMatchDay(el.dataset.mdId, el.dataset.mdName, el),
+            importResults: (el) => importResults(el.dataset.mdId, el.dataset.mdName, el),
             deselectPlayer: (el) => deselectPlayer(el.dataset.team, el.dataset.playerId),
             submitDoubles: (el) => submitDoubles(el.dataset.mdId, +el.dataset.count),
             hidePanel: (el) => { const p = document.getElementById(el.dataset.panelId); if (p) p.style.display = 'none'; },

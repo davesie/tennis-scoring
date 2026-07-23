@@ -1858,91 +1858,7 @@ async def import_fixture(
     if data.is_played and data.spielbericht_url:
         report = await scrape_spielbericht(data.spielbericht_url)
         if report:
-            match_number = 1
-
-            def player_display(p):
-                return f"{p['name']} (LK {p['lk']})" if p.get("lk") else p["name"]
-
-            # Create singles matches with scores
-            for sm in report["singles"]:
-                home_p = sm["home_players"]
-                away_p = sm["away_players"]
-
-                # Build score state from set scores
-                state = create_initial_state()
-                games = [[0, 0], [0, 0], [0, 0]]
-                for i, s in enumerate(sm["sets"][:3]):
-                    games[i] = s
-                sets_a = sum(1 for s in sm["sets"] if s[0] > s[1])
-                sets_b = sum(1 for s in sm["sets"] if s[1] > s[0])
-                state["games"] = games
-                state["sets"] = [sets_a, sets_b]
-                state["current_set"] = len(sm["sets"]) - 1
-                state["winner"] = sm["winner"]
-                state["points"] = [0, 0]
-
-                match = Match(
-                    match_day_id=match_day.id,
-                    match_number=match_number,
-                    match_type="singles",
-                    team_a_name=data.home_team,
-                    team_b_name=data.away_team,
-                    player_a1=player_display(home_p[0]) if home_p else None,
-                    player_b1=player_display(away_p[0]) if away_p else None,
-                    score_state=state,
-                    history=[],
-                    finished_at=datetime.utcnow() if sm["winner"] is not None else None,
-                )
-                db.add(match)
-                matches_created.append(match)
-                match_number += 1
-
-            # Create doubles matches with scores
-            for dm in report["doubles"]:
-                home_p = dm["home_players"]
-                away_p = dm["away_players"]
-
-                state = create_initial_state()
-                games = [[0, 0], [0, 0], [0, 0]]
-                for i, s in enumerate(dm["sets"][:3]):
-                    games[i] = s
-                sets_a = sum(1 for s in dm["sets"] if s[0] > s[1])
-                sets_b = sum(1 for s in dm["sets"] if s[1] > s[0])
-                state["games"] = games
-                state["sets"] = [sets_a, sets_b]
-                state["current_set"] = len(dm["sets"]) - 1
-                state["winner"] = dm["winner"]
-                state["points"] = [0, 0]
-
-                match = Match(
-                    match_day_id=match_day.id,
-                    match_number=match_number,
-                    match_type="doubles",
-                    team_a_name=data.home_team,
-                    team_b_name=data.away_team,
-                    player_a1=player_display(home_p[0]) if len(home_p) > 0 else None,
-                    player_a2=player_display(home_p[1]) if len(home_p) > 1 else None,
-                    player_b1=player_display(away_p[0]) if len(away_p) > 0 else None,
-                    player_b2=player_display(away_p[1]) if len(away_p) > 1 else None,
-                    score_state=state,
-                    history=[],
-                    finished_at=datetime.utcnow() if dm["winner"] is not None else None,
-                )
-                db.add(match)
-                matches_created.append(match)
-                match_number += 1
-
-            # Store player lists on the match day
-            all_home = []
-            all_away = []
-            for sm in report["singles"]:
-                for p in sm["home_players"]:
-                    all_home.append(player_display(p))
-                for p in sm["away_players"]:
-                    all_away.append(player_display(p))
-            match_day.team_a_players = all_home
-            match_day.team_b_players = all_away
-            match_day.players = all_home + all_away
+            matches_created = await _rebuild_matchday_from_report(match_day, report, db)
 
     await db.commit()
     await db.refresh(match_day)
@@ -1952,6 +1868,125 @@ async def import_fixture(
         "match_day": match_day.to_dict(),
         "matches_imported": len(matches_created),
     }
+
+
+def _report_player_display(p) -> str:
+    return f"{p['name']} (LK {p['lk']})" if p.get("lk") else p["name"]
+
+
+def _match_from_report_entry(match_day, entry, match_number, match_type):
+    """Build one Match (singles/doubles) from a Spielbericht match entry."""
+    home_p = entry["home_players"]
+    away_p = entry["away_players"]
+
+    state = create_initial_state()
+    games = [[0, 0], [0, 0], [0, 0]]
+    for i, s in enumerate(entry["sets"][:3]):
+        games[i] = s
+    sets_a = sum(1 for s in entry["sets"] if s[0] > s[1])
+    sets_b = sum(1 for s in entry["sets"] if s[1] > s[0])
+    state["games"] = games
+    state["sets"] = [sets_a, sets_b]
+    state["current_set"] = max(0, len(entry["sets"]) - 1)
+    state["winner"] = entry["winner"]
+    state["points"] = [0, 0]
+
+    return Match(
+        match_day_id=match_day.id,
+        match_number=match_number,
+        match_type=match_type,
+        team_a_name=match_day.team_a_name,
+        team_b_name=match_day.team_b_name,
+        player_a1=_report_player_display(home_p[0]) if len(home_p) > 0 else None,
+        player_a2=_report_player_display(home_p[1]) if (match_type == "doubles" and len(home_p) > 1) else None,
+        player_b1=_report_player_display(away_p[0]) if len(away_p) > 0 else None,
+        player_b2=_report_player_display(away_p[1]) if (match_type == "doubles" and len(away_p) > 1) else None,
+        score_state=state,
+        history=[],
+        finished_at=datetime.utcnow() if entry["winner"] is not None else None,
+    )
+
+
+async def _rebuild_matchday_from_report(match_day, report, db) -> list:
+    """Replace a match day's matches with singles/doubles built from a WTB
+    Spielbericht report (home -> team A, away -> team B). Existing matches are
+    deleted first — WTB is the source of truth. Returns the created matches.
+    """
+    existing = await db.execute(select(Match).where(Match.match_day_id == match_day.id))
+    for m in existing.scalars().all():
+        await db.delete(m)
+    await db.flush()
+
+    created = []
+    match_number = 1
+    for sm in report.get("singles", []):
+        m = _match_from_report_entry(match_day, sm, match_number, "singles")
+        db.add(m)
+        created.append(m)
+        match_number += 1
+    for dm in report.get("doubles", []):
+        m = _match_from_report_entry(match_day, dm, match_number, "doubles")
+        db.add(m)
+        created.append(m)
+        match_number += 1
+
+    # Store player lists on the match day (from singles home/away players)
+    all_home, all_away = [], []
+    for sm in report.get("singles", []):
+        all_home += [_report_player_display(p) for p in sm["home_players"]]
+        all_away += [_report_player_display(p) for p in sm["away_players"]]
+    match_day.team_a_players = all_home
+    match_day.team_b_players = all_away
+    match_day.players = all_home + all_away
+    return created
+
+
+@app.post("/api/admin/matchdays/{match_day_id}/import-results")
+async def import_matchday_results(match_day_id: str, request: Request, db: AsyncSession = Depends(get_db)):
+    """Pull the official results for a WTB-imported match day and close it.
+
+    For a match day that was imported from WTB (has wtb_meeting_id) but was
+    never finished (scorer forgot), re-scrape the Spielbericht and rebuild all
+    matches with the real final scores. Owner/superadmin only. Overwrites any
+    partially-entered scores (WTB is authoritative).
+    """
+    result = await db.execute(select(MatchDay).where(MatchDay.id == match_day_id))
+    match_day = result.scalar_one_or_none()
+    if not match_day:
+        raise HTTPException(status_code=404, detail="Match day not found")
+
+    user = await get_current_user(request, db)
+    if not user or not await is_owner_or_superadmin(user, match_day):
+        raise HTTPException(status_code=403, detail="Access denied")
+
+    if not (match_day.wtb_meeting_id and match_day.wtb_team_id and match_day.wtb_club_id):
+        raise HTTPException(
+            status_code=400,
+            detail="This match day is not linked to a WTB fixture, so results can't be imported.",
+        )
+
+    # Find the fixture's Spielbericht URL by re-scraping the team's schedule.
+    fixtures = await scrape_team_fixtures(match_day.wtb_club_id, match_day.wtb_team_id)
+    fixture = next((f for f in fixtures if f["meeting_id"] == match_day.wtb_meeting_id), None)
+
+    if not fixture or not fixture.get("is_played") or not fixture.get("spielbericht_url"):
+        return {"success": False, "reason": "no_results_yet"}
+
+    report = await scrape_spielbericht(fixture["spielbericht_url"])
+    if not report or not (report.get("singles") or report.get("doubles")):
+        return {"success": False, "reason": "no_results_yet"}
+
+    created = await _rebuild_matchday_from_report(match_day, report, db)
+    await db.commit()
+
+    # Push the fresh results to any open spectator views of this match day.
+    matches_result = await db.execute(
+        select(Match).where(Match.match_day_id == match_day.id).order_by(Match.match_number)
+    )
+    matches = [m.to_dict() for m in matches_result.scalars().all()]
+    await manager.broadcast_matchday(match_day.id, {"type": "initial", "matches": matches})
+
+    return {"success": True, "matches_imported": len(created)}
 
 
 @app.post("/api/matchdays/{match_day_id}/setup")

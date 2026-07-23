@@ -947,6 +947,22 @@
     "en": "Import failed",
     "de": "Import fehlgeschlagen"
   },
+  "admin.import_results": {
+    "en": "Import results from WTB",
+    "de": "Ergebnisse von WTB holen"
+  },
+  "admin.import_results_confirm": {
+    "en": "Import the official results from WTB for \"{name}\" and close it? This replaces any scores already entered.",
+    "de": "Offizielle Ergebnisse von WTB für „{name}“ importieren und abschließen? Bereits eingetragene Ergebnisse werden dabei ersetzt."
+  },
+  "admin.import_results_done": {
+    "en": "Results imported ({n} matches). Match day closed.",
+    "de": "Ergebnisse importiert ({n} Matches). Spieltag abgeschlossen."
+  },
+  "admin.import_results_none": {
+    "en": "WTB has no results for this fixture yet.",
+    "de": "WTB hat für diese Begegnung noch keine Ergebnisse."
+  },
   "admin.checking": {
     "en": "Checking...",
     "de": "Prüfe..."

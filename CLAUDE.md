@@ -210,6 +210,10 @@ Three roles exist, all fully implemented:
 - **Player sync:** Auto-triggered on first request to `/api/clubs/{club_id}/players` — scrapes the club's player page from WTB. Manual per-club sync also available via `POST /api/admin/sync-club-players/{club_id}`
 - **Concurrent sync prevention:** Module-level `_sync_in_progress` flag prevents parallel syncs (returns 409)
 
+### Fixture Import & Results
+- **Import a fixture:** `POST /api/admin/import-fixture` (any logged-in user) — future fixtures become shell match days; played ones scrape the Spielbericht for full results. Match building is shared via `_rebuild_matchday_from_report()`.
+- **Pull results for an existing match day (v2.17):** `POST /api/admin/matchdays/{id}/import-results` (owner/superadmin) — for a WTB-linked match day (`wtb_meeting_id` set) that was never finished, re-scrapes the team's fixtures to find the Spielbericht URL, rebuilds all matches from it (overwrites — WTB is authoritative) and thereby closes the match day. Returns `{success:false, reason:"no_results_yet"}` when WTB has no report yet; 400 if the match day isn't WTB-linked. Admin card shows an "Import results from WTB" button only for WTB-linked, not-yet-finished match days.
+
 ### Scraper Details (`app/wtb_scraper.py`)
 - Club listing: paginates `wtb-tennis.de/spielbetrieb/vereine.html` using TYPO3 form POST with offset. Bounded by `_get_total_pages()` + deduplication by `wtb_id`
 - Player scraping: finds the target category (e.g. "Herren") by scanning `<a href="#collapseN">` link text — collapse IDs vary per club. Uses the **last** match to prefer the main season over sub-events like "VR-Talentiade"
