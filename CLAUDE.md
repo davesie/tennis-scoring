@@ -21,9 +21,15 @@ docker-compose up -d
 # Podman alternative
 podman build -t tennis-scoring .
 podman run -d -p 8000:8000 -v tennis_data:/app/data tennis-scoring
+
+# Tests (offline unit tests for the WTB scraper / fixture import)
+pytest -q                      # or: .venv/bin/python -m pytest
+pytest tests/test_fixture_import.py -q
 ```
 
-**Note:** No test suite exists yet. No linter or formatter is configured.
+**Tests:** `tests/test_fixture_import.py` holds offline unit tests (16 cases) for the
+WTB schedule/Spielbericht parsing (incl. the 6- vs 7-column layout regression). They use
+fixture HTML and hit no network. No linter or formatter is configured.
 
 ## Architecture
 
@@ -194,13 +200,23 @@ Three roles exist, all fully implemented:
   to the archive the next day
 - `GET /admin/login` → login form; `GET /admin` → dashboard (requires auth);
   `GET /admin/new` → dedicated create-match-day page
+- `GET /about` → "Was ist das?" page (`about.html`, de/en) explaining the app
+- The home page shows a one-time, dismissible intro card; dismissal is remembered
+  in `localStorage` (`introDismissed`) so returning visitors don't see it again
 - Post-logout → redirects to `/` (home)
 
 ## Git / Branch State
 
-- **`main`** — production-ready branch, tracks `origin/main`
-- **`dev`** — active development branch
-- **`feature/initial-server-selection`** — previous feature branch (merged to main)
+- **`main`** — production branch (what a fresh clone/new session checks out by
+  default), tracks `origin/main`. Keep it releasable.
+- **`dev`** — active development branch; newest work lands here first, then merges
+  to `main` once verified.
+- **`mobile/`** — Flutter client (iOS/Android/Web) lives in-tree on `dev`/`main`;
+  it consumes the FastAPI REST + WebSocket API and never scores locally. See
+  `FLUTTER_MIGRATION_PLAN.md` for scope (v1 = scorer + spectator; admin/WTB stay web).
+- **Old `claude/*` snapshot branches** (e.g. `claude/flutter-migration-plan-243voz`)
+  are historical and may be far behind. **Start new sessions from `main` (or `dev`),
+  not from these** — they can check out a stale snapshot (e.g. v2.2.0).
 
 ## WTB Integration
 
@@ -288,8 +304,11 @@ The match scoreboard (`.scoreboard` on `match.html`) is **theme-aware** — ligh
 
 | Template | Purpose |
 |----------|---------|
-| `templates/archive.html` | Public landing page — list of all match days |
+| `templates/home.html` | Public landing page — live / today / upcoming match days (+ one-time intro card) |
+| `templates/archive.html` | Past match days only (finished or before today) |
+| `templates/about.html` | "Was ist das?" — what the app does (de/en) |
+| `templates/faq.html` | FAQ — scoring, share links, doubles pairings |
 | `templates/admin_login.html` | Admin password login |
-| `templates/admin.html` | Admin dashboard — create/manage match days |
+| `templates/admin.html` | Admin dashboard — create/manage match days, WTB import |
 | `templates/matchday.html` | Live match day view (scorer + spectator) |
 | `templates/match.html` | Individual match scoring / spectator view |
