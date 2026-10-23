@@ -1857,6 +1857,40 @@ a:focus {
     gap: 8px;
 }
 
+.pairing-slot {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.pairing-slot .player-select {
+    flex: 1;
+    min-width: 0;
+}
+
+.pairing-clear-btn {
+    flex: 0 0 auto;
+    width: 36px;
+    height: 36px;
+    border: 2px solid var(--border-color);
+    border-radius: 8px;
+    background: var(--input-bg);
+    color: var(--text-muted);
+    font-size: 1.2rem;
+    line-height: 1;
+    cursor: pointer;
+}
+
+.pairing-clear-btn:hover,
+.pairing-clear-btn:focus-visible {
+    border-color: var(--bc-team-b, #D44030);
+    color: var(--bc-team-b, #D44030);
+}
+
+.pairing-clear-btn[hidden] {
+    display: none;
+}
+
 .pairing-vs {
     color: var(--text-muted);
     font-size: 0.9rem;

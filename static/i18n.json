@@ -695,6 +695,14 @@
     "en": "Doubles #{n} (Match #{m})",
     "de": "Doppel {n} (Spiel {m})"
   },
+  "matchday.doubles_short": {
+    "en": "Doubles {n}",
+    "de": "Doppel {n}"
+  },
+  "matchday.remove_player": {
+    "en": "Remove player",
+    "de": "Spieler entfernen"
+  },
   "matchday.use_dropdowns": {
     "en": "Use Dropdowns",
     "de": "Auswahllisten verwenden"

@@ -367,93 +367,85 @@
             return matches.filter(m => m.match_type === 'doubles');
         }
 
-        // Get currently selected players across all doubles matches
-        function getSelectedPlayers() {
-            const selected = { teamA: [], teamB: [] };
-            const doublesMatches = getDoublesMatches();
-
-            doublesMatches.forEach((match, idx) => {
-                const prefix = `match-${idx}`;
-                const a1 = document.getElementById(`${prefix}-a1`)?.value;
-                const a2 = document.getElementById(`${prefix}-a2`)?.value;
-                const b1 = document.getElementById(`${prefix}-b1`)?.value;
-                const b2 = document.getElementById(`${prefix}-b2`)?.value;
-
-                if (a1) selected.teamA.push({ player: a1, matchIdx: idx, position: 'a1' });
-                if (a2) selected.teamA.push({ player: a2, matchIdx: idx, position: 'a2' });
-                if (b1) selected.teamB.push({ player: b1, matchIdx: idx, position: 'b1' });
-                if (b2) selected.teamB.push({ player: b2, matchIdx: idx, position: 'b2' });
-            });
-
-            return selected;
-        }
-
-        // Update dropdown options to disable already-selected players
+        // Rebuild every pairing dropdown so a player already placed in another
+        // slot of the same team is not offered again. Options are rebuilt
+        // (not just hidden) because iOS Safari ignores hidden <option>s.
         function updateDropdownOptions() {
-            if (editMode) return; // Don't update in edit mode
+            const selects = Array.from(document.querySelectorAll('#pairing-form select.player-select'));
+            selects.forEach(select => {
+                const takenElsewhere = new Set(
+                    selects
+                        .filter(s => s !== select && s.dataset.team === select.dataset.team && s.value)
+                        .map(s => s.value)
+                );
+                const current = select.value;
+                const players = select.dataset.team === 'A' ? teamAPlayers : teamBPlayers;
+                const options = players.filter(p => p && !takenElsewhere.has(p));
+                // Keep a saved name that isn't in the roster (e.g. typed by hand)
+                if (current && !options.includes(current)) options.unshift(current);
 
-            const selected = getSelectedPlayers();
-            const doublesMatches = getDoublesMatches();
-
-            doublesMatches.forEach((match, idx) => {
-                const prefix = `match-${idx}`;
-
-                // Update Team A dropdowns
-                ['a1', 'a2'].forEach(pos => {
-                    const select = document.getElementById(`${prefix}-${pos}`);
-                    if (!select) return;
-
-                    const currentValue = select.value;
-                    Array.from(select.options).forEach(option => {
-                        if (option.value === '') return; // Skip placeholder
-                        const isSelectedElsewhere = selected.teamA.some(
-                            s => s.player === option.value && !(s.matchIdx === idx && s.position === pos)
-                        );
-                        option.disabled = isSelectedElsewhere;
-                    });
+                select.innerHTML = '';
+                const placeholder = document.createElement('option');
+                placeholder.value = '';
+                placeholder.textContent = options.length > 0 ? t('matchday.select_player_opt') : t('matchday.no_players_opt');
+                select.appendChild(placeholder);
+                options.forEach(p => {
+                    const option = document.createElement('option');
+                    option.value = p;
+                    option.textContent = p;
+                    select.appendChild(option);
                 });
+                select.value = current;
 
-                // Update Team B dropdowns
-                ['b1', 'b2'].forEach(pos => {
-                    const select = document.getElementById(`${prefix}-${pos}`);
-                    if (!select) return;
-
-                    const currentValue = select.value;
-                    Array.from(select.options).forEach(option => {
-                        if (option.value === '') return;
-                        const isSelectedElsewhere = selected.teamB.some(
-                            s => s.player === option.value && !(s.matchIdx === idx && s.position === pos)
-                        );
-                        option.disabled = isSelectedElsewhere;
-                    });
-                });
+                const clearBtn = select.parentElement?.querySelector('.pairing-clear-btn');
+                if (clearBtn) clearBtn.hidden = !current;
             });
         }
 
-        // Create dropdown for player selection
+        // Remove a player from a doubles slot (wrong pick) → back in the pool
+        function clearPairingSlot(id) {
+            const select = document.getElementById(id);
+            if (!select) return;
+            select.value = '';
+            updateDropdownOptions();
+        }
+
+        // Dropdown for one doubles slot plus a "×" button to remove the player.
+        // Options are filled by updateDropdownOptions().
         function createPlayerDropdown(id, players, currentValue, team) {
+            const slot = document.createElement('div');
+            slot.className = 'pairing-slot';
+
             const select = document.createElement('select');
             select.id = id;
             select.className = 'player-select';
+            select.dataset.team = team;
             select.onchange = updateDropdownOptions;
 
-            const placeholder = document.createElement('option');
-            placeholder.value = '';
-            placeholder.textContent = players.length > 0 ? t('matchday.select_player_opt') : t('matchday.no_players_opt');
-            select.appendChild(placeholder);
-
-            players.forEach(player => {
+            const value = (currentValue || '').trim();
+            const match = players.find(p => p && p.trim() === value);
+            const initial = match || value;
+            if (initial) {
                 const option = document.createElement('option');
-                option.value = player;
-                option.textContent = player;
-                // Match current value (trim whitespace for safety)
-                if (player && currentValue && player.trim() === currentValue.trim()) {
-                    option.selected = true;
-                }
+                option.value = initial;
+                option.textContent = initial;
                 select.appendChild(option);
-            });
+                select.value = initial;
+            }
 
-            return select;
+            const clearBtn = document.createElement('button');
+            clearBtn.type = 'button';
+            clearBtn.className = 'pairing-clear-btn';
+            clearBtn.textContent = '×';
+            clearBtn.title = t('matchday.remove_player');
+            clearBtn.setAttribute('aria-label', t('matchday.remove_player'));
+            clearBtn.dataset.action = 'clearPairingSlot';
+            clearBtn.dataset.target = id;
+            clearBtn.hidden = !initial;
+
+            slot.appendChild(select);
+            slot.appendChild(clearBtn);
+            return slot;
         }
 
         // Create text input for edit mode
@@ -530,8 +522,7 @@
                 container.appendChild(matchDiv);
             });
 
-            // Update disabled states after rendering
-            setTimeout(updateDropdownOptions, 0);
+            if (!editMode) updateDropdownOptions();
         }
 
         // Toggle edit mode
@@ -671,7 +662,7 @@
 
                 const header = document.createElement('div');
                 header.className = 'pairing-match-header';
-                header.textContent = `Double ${i + 1}`;
+                header.textContent = t('matchday.doubles_short', {n: i + 1});
                 matchDiv.appendChild(header);
 
                 const teamsDiv = document.createElement('div');
@@ -707,6 +698,7 @@
                 matchDiv.appendChild(teamsDiv);
                 container.appendChild(matchDiv);
             }
+            updateDropdownOptions();
         }
 
         // Create doubles matches via API
@@ -832,6 +824,7 @@
             openPairingPanel: () => openPairingPanel(),
             closePairingPanel: () => closePairingPanel(),
             toggleEditMode: () => toggleEditMode(),
+            clearPairingSlot: (el) => clearPairingSlot(el.dataset.target),
             toggleShareSection: () => toggleShareSection(),
             copyLink: (el) => copyLink(el.dataset.target),
         });
