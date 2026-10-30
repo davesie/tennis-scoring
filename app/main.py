@@ -51,13 +51,61 @@ _sync_in_progress = False
 
 # ==================== Helpers ====================
 
+def expected_match_count(matches) -> int:
+    """Matches a match day will have once complete.
+
+    Doubles are created only after the singles (scorer sets the pairings), so
+    until then add one doubles per two singles (6 → +3, 4 → +2).
+    """
+    singles = sum(1 for m in matches if m.match_type == "singles")
+    has_doubles = any(m.match_type == "doubles" for m in matches)
+    if has_doubles or singles == 0:
+        return len(matches)
+    return len(matches) + singles // 2
+
+
+def decide_matchday_winner(a_wins, b_wins, sets, games):
+    """Overall winner of a finished match day → (team 0/1 or None, reason).
+
+    More match points wins; on a tie the set difference decides, then the
+    game difference (WTB team rules). reason: "matches" | "sets" | "games" | None.
+    """
+    for (a, b), reason in (((a_wins, b_wins), "matches"), (sets, "sets"), (games, "games")):
+        if a != b:
+            return (0 if a > b else 1), reason
+    return None, None
+
+
 def compute_matchday_stats(matches) -> dict:
     """Compute win/completion stats from a list of Match objects."""
+    a_wins = sum(1 for m in matches if m.score_state.get("winner") == 0)
+    b_wins = sum(1 for m in matches if m.score_state.get("winner") == 1)
+    completed = sum(1 for m in matches if m.score_state.get("winner") is not None)
+    expected = expected_match_count(matches)
+    sets = [0, 0]
+    games = [0, 0]
+    for m in matches:
+        ss = m.score_state or {}
+        for i in (0, 1):
+            sets[i] += (ss.get("sets") or [0, 0])[i] or 0
+            games[i] += sum((g[i] or 0) for g in (ss.get("games") or []))
+        # A match tiebreak counts as one game for its winner (WTB rules)
+        stb = ss.get("super_tiebreak_score") or [0, 0]
+        if any(stb) and stb[0] != stb[1]:
+            games[0 if stb[0] > stb[1] else 1] += 1
+    is_finished = expected > 0 and completed == expected
+    winner, reason = decide_matchday_winner(a_wins, b_wins, sets, games) if is_finished else (None, None)
     return {
-        "team_a_wins": sum(1 for m in matches if m.score_state.get("winner") == 0),
-        "team_b_wins": sum(1 for m in matches if m.score_state.get("winner") == 1),
+        "team_a_wins": a_wins,
+        "team_b_wins": b_wins,
         "total_matches": len(matches),
-        "completed_matches": sum(1 for m in matches if m.score_state.get("winner") is not None),
+        "expected_matches": expected,
+        "completed_matches": completed,
+        "is_finished": is_finished,
+        "sets_total": sets,
+        "games_total": games,
+        "overall_winner": winner,
+        "overall_winner_reason": reason,
     }
 
 
@@ -394,7 +442,6 @@ async def _visible_matchdays_with_stats(user, db) -> list:
             **md.to_dict(),
             **stats,
             "is_live": is_live,
-            "is_finished": stats["total_matches"] > 0 and stats["completed_matches"] == stats["total_matches"],
             "ref_date": ref.date().isoformat() if ref else None,
         })
     return out

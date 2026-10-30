@@ -40,6 +40,7 @@
                 <span class="team-total">{{ t('matchday.sets_total') }} <span class="team-total-value" id="total-sets">0:0</span></span>
                 <span class="team-total">{{ t('matchday.games_total') }} <span class="team-total-value" id="total-games">0:0</span></span>
             </div>
+            <div id="matchday-result-note" class="matchday-result-note" hidden></div>
             {% if match_day.venue or match_day.scheduled_date or match_day.category %}
             <div class="matchday-meta-info">
                 {% if match_day.category %}<span class="matchday-category">{{ match_day.category }}</span>{% endif %}
@@ -314,8 +315,48 @@
             if (scoreA) scoreA.classList.toggle('leading', teamAWins > teamBWins);
             if (scoreB) scoreB.classList.toggle('leading', teamBWins > teamAWins);
 
-            updateTotals();
+            const totals = updateTotals();
+            updateFinishedState(teamAWins, teamBWins, totals);
             refreshPairingVisibility();
+        }
+
+        // Doubles are created after the singles, so until then expect one
+        // doubles per two singles (6 → 9 matches, 4 → 6).
+        function expectedMatchCount() {
+            const singles = matches.filter(m => m.match_type === 'singles').length;
+            const hasDoubles = matches.some(m => m.match_type === 'doubles');
+            return (hasDoubles || singles === 0) ? matches.length : matches.length + Math.floor(singles / 2);
+        }
+
+        // Once every match is done: swap "Live updates" for "Final result" and,
+        // on a tie in match points, name the winner by sets, then games (WTB).
+        function updateFinishedState(aWins, bWins, totals) {
+            const expected = expectedMatchCount();
+            const done = matches.filter(m => m.score_state.winner !== null).length;
+            const finished = expected > 0 && done === expected;
+
+            const indicator = document.querySelector('.live-indicator');
+            if (indicator) {
+                indicator.classList.toggle('finished', finished);
+                const text = indicator.querySelector('.live-text');
+                if (text) text.textContent = finished ? t('matchday.finished') : t('matchday.live_updates');
+            }
+
+            const note = document.getElementById('matchday-result-note');
+            if (!note) return;
+            note.hidden = true;
+            if (!finished || aWins !== bWins) return;
+            let winner = null, reason = null;
+            if (totals.sets[0] !== totals.sets[1]) {
+                winner = totals.sets[0] > totals.sets[1] ? 0 : 1; reason = 'sets';
+            } else if (totals.games[0] !== totals.games[1]) {
+                winner = totals.games[0] > totals.games[1] ? 0 : 1; reason = 'games';
+            }
+            const team = winner === 0 ? matchDay.team_a_name : matchDay.team_b_name;
+            note.textContent = winner === null ? t('matchday.draw') : t(`matchday.won_by_${reason}`, {team});
+            note.classList.toggle('team-a', winner === 0);
+            note.classList.toggle('team-b', winner === 1);
+            note.hidden = false;
         }
 
         // Aggregate sets and games across all matches (shown under the team score)
@@ -331,11 +372,17 @@
                     gamesA += g[0] || 0;
                     gamesB += g[1] || 0;
                 });
+                // A match tiebreak counts as one game for its winner (WTB rules)
+                const stb = ss.super_tiebreak_score || [0, 0];
+                if ((stb[0] || stb[1]) && stb[0] !== stb[1]) {
+                    if (stb[0] > stb[1]) gamesA++; else gamesB++;
+                }
             });
             const setsEl = document.getElementById('total-sets');
             const gamesEl = document.getElementById('total-games');
             if (setsEl) setsEl.textContent = `${setsA}:${setsB}`;
             if (gamesEl) gamesEl.textContent = `${gamesA}:${gamesB}`;
+            return { sets: [setsA, setsB], games: [gamesA, gamesB] };
         }
 
         function copyShareLink() {

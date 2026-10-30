@@ -1046,5 +1046,29 @@
   "register.email_exists": {
     "en": "An account with this email already exists",
     "de": "Es gibt bereits ein Konto mit dieser E-Mail"
+  },
+  "matchday.finished": {
+    "en": "Final result",
+    "de": "Endstand"
+  },
+  "matchday.won_by_sets": {
+    "en": "{team} wins on sets",
+    "de": "Sieg {team} nach Sätzen"
+  },
+  "matchday.won_by_games": {
+    "en": "{team} wins on games",
+    "de": "Sieg {team} nach Spielen"
+  },
+  "matchday.draw": {
+    "en": "Draw",
+    "de": "Unentschieden"
+  },
+  "match.finished_banner": {
+    "en": "Match finished",
+    "de": "Match beendet"
+  },
+  "match.finished_sub": {
+    "en": "Final score",
+    "de": "Endergebnis"
   }
 }

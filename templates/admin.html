@@ -230,7 +230,7 @@
                         {% if md.category %}<span class="category-badge">{{ md.category }}</span>{% endif %}
                         {% if md.is_public is defined and not md.is_public %}<span class="visibility-badge private">{{ t('admin.private') }}</span>{% endif %}
                         {% if md.total_matches > 0 %}
-                        <span>{{ md.completed_matches }}/{{ md.total_matches }} {{ t('archive.matches') }}</span>
+                        <span>{{ md.completed_matches }}/{{ md.expected_matches }} {{ t('archive.matches') }}</span>
                         {% else %}
                         <span class="shell-badge">{{ t('admin.needs_setup') }}</span>
                         {% endif %}
@@ -251,7 +251,7 @@
                         <button class="link-btn" data-action="copyToClipboard" data-url="{{ request.url_for('scorer_match_day_page', scorer_token=md.scorer_token) }}">{{ t('admin.copy_scorer') }}</button>
                         <button class="link-btn" data-action="copyToClipboard" data-url="{{ request.url_for('spectator_match_day_page', share_code=md.share_code) }}">{{ t('admin.copy_spectator') }}</button>
 
-                        {% if md.wtb_meeting_id and (md.total_matches == 0 or md.completed_matches < md.total_matches) %}
+                        {% if md.wtb_meeting_id and not md.is_finished %}
                         <button class="link-btn btn-import-results" data-action="importResults" data-md-id="{{ md.id }}" data-md-name="{{ md.name }}">{{ t('admin.import_results') }}</button>
                         {% endif %}
 

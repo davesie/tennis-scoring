@@ -198,6 +198,10 @@ Three roles exist, all fully implemented:
   live; stale unfinished ones show their partial n/m state)
 - A match day finished *today* stays on `/` under "Today" (FT badge) and moves
   to the archive the next day
+- `compute_matchday_stats()` counts doubles not yet created (6er → 9, 4er → 6
+  matches), so `is_finished` only flips once the doubles are played. On a tie in
+  match points, `overall_winner` is decided by sets, then games (match tiebreak
+  = 1 game), shown as "Sieg X nach Sätzen/Spielen"
 - `GET /admin/login` → login form; `GET /admin` → dashboard (requires auth);
   `GET /admin/new` → dedicated create-match-day page
 - `GET /about` → "Was ist das?" page (`about.html`, de/en) explaining the app

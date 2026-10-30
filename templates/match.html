@@ -42,7 +42,7 @@
                     <div class="set-col">1</div>
                     <div class="set-col">2</div>
                     <div class="set-col" id="set3-header">3</div>
-                    <div class="points-col">PTS</div>
+                    <div class="points-col" id="points-header">PTS</div>
                 </div>
 
                 <!-- Team A Row -->
@@ -195,7 +195,7 @@
         </div>
         {% else %}
         <!-- Spectator View -->
-        <div class="spectator-notice">
+        <div class="spectator-notice" id="spectator-notice">
             <p>{{ t('match.watching_notice') }}</p>
             <p class="share-hint">{{ t('match.watching_sub') }}</p>
         </div>
@@ -502,9 +502,15 @@
             ptsA.textContent = pd.a;
             ptsB.textContent = pd.b;
 
-            // Update serve indicator
-            document.getElementById('serve-a').classList.toggle('active', state.serving === 0);
-            document.getElementById('serve-b').classList.toggle('active', state.serving === 1);
+            // Update serve indicator (none once the match is over)
+            const isOver = state.winner !== null;
+            document.getElementById('serve-a').classList.toggle('active', !isOver && state.serving === 0);
+            document.getElementById('serve-b').classList.toggle('active', !isOver && state.serving === 1);
+
+            // Finished: no current-game points column, no "watching live" note
+            document.querySelector('.scoreboard').classList.toggle('match-over', isOver);
+            const notice = document.getElementById('spectator-notice');
+            if (notice) notice.style.display = isOver ? 'none' : '';
 
             // Update serve selection overlay
             updateServeOverlay(state);

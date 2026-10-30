@@ -24,7 +24,7 @@
                         <span class="fixture-format">{{ t('archive.format6') if md.format == '6_person' else t('archive.format4') }}</span>
                         {% if md.category %}<span class="fixture-category">{{ md.category }}</span>{% endif %}
                     </div>
-                    <div class="fixture-name">{{ md.name }}</div>
+                    <div class="fixture-name">{{ md.name }}{% if md.overall_winner is not none and md.overall_winner_reason != 'matches' %}<span class="fixture-tiebreak">{{ t('matchday.won_by_' ~ md.overall_winner_reason, team=(md.team_a_name if md.overall_winner == 0 else md.team_b_name)) }}</span>{% endif %}</div>
                     <div class="fixture-matchup">
                         <span class="fixture-team fixture-team-a">{{ md.team_a_name }}</span>
                         <span class="fixture-score">
@@ -35,10 +35,10 @@
                         <span class="fixture-team fixture-team-b">{{ md.team_b_name }}</span>
                     </div>
                     <div class="fixture-status">
-                        {% if md.total_matches > 0 and md.completed_matches == md.total_matches %}
+                        {% if md.is_finished %}
                         <span class="fixture-completed">FT</span>
                         {% elif md.total_matches > 0 %}
-                        <span class="fixture-progress">{{ md.completed_matches }}/{{ md.total_matches }}</span>
+                        <span class="fixture-progress">{{ md.completed_matches }}/{{ md.expected_matches }}</span>
                         {% endif %}
                     </div>
                 </a>
