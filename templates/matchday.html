@@ -44,7 +44,7 @@
             {% if match_day.venue or match_day.scheduled_date or match_day.category %}
             <div class="matchday-meta-info">
                 {% if match_day.category %}<span class="matchday-category">{{ match_day.category }}</span>{% endif %}
-                {% if match_day.scheduled_date %}<span class="matchday-date">{{ match_day.scheduled_date[:10] }}</span>{% endif %}
+                {% if match_day.scheduled_date %}<span class="matchday-date">{{ match_day.scheduled_date|fdate(lang) }}</span>{% endif %}
                 {% if match_day.venue %}<span class="matchday-venue">{{ match_day.venue }}</span>{% endif %}
             </div>
             {% endif %}
@@ -79,7 +79,7 @@
                         {% endif %}
                     </a>
                     {% if is_scorer %}
-                    <button class="enter-score-btn" data-action="openScoreModal" data-match-id="{{ match.id }}" data-player-a="{{ match.player_a1 or match.team_a_name }}" data-player-b="{{ match.player_b1 or match.team_b_name }}">{{ t('matchday.enter_score') }}</button>
+                    <button class="enter-score-btn" data-action="openScoreModal" data-match-id="{{ match.id }}" data-player-a="{{ match.player_a1 or match.team_a_name }}" data-player-b="{{ match.player_b1 or match.team_b_name }}">{{ t('matchday.correct_score') if match.score_state.winner is not none else t('matchday.enter_score') }}</button>
                     {% endif %}
                 </div>
                 {% endif %}
@@ -134,12 +134,15 @@
                         {% endif %}
                     </a>
                     {% if is_scorer %}
-                    <button class="enter-score-btn" data-action="openScoreModal" data-match-id="{{ match.id }}" data-player-a="{{ (match.player_a1 or 'A') ~ '/' ~ (match.player_a2 or 'A') }}" data-player-b="{{ (match.player_b1 or 'B') ~ '/' ~ (match.player_b2 or 'B') }}">{{ t('matchday.enter_score') }}</button>
+                    <button class="enter-score-btn" data-action="openScoreModal" data-match-id="{{ match.id }}" data-player-a="{{ (match.player_a1 or 'A') ~ '/' ~ (match.player_a2 or 'A') }}" data-player-b="{{ (match.player_b1 or 'B') ~ '/' ~ (match.player_b2 or 'B') }}">{{ t('matchday.correct_score') if match.score_state.winner is not none else t('matchday.enter_score') }}</button>
                     {% endif %}
                 </div>
                 {% endif %}
                 {% endfor %}
             </div>
+            {% if not matches|selectattr('match_type', 'equalto', 'doubles')|list %}
+            <p class="doubles-pending">{{ t('matchday.doubles_pending') }}</p>
+            {% endif %}
         </section>
 
         <div class="share-section" id="share-section">
@@ -400,7 +403,7 @@
             const input = document.getElementById(inputId);
             if (!input) return;
             const ok = await copyToClipboard(input.value);
-            showToast(ok ? 'Link copied' : 'Could not copy link', ok ? 'success' : 'error');
+            showToast(ok ? t('common.link_copied') : t('match.copy_failed'), ok ? 'success' : 'error');
         }
 
         // Check if all singles matches are finished
@@ -502,7 +505,7 @@
             input.id = id;
             input.className = 'player-input';
             input.value = currentValue || '';
-            input.placeholder = 'Enter player name';
+            input.placeholder = t('matchday.enter_player_name');
             return input;
         }
 
@@ -637,6 +640,8 @@
             const section = document.getElementById('doubles-pairing-section');
             if (!section) return;
             section.style.display = 'block';
+            const pending = document.querySelector('.doubles-pending');
+            if (pending) pending.style.display = 'none';
             const editBtn = document.getElementById('edit-pairings-btn');
             if (editBtn) editBtn.style.display = 'none';
 
@@ -664,6 +669,8 @@
         function closePairingPanel() {
             const section = document.getElementById('doubles-pairing-section');
             if (section) section.style.display = 'none';
+            const pending = document.querySelector('.doubles-pending');
+            if (pending) pending.style.display = '';
             refreshPairingVisibility();
         }
 
@@ -779,7 +786,7 @@
                     body: JSON.stringify({ pairings })
                 });
                 if (response.ok) {
-                    statusEl.textContent = 'Doubles created! Refreshing...';
+                    statusEl.textContent = t('matchday.doubles_created');
                     statusEl.className = 'pairing-status success';
                     setTimeout(() => window.location.reload(), 800);
                 } else {
@@ -815,7 +822,7 @@
             // Update player names
             document.getElementById('winner-a-name').textContent = playerA;
             document.getElementById('winner-b-name').textContent = playerB;
-            document.getElementById('modal-title').textContent = `Enter Score: ${playerA} vs ${playerB}`;
+            document.getElementById('modal-title').textContent = `${t('matchday.enter_score')}: ${playerA} vs ${playerB}`;
 
             // Reset winner selection
             document.getElementById('winner-a-btn').classList.remove('selected');
@@ -1062,6 +1069,8 @@
 
             // Update card CSS class and data attribute
             card.className = `scoreboard-card ${isFinished ? 'finished' : isLive ? 'live' : 'upcoming'}`;
+            const enterBtn = card.querySelector('.enter-score-btn');
+            if (enterBtn) enterBtn.textContent = isFinished ? t('matchday.correct_score') : t('matchday.enter_score');
             card.setAttribute('data-started-at', matchData.started_at || '');
 
             // Update status badge (finished matches show the ✓ on the winner row instead)

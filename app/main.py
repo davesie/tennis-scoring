@@ -357,6 +357,20 @@ APP_VERSION = _get_app_version()
 templates.env.globals["app_version"] = APP_VERSION
 
 
+def format_date(value, lang: str = "de") -> str:
+    """'2026-10-13…' → '13.10.2026' (de) / '13 Oct 2026' (en). Jinja: |fdate(lang)."""
+    if not value:
+        return ""
+    try:
+        d = datetime.fromisoformat(str(value)[:10])
+    except ValueError:
+        return str(value)[:10]
+    return d.strftime("%d.%m.%Y") if lang == "de" else d.strftime("%-d %b %Y")
+
+
+templates.env.filters["fdate"] = format_date
+
+
 # WebSocket connection manager
 class ConnectionManager:
     def __init__(self):

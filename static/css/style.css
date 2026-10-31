@@ -3772,3 +3772,142 @@ a.btn { text-decoration: none; }
 
 /* Finished match: the current-game points column has no meaning any more */
 .scoreboard.match-over .points-col { visibility: hidden; }
+
+/* Not started yet: show a dash instead of "0" games */
+.scoreboard-card.upcoming .set-score { font-size: 0; }
+.scoreboard-card.upcoming .set-score:nth-child(3)::before {
+    content: '–';
+    font-size: 1rem;
+    color: var(--bc-muted);
+}
+
+/* Empty doubles section: tell spectators what comes next */
+.doubles-pending {
+    margin: 4px 0 24px;
+    padding: 14px 16px;
+    border: 1px dashed var(--bc-border);
+    border-radius: 8px;
+    font-size: 0.85rem;
+    color: var(--bc-muted);
+    text-align: center;
+}
+
+/* ==================== Broadcast Court: buttons, share box, admin ====================
+   One button language for match day, match and admin pages (admin uses
+   body.matchday-page): lime CTA, outlined secondary, outlined danger. */
+:is(.matchday-page, .match-page) .btn {
+    font-family: var(--font-display);
+    font-weight: 700;
+    font-size: 0.95rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    border-radius: 6px;
+    border: 1.5px solid transparent;
+    padding: 10px 20px;
+    line-height: 1.2;
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+:is(.matchday-page, .match-page) .btn-primary {
+    background: var(--bc-accent);
+    color: var(--bc-accent-text);
+    border-color: var(--bc-accent);
+}
+:is(.matchday-page, .match-page) .btn-primary:hover { filter: brightness(0.95); background: var(--bc-accent); }
+:is(.matchday-page, .match-page) .btn-secondary {
+    background: transparent;
+    color: var(--bc-text);
+    border-color: var(--bc-border);
+}
+:is(.matchday-page, .match-page) .btn-secondary:hover { border-color: var(--bc-text); opacity: 1; }
+:is(.matchday-page, .match-page) :is(.btn-danger, .btn-outline-danger) {
+    background: transparent;
+    color: var(--bc-team-b);
+    border-color: currentColor;
+}
+:is(.matchday-page, .match-page) :is(.btn-danger, .btn-outline-danger):hover { background: rgba(212, 64, 48, 0.08); }
+:is(.matchday-page, .match-page) .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+/* Undo is the everyday action; reset (wipes the match) stays small */
+.match-page .action-buttons .btn-danger { flex: 0 0 auto; font-size: 0.8rem; padding: 8px 14px; }
+
+/* Share box + spectator notice: card instead of grey slab */
+:is(.matchday-page, .match-page) :is(.share-section, .spectator-notice) {
+    background: var(--card-bg);
+    border: 1px solid var(--bc-border);
+}
+[data-theme="dark"] :is(.matchday-page, .match-page) :is(.share-section, .spectator-notice) { background: transparent; }
+:is(.matchday-page, .match-page) .share-toggle {
+    font-family: var(--font-display);
+    font-weight: 700;
+    font-size: 0.95rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--bc-text);
+}
+:is(.matchday-page, .match-page) .share-toggle-icon { background: transparent; border: 1px solid var(--bc-border); }
+:is(.matchday-page, .match-page) .share-link input { font-family: var(--font-body); border-color: var(--bc-border); }
+:is(.matchday-page, .match-page) .share-option label { font-family: var(--font-body); }
+
+/* Admin */
+.matchday-page .admin-header h1 {
+    font-family: var(--font-display);
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: -0.3px;
+    color: var(--bc-text);
+}
+.matchday-page :is(.create-section h2, .match-days-section h2, .usage-stats-section h2) {
+    font-family: var(--font-display);
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    color: var(--bc-text);
+}
+.matchday-page .match-day-card { box-shadow: none; border-color: var(--bc-border); }
+.matchday-page .match-day-card:hover { border-color: var(--bc-text); }
+.matchday-page .match-day-info h3 { font-family: var(--font-display); font-size: 1.1rem; text-transform: uppercase; letter-spacing: 0.02em; }
+.matchday-page .match-day-score { font-family: var(--font-score); }
+.matchday-page .match-day-score .team-a-score { color: var(--bc-team-a); }
+.matchday-page .match-day-score .team-b-score { color: var(--bc-team-b); }
+.matchday-page .link-btn {
+    font-family: var(--font-body);
+    font-weight: 600;
+    background: transparent;
+    border-color: var(--bc-border);
+    color: var(--bc-text);
+    border-radius: 6px;
+}
+.matchday-page .link-btn:hover { background: transparent; border-color: var(--bc-text); }
+.matchday-page .link-btn.btn-delete { color: var(--bc-team-b); border-color: var(--bc-team-b); }
+.matchday-page .toggle-btn { background: transparent; border-color: var(--bc-border); color: var(--bc-text); font-family: var(--font-body); }
+.matchday-page .toggle-btn:hover { border-color: var(--bc-text); }
+.matchday-page .toggle-btn.active { background: var(--bc-text); border-color: var(--bc-text); color: var(--bc-bg); }
+/* Long meta line must not push the card's buttons past its edge */
+.matchday-page .match-day-card { grid-template-columns: minmax(0, 1fr) auto; }
+.matchday-page .match-day-meta { flex-wrap: wrap; row-gap: 4px; }
+@media (max-width: 768px) {
+    .matchday-page .match-day-card { grid-template-columns: minmax(0, 1fr); }
+}
+
+/* Login / register */
+.matchday-page .login-header h1 {
+    font-family: var(--font-display);
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: -0.3px;
+    color: var(--bc-text);
+}
+.matchday-page .btn-login {
+    background: var(--bc-accent);
+    color: var(--bc-accent-text);
+    font-family: var(--font-display);
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    border-radius: 6px;
+}
+.matchday-page .btn-login:hover { background: var(--bc-accent); filter: brightness(0.95); }
+.matchday-page .login-form .form-group input:focus { border-color: var(--bc-text); box-shadow: none; }

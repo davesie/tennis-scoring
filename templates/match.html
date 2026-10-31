@@ -395,7 +395,7 @@
                 btn.textContent = ok ? t('match.copied') : t('match.copy_failed');
                 setTimeout(() => btn.textContent = originalText, 2000);
             } else {
-                showToast(ok ? 'Link copied' : 'Could not copy link', ok ? 'success' : 'error');
+                showToast(ok ? t('common.link_copied') : t('match.copy_failed'), ok ? 'success' : 'error');
             }
         }
 

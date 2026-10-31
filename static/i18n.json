@@ -1070,5 +1070,25 @@
   "match.finished_sub": {
     "en": "Final score",
     "de": "Endergebnis"
+  },
+  "admin.player_n": {
+    "en": "Player {n}",
+    "de": "Spieler {n}"
+  },
+  "matchday.enter_player_name": {
+    "en": "Enter player name",
+    "de": "Spielername eingeben"
+  },
+  "matchday.doubles_created": {
+    "en": "Doubles created! Refreshing...",
+    "de": "Doppel angelegt! Seite wird neu geladen..."
+  },
+  "matchday.doubles_pending": {
+    "en": "The doubles are set up after the singles.",
+    "de": "Die Doppel werden nach den Einzeln aufgestellt."
+  },
+  "matchday.correct_score": {
+    "en": "Correct score",
+    "de": "Ergebnis korrigieren"
   }
 }

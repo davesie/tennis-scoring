@@ -160,17 +160,9 @@
             <div class="form-group">
                 <label for="category-select">{{ t('admin.category') }}</label>
                 <select id="category-select" class="category-select" data-action-change="selectCategory">
-                    <option value="Herren">Herren (Men)</option>
-                    <option value="Damen">Damen (Women)</option>
-                    <option value="Herren 30">Herren 30 (Men 30+)</option>
-                    <option value="Herren 40">Herren 40 (Men 40+)</option>
-                    <option value="Herren 50">Herren 50 (Men 50+)</option>
-                    <option value="Herren 60">Herren 60 (Men 60+)</option>
-                    <option value="Herren 65">Herren 65 (Men 65+)</option>
-                    <option value="Herren 70">Herren 70 (Men 70+)</option>
-                    <option value="Damen 30">Damen 30 (Women 30+)</option>
-                    <option value="Damen 40">Damen 40 (Women 40+)</option>
-                    <option value="Damen 50">Damen 50 (Women 50+)</option>
+                    {%- for cat, en in [('Herren','Men'),('Damen','Women'),('Herren 30','Men 30+'),('Herren 40','Men 40+'),('Herren 50','Men 50+'),('Herren 60','Men 60+'),('Herren 65','Men 65+'),('Herren 70','Men 70+'),('Damen 30','Women 30+'),('Damen 40','Women 40+'),('Damen 50','Women 50+')] %}
+                    <option value="{{ cat }}">{{ cat }}{% if lang != 'de' %} ({{ en }}){% endif %}</option>
+                    {%- endfor %}
                 </select>
             </div>
 
@@ -234,7 +226,7 @@
                         {% else %}
                         <span class="shell-badge">{{ t('admin.needs_setup') }}</span>
                         {% endif %}
-                        <span>{{ md.scheduled_date[:10] if md.scheduled_date else (md.created_at[:10] if md.created_at else '') }}</span>
+                        <span>{{ (md.scheduled_date or md.created_at)|fdate(lang) }}</span>
                         {% if md.venue %}<span>📍 {{ md.venue }}</span>{% endif %}
                     </div>
                     <div class="match-day-score">
@@ -295,8 +287,8 @@
             const hint = document.getElementById('visibility-hint');
             if (hint) {
                 hint.textContent = vis === 'public'
-                    ? 'Visible to everyone on the archive page'
-                    : 'Only visible to you and people with the link';
+                    ? t('admin.visibility_public_hint')
+                    : t('admin.visibility_private_hint');
             }
         }
 
@@ -442,7 +434,7 @@
                 const input = document.createElement('input');
                 input.type = 'text';
                 input.className = 'player-input';
-                input.placeholder = `Player ${i + 1}`;
+                input.placeholder = t('admin.player_n', {n: i + 1});
                 input.autocomplete = 'off';
                 wrapper.appendChild(input);
             }
@@ -608,7 +600,7 @@
             document.getElementById('category-select').value = 'Herren';
             document.querySelectorAll('[data-visibility]').forEach(b => b.classList.toggle('active', b.dataset.visibility === 'public'));
             const hint = document.getElementById('visibility-hint');
-            if (hint) hint.textContent = 'Visible to everyone on the archive page';
+            if (hint) hint.textContent = t('admin.visibility_public_hint');
             teamAClubId = null;
             teamBClubId = null;
             teamASelectedPlayers = [];
@@ -1148,14 +1140,14 @@
                     <div class="teams-container">
                         <div class="team-input">
                             <h3>${escHtml(teamAName)}</h3>
-                            <input type="text" id="setup-team-a-${matchDayId}" placeholder="Search club..." autocomplete="off">
+                            <input type="text" id="setup-team-a-${matchDayId}" placeholder="${t('admin.search_club_ph')}" autocomplete="off">
                             <span class="club-search-hint">Type to search WTB clubs</span>
                             <div id="setup-players-a-${matchDayId}"></div>
                         </div>
                         <div class="vs">VS</div>
                         <div class="team-input">
                             <h3>${escHtml(teamBName)}</h3>
-                            <input type="text" id="setup-team-b-${matchDayId}" placeholder="Search club..." autocomplete="off">
+                            <input type="text" id="setup-team-b-${matchDayId}" placeholder="${t('admin.search_club_ph')}" autocomplete="off">
                             <span class="club-search-hint">Type to search WTB clubs</span>
                             <div id="setup-players-b-${matchDayId}"></div>
                         </div>

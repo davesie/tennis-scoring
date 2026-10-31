@@ -19,7 +19,7 @@
                         {% if live %}
                         <span class="fixture-live"><span class="live-dot"></span>{{ t('match.live') }}</span>
                         {% else %}
-                        <span class="fixture-date">{{ md.ref_date or '' }}</span>
+                        <span class="fixture-date">{{ md.ref_date|fdate(lang) }}</span>
                         {% endif %}
                         <span class="fixture-format">{{ t('archive.format6') if md.format == '6_person' else t('archive.format4') }}</span>
                         {% if md.category %}<span class="fixture-category">{{ md.category }}</span>{% endif %}
