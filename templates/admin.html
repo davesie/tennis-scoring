@@ -221,6 +221,7 @@
                         <span>{{ t('archive.format6') if md.format == '6_person' else t('archive.format4') }}</span>
                         {% if md.category %}<span class="category-badge">{{ md.category }}</span>{% endif %}
                         {% if md.is_public is defined and not md.is_public %}<span class="visibility-badge private">{{ t('admin.private') }}</span>{% endif %}
+                        {% if md.closed_at %}<span class="closed-badge">{{ t('admin.closed_badge') }}</span>{% endif %}
                         {% if md.total_matches > 0 %}
                         <span>{{ md.completed_matches }}/{{ md.expected_matches }} {{ t('archive.matches') }}</span>
                         {% else %}
@@ -243,11 +244,18 @@
                         <button class="link-btn" data-action="copyToClipboard" data-url="{{ request.url_for('scorer_match_day_page', scorer_token=md.scorer_token) }}">{{ t('admin.copy_scorer') }}</button>
                         <button class="link-btn" data-action="copyToClipboard" data-url="{{ request.url_for('spectator_match_day_page', share_code=md.share_code) }}">{{ t('admin.copy_spectator') }}</button>
 
-                        {% if md.wtb_meeting_id and not md.is_finished %}
+                        {% if md.wtb_meeting_id and (not md.is_finished or md.closed_at) %}
                         <button class="link-btn btn-import-results" data-action="importResults" data-md-id="{{ md.id }}" data-md-name="{{ md.name }}">{{ t('admin.import_results') }}</button>
                         {% endif %}
 
-                        {% if not md.has_doubles %}
+                        {% if not md.is_finished %}
+                        <button class="link-btn btn-close-matchday" data-action="closeMatchDay" data-md-id="{{ md.id }}" data-md-name="{{ md.name }}">{{ t('admin.close_matchday') }}</button>
+                        {% endif %}
+                        {% if md.closed_at %}
+                        <button class="link-btn" data-action="reopenMatchDay" data-md-id="{{ md.id }}">{{ t('admin.reopen_matchday') }}</button>
+                        {% endif %}
+
+                        {% if not md.has_doubles and not md.closed_at %}
                         {% if md.singles_completed == md.singles_total and md.singles_total > 0 %}
                         <button class="link-btn btn-setup-doubles" data-action="openDoublesSetup" data-md-id="{{ md.id }}" data-format="{{ md.format }}" data-team-a-players='{{ md.team_a_players | tojson }}' data-team-b-players='{{ md.team_b_players | tojson }}' data-team-a="{{ md.team_a_name }}" data-team-b="{{ md.team_b_name }}">{{ t('admin.setup_doubles') }}</button>
                         {% else %}
@@ -887,6 +895,26 @@
                 btn.disabled = false;
                 btn.textContent = t('admin.import_results');
             }
+        }
+
+        // End a match day early (missing results stay unplayed) or reopen it
+        async function setMatchDayClosed(matchDayId, close, btn) {
+            btn.disabled = true;
+            try {
+                const res = await fetch(`/api/admin/matchdays/${matchDayId}/${close ? 'close' : 'reopen'}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' }
+                });
+                if (res.ok) {
+                    window.location.reload();
+                    return;
+                }
+                const data = await res.json().catch(() => ({}));
+                showToast(data.detail || t('admin.close_failed'), 'error');
+            } catch (error) {
+                showToast(t('matchday.error', {msg: error.message}), 'error');
+            }
+            btn.disabled = false;
         }
 
         // ==================== Import Fixtures ====================
@@ -1682,6 +1710,10 @@
             openDoublesSetup: (el) => openDoublesSetup(el.dataset.mdId, el.dataset.format, JSON.parse(el.dataset.teamAPlayers), JSON.parse(el.dataset.teamBPlayers), el.dataset.teamA, el.dataset.teamB),
             deleteMatchDay: (el) => deleteMatchDay(el.dataset.mdId, el.dataset.mdName, el),
             importResults: (el) => importResults(el.dataset.mdId, el.dataset.mdName, el),
+            closeMatchDay: (el) => {
+                if (confirm(t('admin.close_confirm', {name: el.dataset.mdName}))) setMatchDayClosed(el.dataset.mdId, true, el);
+            },
+            reopenMatchDay: (el) => setMatchDayClosed(el.dataset.mdId, false, el),
             deselectPlayer: (el) => deselectPlayer(el.dataset.team, el.dataset.playerId),
             submitDoubles: (el) => submitDoubles(el.dataset.mdId, +el.dataset.count),
             hidePanel: (el) => { const p = document.getElementById(el.dataset.panelId); if (p) p.style.display = 'none'; },

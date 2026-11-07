@@ -232,6 +232,13 @@ Three roles exist, all fully implemented:
 
 ### Fixture Import & Results
 - **Import a fixture:** `POST /api/admin/import-fixture` (any logged-in user) — future fixtures become shell match days; played ones scrape the Spielbericht for full results. Match building is shared via `_rebuild_matchday_from_report()`.
+- **End a match day early (v2.21):** `POST /api/admin/matchdays/{id}/close` / `.../reopen`
+  (owner/superadmin) set `MatchDay.closed_at`. A closed match day counts as finished
+  (`compute_matchday_stats(matches, closed=True)`, FT badge, moves to archive) even with
+  results missing, is read-only (scorer endpoints via `verify_scorer_for_match()` and doubles
+  creation return 409; pages render without scoring controls) and shows "Vorzeitig beendet
+  (n/m Spiele)". No sets/games tiebreak winner is declared for an incomplete day. Admin card
+  shows "Spieltag beenden" (not finished) / "Wieder öffnen" (closed).
 - **Pull results for an existing match day (v2.17):** `POST /api/admin/matchdays/{id}/import-results` (owner/superadmin) — for a WTB-linked match day (`wtb_meeting_id` set) that was never finished, re-scrapes the team's fixtures to find the Spielbericht URL, rebuilds all matches from it (overwrites — WTB is authoritative) and thereby closes the match day. Returns `{success:false, reason:"no_results_yet"}` when WTB has no report yet; 400 if the match day isn't WTB-linked. Admin card shows an "Import results from WTB" button only for WTB-linked, not-yet-finished match days.
 
 ### Scraper Details (`app/wtb_scraper.py`)

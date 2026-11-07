@@ -132,6 +132,12 @@ async def verify_scorer_for_match(
     if not match:
         raise HTTPException(status_code=404, detail="Match not found")
 
+    # Closed match days are read-only (the owner reopens them in /admin)
+    if match.match_day_id:
+        md_result = await db.execute(select(MatchDay.closed_at).where(MatchDay.id == match.match_day_id))
+        if md_result.scalar_one_or_none() is not None:
+            raise HTTPException(status_code=409, detail="Match day is closed")
+
     user = await get_current_user(request, db)
 
     if user:

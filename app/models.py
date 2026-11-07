@@ -96,6 +96,9 @@ class MatchDay(Base):
     wtb_team_id = Column(String, nullable=True)  # Team ID from URL (e.g. "3496556")
     wtb_club_id = Column(String, nullable=True)  # Club wtb_id (e.g. "20099")
 
+    # Closed manually by owner/superadmin (even with matches missing) → finished, read-only
+    closed_at = Column(DateTime, nullable=True)
+
     def to_dict(self):
         return {
             "id": self.id,
@@ -118,6 +121,7 @@ class MatchDay(Base):
             "wtb_meeting_id": self.wtb_meeting_id,
             "wtb_team_id": self.wtb_team_id,
             "wtb_club_id": self.wtb_club_id,
+            "closed_at": self.closed_at.isoformat() if self.closed_at else None,
         }
 
     def to_dict_private(self):

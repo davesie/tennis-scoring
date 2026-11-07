@@ -3911,3 +3911,22 @@ a.btn { text-decoration: none; }
 }
 .matchday-page .btn-login:hover { background: var(--bc-accent); filter: brightness(0.95); }
 .matchday-page .login-form .form-group input:focus { border-color: var(--bc-text); box-shadow: none; }
+
+/* Match day ended early: unfinished matches are no longer live */
+.matchday-closed .status-badge.live { display: none; }
+.matchday-closed .scoreboard-card.live,
+.matchday-closed .scoreboard-card.upcoming { opacity: 0.55; }
+.matchday-closed .scoreboard-card.live .scoreboard-table .player-name { padding-left: 12px; }
+
+/* Admin: manually ended match day */
+.closed-badge {
+    font-family: var(--font-score);
+    font-size: 0.7rem;
+    font-weight: 700;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    padding: 1px 6px;
+    border: 1px solid var(--bc-muted);
+    border-radius: 3px;
+    color: var(--bc-muted);
+}

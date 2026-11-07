@@ -16,7 +16,7 @@
     <button class="lang-toggle" id="lang-toggle" aria-label="Switch language"></button>
     <button class="theme-toggle" id="theme-toggle" aria-label="Toggle theme"></button>
 {% macro setcell(cell, team) %}{% set val = cell.a if team == 0 else cell.b %}{% set sup = cell.a_sup if team == 0 else cell.b_sup %}<td class="set-score">{% if cell.show %}{{ val }}{% if sup %}<sup>{{ sup }}</sup>{% endif %}{% endif %}</td>{% endmacro %}
-    <div class="matchday-container">
+    <div class="matchday-container{% if match_day.closed_at %} matchday-closed{% endif %}">
         <header class="matchday-header">
             <div class="matchday-hero-top">
                 <h1>{{ match_day.name }}</h1>
@@ -86,7 +86,9 @@
                 {% endfor %}
             </div>
 
+            {% if not (match_day.closed_at and not matches|selectattr('match_type', 'equalto', 'doubles')|list) %}
             <h2>{{ t('matchday.doubles') }}</h2>
+            {% endif %}
 
             {% if is_scorer %}
             <!-- Reopen button: visible only while pairings are set but no doubles match has started -->
@@ -140,7 +142,7 @@
                 {% endif %}
                 {% endfor %}
             </div>
-            {% if not matches|selectattr('match_type', 'equalto', 'doubles')|list %}
+            {% if not match_day.closed_at and not matches|selectattr('match_type', 'equalto', 'doubles')|list %}
             <p class="doubles-pending">{{ t('matchday.doubles_pending') }}</p>
             {% endif %}
         </section>
@@ -336,7 +338,8 @@
         function updateFinishedState(aWins, bWins, totals) {
             const expected = expectedMatchCount();
             const done = matches.filter(m => m.score_state.winner !== null).length;
-            const finished = expected > 0 && done === expected;
+            const closedEarly = !!matchDay.closed_at && done < expected;
+            const finished = !!matchDay.closed_at || (expected > 0 && done === expected);
 
             const indicator = document.querySelector('.live-indicator');
             if (indicator) {
@@ -348,7 +351,14 @@
             const note = document.getElementById('matchday-result-note');
             if (!note) return;
             note.hidden = true;
-            if (!finished || aWins !== bWins) return;
+            note.classList.remove('team-a', 'team-b');
+            if (!finished) return;
+            const closedLine = closedEarly ? t('matchday.closed_early', {done, total: expected}) : '';
+            if (aWins !== bWins || closedEarly) {
+                // Ended early: no sets/games tiebreak over an incomplete day
+                if (closedLine) { note.textContent = closedLine; note.hidden = false; }
+                return;
+            }
             let winner = null, reason = null;
             if (totals.sets[0] !== totals.sets[1]) {
                 winner = totals.sets[0] > totals.sets[1] ? 0 : 1; reason = 'sets';
@@ -356,7 +366,8 @@
                 winner = totals.games[0] > totals.games[1] ? 0 : 1; reason = 'games';
             }
             const team = winner === 0 ? matchDay.team_a_name : matchDay.team_b_name;
-            note.textContent = winner === null ? t('matchday.draw') : t(`matchday.won_by_${reason}`, {team});
+            const result = winner === null ? t('matchday.draw') : t(`matchday.won_by_${reason}`, {team});
+            note.textContent = result;
             note.classList.toggle('team-a', winner === 0);
             note.classList.toggle('team-b', winner === 1);
             note.hidden = false;
@@ -956,8 +967,12 @@
 
         // ---- Timer utilities (formatElapsed, parseUtc live in common.js) ----
         function initMatchdayTimers() {
+            // Ended early: the clock stops at the moment it was closed
+            const closedAt = matchDay.closed_at ? parseUtc(matchDay.closed_at) : null;
+
             // Inject ticking .match-duration into live match cards
             document.querySelectorAll('.scoreboard-card.live[data-started-at]').forEach(card => {
+                if (closedAt) return;
                 const startedAt = card.getAttribute('data-started-at');
                 if (!startedAt) return;
 
@@ -984,8 +999,8 @@
             // End when all doubles are done (or all matches if no doubles exist)
             const referenceMatches = doublesMatches.length > 0 ? doublesMatches : matches;
             const allDone = referenceMatches.length > 0 && referenceMatches.every(m => m.score_state.winner !== null);
-            let matchdayEnd = null;
-            if (allDone) {
+            let matchdayEnd = closedAt;
+            if (allDone && !closedAt) {
                 const finishedTimes = referenceMatches
                     .filter(m => m.finished_at)
                     .map(m => parseUtc(m.finished_at))
@@ -1128,6 +1143,9 @@
                 if (data.type === 'match_update') {
                     applyMatchUpdate(data.match);
                     updateTeamWins();
+                } else if (data.type === 'matchday_status') {
+                    // Owner closed/reopened the match day → reload for the right mode
+                    window.location.reload();
                 } else if (data.type === 'initial') {
                     // Full snapshot on (re)connect — catches up on anything
                     // missed while the connection was down (phone locked,

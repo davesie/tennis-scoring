@@ -76,8 +76,12 @@ def decide_matchday_winner(a_wins, b_wins, sets, games):
     return None, None
 
 
-def compute_matchday_stats(matches) -> dict:
-    """Compute win/completion stats from a list of Match objects."""
+def compute_matchday_stats(matches, closed: bool = False) -> dict:
+    """Compute win/completion stats from a list of Match objects.
+
+    `closed`: the owner ended the match day manually → finished even with
+    matches missing (unplayed ones simply don't count).
+    """
     a_wins = sum(1 for m in matches if m.score_state.get("winner") == 0)
     b_wins = sum(1 for m in matches if m.score_state.get("winner") == 1)
     completed = sum(1 for m in matches if m.score_state.get("winner") is not None)
@@ -93,8 +97,12 @@ def compute_matchday_stats(matches) -> dict:
         stb = ss.get("super_tiebreak_score") or [0, 0]
         if any(stb) and stb[0] != stb[1]:
             games[0 if stb[0] > stb[1] else 1] += 1
-    is_finished = expected > 0 and completed == expected
+    is_finished = closed or (expected > 0 and completed == expected)
     winner, reason = decide_matchday_winner(a_wins, b_wins, sets, games) if is_finished else (None, None)
+    # Ended early with matches missing: only a lead in match points counts —
+    # a sets/games tiebreak over an incomplete day would be made up
+    if closed and completed < expected and reason in ("sets", "games"):
+        winner, reason = None, None
     return {
         "team_a_wins": a_wins,
         "team_b_wins": b_wins,
@@ -196,6 +204,9 @@ async def _render_matchday(request, db, match_day, is_scorer):
     )
     matches = [m.to_dict() for m in matches_result.scalars().all()]
     md_dict = match_day.to_dict_private() if is_scorer else match_day.to_dict()
+    # A closed match day is read-only for everyone (owner can reopen it in /admin)
+    if match_day.closed_at is not None:
+        is_scorer = False
     return templates.TemplateResponse("matchday.html", {
         "request": request,
         "match_day": md_dict,
@@ -446,8 +457,9 @@ async def _visible_matchdays_with_stats(user, db) -> list:
             select(Match).where(Match.match_day_id == md.id)
         )
         matches = matches_result.scalars().all()
-        stats = compute_matchday_stats(matches)
-        is_live = any(
+        closed = md.closed_at is not None
+        stats = compute_matchday_stats(matches, closed)
+        is_live = not closed and any(
             m.started_at is not None and m.score_state.get("winner") is None
             for m in matches
         )
@@ -638,7 +650,7 @@ async def admin_dashboard(request: Request, db: AsyncSession = Depends(get_db)):
 
         singles = [m for m in matches if m.match_type == "singles"]
         doubles = [m for m in matches if m.match_type == "doubles"]
-        stats = compute_matchday_stats(matches)
+        stats = compute_matchday_stats(matches, md.closed_at is not None)
         singles_completed = sum(1 for m in singles if m.score_state.get("winner") is not None)
 
         md_dict = md.to_dict_private()
@@ -781,10 +793,12 @@ async def match_page(request: Request, match_id: str, db: AsyncSession = Depends
     match_day_share_code = None
     match_day_scorer_token = None
     is_owner = False
+    md_closed = False
     if match.match_day_id:
         md_result = await db.execute(select(MatchDay).where(MatchDay.id == match.match_day_id))
         match_day = md_result.scalar_one_or_none()
         if match_day:
+            md_closed = match_day.closed_at is not None
             match_day_share_code = match_day.share_code
             match_day_scorer_token = match_day.scorer_token
             if user:
@@ -797,7 +811,8 @@ async def match_page(request: Request, match_id: str, db: AsyncSession = Depends
         (match.scorer_token and secrets.compare_digest(token, match.scorer_token))
         or (match_day_scorer_token and secrets.compare_digest(token, match_day_scorer_token))
     )
-    is_scorer = is_owner or is_token_scorer
+    # A closed match day is read-only: no scoring controls for anyone
+    is_scorer = (is_owner or is_token_scorer) and not md_closed
 
     scorer_token = None
     if is_scorer:
@@ -1299,6 +1314,8 @@ async def create_match_day_doubles(match_day_id: str, data: DoublesCreate, reque
     match_day = result.scalar_one_or_none()
     if not match_day:
         raise HTTPException(status_code=404, detail="Match day not found")
+    if match_day.closed_at is not None:
+        raise HTTPException(status_code=409, detail="Match day is closed")
 
     # Owner/superadmin session, or the match day's scorer token (the on-court
     # scorer via /scoreday/{token} is exactly who sets the doubles pairings).
@@ -1380,7 +1397,7 @@ async def list_match_days(request: Request, db: AsyncSession = Depends(get_db)):
             select(Match).where(Match.match_day_id == md.id)
         )
         matches = matches_result.scalars().all()
-        archive.append({**md.to_dict(), **compute_matchday_stats(matches)})
+        archive.append({**md.to_dict(), **compute_matchday_stats(matches, md.closed_at is not None)})
 
     return {"match_days": archive}
 
@@ -2048,6 +2065,36 @@ async def import_matchday_results(match_day_id: str, request: Request, db: Async
     await manager.broadcast_matchday(match_day.id, {"type": "initial", "matches": matches})
 
     return {"success": True, "matches_imported": len(created)}
+
+
+async def _set_matchday_closed(match_day_id: str, request: Request, db: AsyncSession, close: bool):
+    """Close (end early) or reopen a match day. Owner/superadmin only."""
+    result = await db.execute(select(MatchDay).where(MatchDay.id == match_day_id))
+    match_day = result.scalar_one_or_none()
+    if not match_day:
+        raise HTTPException(status_code=404, detail="Match day not found")
+    user = await get_current_user(request, db)
+    if not user or not await is_owner_or_superadmin(user, match_day):
+        raise HTTPException(status_code=403, detail="Access denied")
+
+    match_day.closed_at = datetime.utcnow() if close else None
+    await db.commit()
+
+    # Open spectator/scorer views reload to pick up the (un)locked state
+    await manager.broadcast_matchday(match_day.id, {"type": "matchday_status", "closed": close})
+    return {"success": True, "closed_at": match_day.closed_at.isoformat() if match_day.closed_at else None}
+
+
+@app.post("/api/admin/matchdays/{match_day_id}/close")
+async def close_match_day(match_day_id: str, request: Request, db: AsyncSession = Depends(get_db)):
+    """End a match day early, even if not all results are entered."""
+    return await _set_matchday_closed(match_day_id, request, db, close=True)
+
+
+@app.post("/api/admin/matchdays/{match_day_id}/reopen")
+async def reopen_match_day(match_day_id: str, request: Request, db: AsyncSession = Depends(get_db)):
+    """Undo a manual close: scoring is possible again."""
+    return await _set_matchday_closed(match_day_id, request, db, close=False)
 
 
 @app.post("/api/matchdays/{match_day_id}/setup")

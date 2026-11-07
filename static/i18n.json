@@ -1090,5 +1090,29 @@
   "matchday.correct_score": {
     "en": "Correct score",
     "de": "Ergebnis korrigieren"
+  },
+  "matchday.closed_early": {
+    "en": "Ended early ({done}/{total} matches)",
+    "de": "Vorzeitig beendet ({done}/{total} Spiele)"
+  },
+  "admin.close_matchday": {
+    "en": "End match day",
+    "de": "Spieltag beenden"
+  },
+  "admin.close_confirm": {
+    "en": "End \"{name}\" now? Matches without a result stay unplayed and scoring is locked. You can reopen it later.",
+    "de": "„{name}“ jetzt beenden? Spiele ohne Ergebnis bleiben offen, Zählen ist danach gesperrt. Du kannst ihn später wieder öffnen."
+  },
+  "admin.reopen_matchday": {
+    "en": "Reopen",
+    "de": "Wieder öffnen"
+  },
+  "admin.closed_badge": {
+    "en": "Ended",
+    "de": "Beendet"
+  },
+  "admin.close_failed": {
+    "en": "Could not change the match day",
+    "de": "Spieltag konnte nicht geändert werden"
   }
 }
